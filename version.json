@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "ruby_files": [
     "LeHai_Tools/main.rb",
     "LeHai_Tools/updater.rb",

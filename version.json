@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "ruby_files": [
+    "LeHai_Tools/main.rb",
+    "LeHai_Tools/updater.rb",
+    "LeHai_Tools/auto_dan_canh/main.rb",
+    "LeHai_Tools/canh_cnc/main.rb",
+    "LeHai_Tools/tam_go/main.rb",
+    "LeHai_Tools/tam_go/ui/dialog.html",
+    "LeHai_Tools/ha_nen/main.rb",
+    "LeHai_Tools/dien_ten/main.rb",
+    "LeHai_Tools/dien_ten/core/namer.rb",
+    "LeHai_Tools/dien_ten/ui/menu.rb",
+    "LeHai_Tools/dien_ten/ui/dialog.rb",
+    "LeHai_Tools/dien_ten/ui/dialog.html"
+  ]
+}

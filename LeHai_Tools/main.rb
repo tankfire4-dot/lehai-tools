@@ -4,6 +4,7 @@ module LeHai
     unless file_loaded?(__FILE__)
       path = File.dirname(__FILE__)
 
+      require File.join(path, 'updater')
       require File.join(path, 'auto_dan_canh', 'main')
       require File.join(path, 'canh_cnc',      'main')
       require File.join(path, 'tam_go',        'main')
@@ -24,6 +25,8 @@ module LeHai
       else
         toolbar.restore
       end
+
+      LeHai::Tools.check_update
 
       file_loaded(__FILE__)
     end

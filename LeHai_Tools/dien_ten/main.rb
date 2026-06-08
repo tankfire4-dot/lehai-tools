@@ -15,8 +15,8 @@ module TuDong
 
       if top_level.empty?
         UI.messagebox(
-          "Vui long chon it nhat mot component hoac group.\n\n" \
-          "Cac doi tuong bi khoa (locked) se bi bo qua.",
+          "Vui lòng chọn ít nhất một component hoặc group.\n\n" \
+          "Các đối tượng bị khóa (locked) sẽ bị bỏ qua.",
           MB_OK
         )
         return

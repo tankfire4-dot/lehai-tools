@@ -13,11 +13,11 @@ module LeHai
 
       toolbar = UI::Toolbar.new("LeHai's Decor Tools")
       [
-        MyStudio::AutoEdgeBand,
-        CanhCNC,
-        Lehai::TamGoGen,
-        LeHaiDecor::HaNen,
-        TuDong::DienTen
+        ::MyStudio::AutoEdgeBand,
+        ::CanhCNC,
+        ::Lehai::TamGoGen,
+        ::LeHaiDecor::HaNen,
+        ::TuDong::DienTen
       ].each { |mod| toolbar.add_item(mod.create_cmd) }
 
       if toolbar.get_last_state == TB_NEVER_SHOWN

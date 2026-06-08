@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>🚪Tạo Tấm Gỗ Nhanh</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #1e1e2e; color: #cdd6f4;
+    padding: 16px; font-size: 13px; line-height: 1.5;
+  }
+  h2 {
+    font-size: 15px; color: #89b4fa;
+    margin-bottom: 16px; padding-bottom: 10px;
+    border-bottom: 1px solid #313244;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .field { margin-bottom: 12px; }
+  label {
+    display: block; font-size: 11px; color: #a6adc8;
+    margin-bottom: 4px; text-transform: uppercase;
+    letter-spacing: 0.5px; font-weight: 600;
+  }
+  input[type="text"], input.calc {
+    width: 100%; padding: 7px 10px;
+    background: #313244; border: 1px solid #45475a;
+    border-radius: 6px; color: #cdd6f4; font-size: 13px;
+    outline: none; transition: border-color .2s, background .2s;
+  }
+  input:focus { border-color: #89b4fa; background: #3b3d52; }
+  input.ok  { border-color: #a6e3a1 !important; }
+  input.err { border-color: #f38ba8 !important; }
+  .row { display: flex; gap: 10px; }
+  .row .field { flex: 1; }
+  .presets { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
+  .preset {
+    padding: 3px 10px; background: #45475a;
+    border: 1px solid #585b70; border-radius: 5px;
+    color: #cdd6f4; cursor: pointer; font-size: 11px;
+    font-weight: 500; user-select: none; transition: all .15s;
+  }
+  .preset:hover  { background: #585b70; }
+  .preset.active { background: #89b4fa; color: #1e1e2e; border-color: #89b4fa; font-weight: 700; }
+  .divider { height: 1px; background: #313244; margin: 12px 0; }
+
+  /* Preview */
+  .preview-wrap {
+    background: radial-gradient(ellipse at 40% 40%, #2e2e42, #181820);
+    border-radius: 10px;
+    border: 1px solid #2a2a3e;
+    padding: 10px 10px 4px;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  #prev { display: block; width: 100%; height: 110px; }
+
+  /* Orient + Rotate */
+  .orient-section { margin-bottom: 12px; }
+  .orient-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .orient-btn {
+    flex: 1; padding: 8px 6px;
+    background: #313244; border: 2px solid #45475a;
+    border-radius: 8px; color: #a6adc8; cursor: pointer;
+    font-size: 12px; text-align: center;
+    user-select: none; transition: all .15s;
+  }
+  .orient-btn:hover  { border-color: #585b70; color: #cdd6f4; }
+  .orient-btn.active { border-color: #89b4fa; color: #89b4fa; background: #1e2a3d; font-weight: 600; }
+  .orient-icon { font-size: 16px; display: block; margin-bottom: 2px; }
+
+  .rotate-btn {
+    width: 100%; padding: 8px 12px;
+    background: #313244; border: 2px solid #45475a;
+    border-radius: 8px; color: #a6adc8; cursor: pointer;
+    font-size: 12px; text-align: center;
+    user-select: none; transition: all .15s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .rotate-btn:hover { border-color: #585b70; color: #cdd6f4; }
+  .rotate-btn.active { border-color: #f9e2af; color: #f9e2af; background: #2a2318; font-weight: 600; }
+  .rotate-icon { font-size: 15px; transition: transform .3s ease; }
+  .rotate-btn.active .rotate-icon { transform: rotate(90deg); }
+
+  .btn-create {
+    width: 100%; padding: 10px;
+    background: #89b4fa; color: #1e1e2e;
+    border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    transition: background .2s, transform .1s; margin-top: 2px;
+  }
+  .btn-create:hover  { background: #b4befe; }
+  .btn-create:active { transform: scale(.98); }
+  .flash {
+    display: none; background: #a6e3a1; color: #1e1e2e;
+    border-radius: 6px; padding: 7px 10px;
+    font-size: 12px; font-weight: 600; text-align: center; margin-top: 8px;
+  }
+  .note  { font-size: 11px; color: #585b70; text-align: center; margin-top: 8px; }
+  .brand { font-size: 10px; color: #45475a; text-align: right; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h2>🪵 Tạo Tấm Gỗ Nhanh</h2>
+
+<div class="field">
+  <label>Tên tấm gỗ (tên Group)</label>
+  <input type="text" id="name" placeholder="Vd: Tấm hậu, Tấm cạnh trái..." value="Tấm gỗ">
+</div>
+
+<div class="row">
+  <div class="field">
+    <label>Chiều dài (mm)</label>
+    <input class="calc" id="length" value="2400" placeholder="vd: 2400-17.5*2">
+  </div>
+  <div class="field">
+    <label>Chiều rộng (mm)</label>
+    <input class="calc" id="width"  value="600">
+  </div>
+</div>
+
+<div class="field">
+  <label>Độ dày (mm)</label>
+  <input class="calc" id="thickness" value="17.5">
+  <div class="presets">
+    <span class="preset active" onclick="setThick(17.5,this)">17.5 mm</span>
+    <span class="preset"        onclick="setThick(9,   this)">9 mm</span>
+    <span class="preset"        onclick="setThick(18,  this)">18 mm</span>
+    <span class="preset"        onclick="setThick(12,  this)">12 mm</span>
+    <span class="preset"        onclick="setThick(25,  this)">25 mm</span>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="preview-wrap">
+  <canvas id="prev"></canvas>
+</div>
+
+<div class="orient-section">
+  <label style="margin-bottom:7px;">Hướng đặt tấm</label>
+  <div class="orient-row">
+    <div class="orient-btn active" id="btn-flat" onclick="setOrient(false)">
+      <span class="orient-icon">━━</span>Nằm ngang
+    </div>
+    <div class="orient-btn" id="btn-vert" onclick="setOrient(true)">
+      <span class="orient-icon">┃</span>Đứng thẳng
+    </div>
+  </div>
+  <div class="rotate-btn" id="btn-rotate" onclick="toggleRotate()">
+    <span class="rotate-icon">↻</span>
+    <span id="rotate-label">Xoay 90° — Tắt</span>
+  </div>
+</div>
+
+<button class="btn-create" onclick="doCreate()">🖱 Tạo &amp; Đặt Tấm Gỗ</button>
+<div class="flash" id="flash">✔ Di chuyển chuột vào viewport rồi click để đặt!</div>
+<p class="note">Tấm gỗ bám theo con trỏ — click để đặt, ESC để huỷ</p>
+<p class="brand">Le Hai Studio v2.2.1</p>
+
+<script>
+var isVertical = false;
+var isRotated  = false;
+
+function setThick(v,el) {
+  document.getElementById('thickness').value = v;
+  document.querySelectorAll('.preset').forEach(function(b){b.classList.remove('active');});
+  el.classList.add('active'); drawPreview();
+}
+function setOrient(v) {
+  isVertical = v;
+  document.getElementById('btn-flat').classList.toggle('active',!v);
+  document.getElementById('btn-vert').classList.toggle('active', v);
+  drawPreview();
+}
+function toggleRotate() {
+  isRotated = !isRotated;
+  var btn = document.getElementById('btn-rotate');
+  btn.classList.toggle('active', isRotated);
+  document.getElementById('rotate-label').textContent = isRotated ? 'Xoay 90° — Bật' : 'Xoay 90° — Tắt';
+  drawPreview();
+}
+// Gọi từ Ruby khi người dùng nhấn R trong viewport
+function setRotateExternal(val) {
+  isRotated = (val === true || val === 'true');
+  var btn = document.getElementById('btn-rotate');
+  btn.classList.toggle('active', isRotated);
+  document.getElementById('rotate-label').textContent = isRotated ? 'Xoay 90° — Bật' : 'Xoay 90° — Tắt';
+  drawPreview();
+}
+// Gọi từ Ruby khi người dùng nhấn F trong viewport
+function setVerticalExternal(val) {
+  setOrient(val === true || val === 'true');
+}
+function evalMath(e) {
+  var c = String(e).replace(/[^0-9+\-*\/.()\s]/g,'').trim();
+  if(!c) return NaN;
+  try {
+    var r = Function('"use strict";return('+c+')')();
+    return(typeof r==='number'&&isFinite(r)&&r>0)?Math.round(r*1000)/1000:NaN;
+  } catch(x){return NaN;}
+}
+['length','width','thickness'].forEach(function(id) {
+  var el = document.getElementById(id);
+  el.addEventListener('input', function(){
+    if(id==='thickness') document.querySelectorAll('.preset').forEach(function(b){b.classList.remove('active');});
+    drawPreview();
+  });
+  el.addEventListener('blur', function(){
+    var v=evalMath(this.value);
+    if(!isNaN(v)){this.value=v;this.classList.add('ok');this.classList.remove('err');}
+    else if(this.value.trim()){this.classList.add('err');this.classList.remove('ok');}
+    var s=this; setTimeout(function(){s.classList.remove('ok','err');},1500);
+    drawPreview();
+  });
+});
+function getVal(id){var v=evalMath(document.getElementById(id).value);return isNaN(v)?0:v;}
+function calcDims(){
+  var L=getVal('length'),W=getVal('width'),T=getVal('thickness');
+  if(!L||!W||!T) return null;
+  return isVertical?(isRotated?[T,W,L]:[W,T,L]):(isRotated?[W,L,T]:[L,W,T]);
+}
+
+/* ─────────────────────────────────────────────
+   PREVIEW 2D — mặt phẳng + cạnh dày
+   Face: L × W  |  Strip bên phải: dày T
+───────────────────────────────────────────── */
+function drawPreview() {
+  var canvas = document.getElementById('prev');
+  var CW = canvas.width  = canvas.offsetWidth  || 380;
+  var CH = canvas.height = canvas.offsetHeight || 110;
+  var ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, CW, CH);
+
+  var L = getVal('length'), W = getVal('width'), T = getVal('thickness');
+  if (!L || !W || !T) {
+    ctx.fillStyle = '#3a3a50';
+    ctx.font = '11px Segoe UI,Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Nhập kích thước để xem trước', CW/2, CH/2+4);
+    return;
+  }
+
+  /* ── Layout constants ── */
+  var PAD_X  = 20, PAD_Y = 12;
+  var GAP    = 4;          // khoảng giữa mặt và cạnh dày
+  var LBL_H  = 16;         // chiều cao vùng label phía dưới
+  var availH = CH - PAD_Y * 2 - LBL_H;
+  var availW = CW - PAD_X * 2;
+
+  /* ── Tính kích thước rectangle mặt ──
+     Luôn hiển thị L theo chiều ngang, W theo chiều dọc.
+     Cạnh dày T nằm bên phải, width tối thiểu 6px.        */
+  var STRIP_MIN = 6, STRIP_MAX = 32;
+  // Tính tỉ lệ strip so với mặt (theo chiều ngang)
+  // strip / face_w = T / L  → nhưng giới hạn min/max
+  // Ước tính trước để trừ ra khỏi availW
+  var approxFaceW = availW * 0.88;
+  var stripW = Math.round(
+    Math.max(STRIP_MIN, Math.min(STRIP_MAX, approxFaceW * T / L))
+  );
+
+  // Diện tích còn lại cho mặt
+  var maxFaceW = availW - stripW - GAP;
+  var aspect   = L / W;
+  var faceW, faceH;
+  if (aspect >= maxFaceW / availH) {
+    faceW = maxFaceW; faceH = faceW / aspect;
+  } else {
+    faceH = availH;   faceW = faceH * aspect;
+  }
+
+  // Căn giữa theo chiều ngang
+  var totalW = faceW + GAP + stripW;
+  var rx = Math.round((CW - totalW) / 2);
+  var ry = Math.round(PAD_Y + (availH - faceH) / 2);
+  var sx = rx + faceW + GAP;   // x bắt đầu của strip
+
+  /* ── 1. MẶT GỖ ──────────────────────────────────────── */
+  // Gradient nhẹ từ trên (sáng) xuống dưới (tối)
+  var fg = ctx.createLinearGradient(rx, ry, rx, ry + faceH);
+  fg.addColorStop(0,   '#F0CB62');
+  fg.addColorStop(0.6, '#D8A840');
+  fg.addColorStop(1,   '#B88A28');
+  ctx.fillStyle = fg;
+  ctx.fillRect(rx, ry, faceW, faceH);
+
+  /* ── 2. VÂN GỖ trên mặt (bezier curve ngang) ───────── */
+  ctx.save();
+  ctx.beginPath(); ctx.rect(rx, ry, faceW, faceH); ctx.clip();
+  var nGrain = Math.max(3, Math.min(7, Math.round(faceH / 10)));
+  for (var gi = 0; gi < nGrain; gi++) {
+    var d  = (gi + 0.5) / nGrain;
+    var gy = ry + faceH * d;
+    // Uốn cong nhẹ — deterministic bằng sin
+    var c1x = rx + faceW * 0.3,  c1y = gy + Math.sin(gi * 1.4) * 1.2;
+    var c2x = rx + faceW * 0.7,  c2y = gy + Math.sin(gi * 1.1 + 1) * 1.4;
+    ctx.beginPath();
+    ctx.moveTo(rx, gy + Math.sin(gi * 0.9) * 0.8);
+    ctx.bezierCurveTo(c1x, c1y, c2x, c2y, rx + faceW, gy + Math.sin(gi * 1.3) * 0.6);
+    ctx.strokeStyle = gi % 2 === 0 ? 'rgba(80,42,6,0.30)' : 'rgba(80,42,6,0.16)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  /* ── 3. Viền mặt ────────────────────────────────────── */
+  ctx.strokeStyle = '#4A2C08'; ctx.lineWidth = 1.2;
+  ctx.strokeRect(rx + 0.6, ry + 0.6, faceW - 1.2, faceH - 1.2);
+
+  /* ── 4. CẠnh DÀY (strip bên phải) ──────────────────── */
+  var sg = ctx.createLinearGradient(sx, ry, sx + stripW, ry + faceH);
+  sg.addColorStop(0, '#9A6820');
+  sg.addColorStop(1, '#5A3A0A');
+  ctx.fillStyle = sg;
+  ctx.fillRect(sx, ry, stripW, faceH);
+
+  // Vân đầu gỗ — đường ngang (end grain horizontal lines)
+  ctx.save();
+  ctx.beginPath(); ctx.rect(sx, ry, stripW, faceH); ctx.clip();
+  var nEG = Math.max(3, Math.round(faceH / 7));
+  for (var ei = 0; ei < nEG; ei++) {
+    var ey = ry + (ei + 0.5) * faceH / nEG;
+    ctx.beginPath();
+    ctx.moveTo(sx, ey); ctx.lineTo(sx + stripW, ey);
+    ctx.strokeStyle = 'rgba(25,10,2,0.35)'; ctx.lineWidth = 0.7; ctx.stroke();
+  }
+  ctx.restore();
+
+  // Viền strip
+  ctx.strokeStyle = '#3A2008'; ctx.lineWidth = 1;
+  ctx.strokeRect(sx + 0.5, ry + 0.5, stripW - 1, faceH - 1);
+
+  /* ── 5. NHÃN kích thước ─────────────────────────────── */
+  var lby = ry + faceH + LBL_H - 3;
+  ctx.font = '10px Segoe UI,Arial'; ctx.textAlign = 'center';
+
+  // Nhãn mặt: L × W
+  ctx.fillStyle = '#7a8ab4';
+  ctx.fillText(L + ' \xd7 ' + W + ' mm', rx + faceW / 2, lby);
+
+  // Nhãn dày: T — dọc nếu strip đủ rộng, ngang nếu không
+  ctx.fillStyle = '#5a6a8a';
+  if (stripW >= 16) {
+    ctx.save();
+    ctx.translate(sx + stripW / 2, ry + faceH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.font = '9px Segoe UI,Arial'; ctx.textAlign = 'center';
+    ctx.fillText(T + 'mm', 0, 3.5);
+    ctx.restore();
+    // Cũng ghi dưới
+    ctx.font = '10px Segoe UI,Arial'; ctx.textAlign = 'center';
+    ctx.fillText(T, sx + stripW / 2, lby);
+  } else {
+    // Strip hẹp: ghi label ra ngoài bên phải
+    ctx.textAlign = 'left'; ctx.font = '9px Segoe UI,Arial';
+    ctx.fillText('\u2194 ' + T + 'mm', sx + stripW + 3, ry + faceH / 2 + 3.5);
+  }
+}
+
+function doCreate(){
+  var L=evalMath(document.getElementById('length').value);
+  var W=evalMath(document.getElementById('width').value);
+  var T=evalMath(document.getElementById('thickness').value);
+  var name=document.getElementById('name').value.trim();
+  if(!L||!W||!T){alert('Vui lòng nhập kích thước hợp lệ!');return;}
+  sketchup.tao_tam_go(JSON.stringify({length:L,width:W,thickness:T,name:name,vertical:isVertical,rotated:isRotated}));
+  var f=document.getElementById('flash');
+  f.style.display='block'; setTimeout(function(){f.style.display='none';},4000);
+}
+
+// Phím tắt khi dialog có focus
+window.addEventListener('keydown', function(e) {
+  var tag = document.activeElement ? document.activeElement.tagName : '';
+  var inInput = (tag === 'INPUT' && document.activeElement.type !== 'button');
+
+  if (e.key === 'r' || e.key === 'R') {
+    if (inInput) return;
+    e.preventDefault();
+    toggleRotate();
+    if (typeof sketchup !== 'undefined') sketchup.toggle_rotate_from_dialog();
+  }
+  else if (e.key === 'f' || e.key === 'F') {
+    if (inInput) return;
+    e.preventDefault();
+    setOrient(!isVertical);
+    if (typeof sketchup !== 'undefined') sketchup.toggle_vertical_from_dialog();
+  }
+  else if (e.key === 'Escape') {
+    e.preventDefault();
+    if (typeof sketchup !== 'undefined') sketchup.cancel_place_tool();
+  }
+});
+
+drawPreview();
+</script>
+</body>
+</html>

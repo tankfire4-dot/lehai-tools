@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; font-size: 13px; }
+    body { background: #f0f2f5; padding: 12px; display: flex; flex-direction: column; height: 100vh; }
+
+    /* ── Header ── */
+    .header {
+      background: white; border: 1px solid #d0d5dd;
+      border-radius: 6px; padding: 12px 14px; margin-bottom: 10px; flex-shrink: 0;
+    }
+    .header h2 { font-size: 14px; font-weight: bold; color: #1a3a5c; margin-bottom: 10px; }
+    .header-row { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+    .field { display: flex; align-items: center; gap: 8px; }
+    .field label { font-weight: bold; color: #444; white-space: nowrap; }
+    .field input {
+      border: 1px solid #aaa; border-radius: 4px;
+      padding: 5px 10px; width: 130px; font-size: 13px;
+    }
+    .field input:focus { outline: 2px solid #3d7fc1; border-color: #3d7fc1; }
+    .summary { margin-top: 8px; font-size: 12px; color: #666; display: flex; gap: 16px; align-items: center; }
+    .badge-done { color: #1a6e2e; font-weight: bold; }
+    .badge-todo { color: #c0392b; font-weight: bold; }
+
+    /* ── Table wrapper ── */
+    .table-wrap {
+      background: white; border: 1px solid #d0d5dd;
+      border-radius: 6px; overflow: hidden;
+      flex: 1; display: flex; flex-direction: column; min-height: 0;
+    }
+
+    /* 7 cols: [expand 20px] [dot 28px] [# 24px] [label 1fr] [count 68px] [input 1fr] [preview 185px] */
+    .table-head {
+      display: grid;
+      grid-template-columns: 20px 28px 24px 1fr 68px 1fr 185px;
+      background: #3d7fc1; color: white; font-weight: bold;
+      padding: 7px 10px; gap: 8px; flex-shrink: 0; font-size: 12px;
+    }
+    .table-body { overflow-y: auto; flex: 1; }
+
+    /* ── Parent rows ── */
+    .table-row {
+      display: grid;
+      grid-template-columns: 20px 28px 24px 1fr 68px 1fr 185px;
+      padding: 6px 10px; gap: 8px; align-items: center;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: background 0.1s;
+    }
+    .table-row.even { background: #f8f9fb; }
+    .table-row:hover { background: #ddeeff; }
+    .table-row.active { background: #d0e8ff !important; border-left: 3px solid #3d7fc1; }
+
+    .expand-cell { display: flex; align-items: center; justify-content: center; }
+    .expand-icon {
+      font-size: 9px; color: #3d7fc1; cursor: pointer;
+      padding: 3px 4px; border-radius: 3px; user-select: none;
+      display: inline-block; transition: transform 0.15s;
+    }
+    .expand-icon:hover { background: #d0e8ff; }
+    .expand-icon.expanded { transform: rotate(90deg); }
+
+    /* ── Sub-rows ── */
+    .sub-rows { display: none; background: #f5f8fd; border-bottom: 2px solid #c5d8f0; }
+
+    .sub-row {
+      display: grid;
+      grid-template-columns: 20px 28px 24px 1fr 68px 1fr 185px;
+      padding: 5px 10px; gap: 8px; align-items: center;
+      border-bottom: 1px solid #e8eef8;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+    }
+    .sub-row:hover { background: #e8f0ff; }
+    .sub-row.active { background: #d8eaff !important; border-left: 3px solid #7ab3e0; }
+    .sub-row input {
+      border: 1px solid #bbb; border-radius: 3px;
+      padding: 3px 6px; width: 100%; font-size: 12px;
+    }
+    .sub-row input:focus { outline: 2px solid #3d7fc1; border-color: #3d7fc1; }
+
+    .sub-indent {
+      border-left: 2px solid #b0c8e8;
+      align-self: stretch;
+      margin-left: 8px;
+    }
+
+    /* ── Shared elements ── */
+    .dot { width: 10px; height: 10px; border-radius: 50%; margin: auto; background: #ddd; }
+    .dot.named   { background: #27ae60; }
+    .dot.unnamed { background: #e74c3c; }
+
+    .num      { color: #888; text-align: center; font-size: 12px; }
+    .def-name { color: #444; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+    .existing-name { font-size: 10px; color: #3d7fc1; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .count-badge {
+      display: inline-block; background: #e8f0fe; color: #3d7fc1;
+      border-radius: 10px; padding: 2px 7px; font-size: 11px; font-weight: bold; text-align: center;
+    }
+
+    .table-row input {
+      border: 1px solid #bbb; border-radius: 3px;
+      padding: 4px 7px; width: 100%; font-size: 13px;
+    }
+    .table-row input:focus { outline: 2px solid #3d7fc1; border-color: #3d7fc1; }
+
+    .preview-list { font-size: 11px; color: #1a6e2e; line-height: 1.6; }
+    .preview-list.empty { color: #bbb; font-style: italic; }
+
+    /* ── Footer ── */
+    .footer {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 10px; flex-shrink: 0;
+    }
+    .footer-hint { font-size: 11px; color: #999; }
+    .btn-group { display: flex; gap: 8px; }
+    .btn { padding: 7px 22px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold; }
+    .btn-cancel { background: #e0e0e0; color: #333; }
+    .btn-cancel:hover { background: #ccc; }
+    .btn-apply  { background: #3d7fc1; color: white; }
+    .btn-apply:hover  { background: #2d6fb1; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>Hỗ Trợ Điền Tên Nhanh</h2>
+    <div class="header-row">
+      <div class="field">
+        <label>Mã phòng:</label>
+        <input type="text" id="room" placeholder="VD: PK" oninput="updateAllPreviews()">
+      </div>
+      <div class="field">
+        <label>Tên module:</label>
+        <input type="text" id="mod" placeholder="VD: TuTV" oninput="updateAllPreviews()">
+      </div>
+    </div>
+    <div class="summary">
+      <span id="sumTotal"></span>
+      <span class="badge-done" id="sumDone"></span>
+      <span class="badge-todo" id="sumTodo"></span>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-head">
+      <div></div>
+      <div></div>
+      <div>#</div>
+      <div>Kích thước / Loại</div>
+      <div style="text-align:center">Số lượng</div>
+      <div>Tên đặt (nhập chung)</div>
+      <div>Xem trước</div>
+    </div>
+    <div class="table-body" id="tableBody"></div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-hint">Click dòng → highlight SketchUp &nbsp;·&nbsp; Click ▶ → đặt tên riêng từng tấm</div>
+    <div class="btn-group">
+      <button class="btn btn-cancel" onclick="cancel()">Hủy</button>
+      <button class="btn btn-apply"  onclick="applyNames()">Áp dụng</button>
+    </div>
+  </div>
+
+  <script>
+    var groups      = [];
+    var activeIndex = -1;
+
+    window.onload = function () { sketchup.ready(); };
+
+    // ─── Build UI ──────────────────────────────────────────────────────────────
+
+    function loadGroups(data) {
+      groups = data;
+      var body = document.getElementById('tableBody');
+      body.innerHTML = '';
+      data.forEach(function (g, i) {
+        body.appendChild(createParentRow(g, i));
+        body.appendChild(createSubRowsContainer(g, i));
+      });
+      autoDetectRoomModule(data);
+      updateSummary();
+    }
+
+    function createParentRow(g, i) {
+      var existingNames = g.instances
+        .map(function (inst) { return inst.current; })
+        .filter(function (n) { return n && n.length > 0; });
+      var uniqueExisting = existingNames.filter(function (n, idx, arr) { return arr.indexOf(n) === idx; });
+      var existingNote = uniqueExisting.length > 0
+        ? '<div class="existing-name">Đã có: ' + uniqueExisting.map(esc).join(', ') + '</div>'
+        : '';
+      var hasMultiple = g.instances.length > 1;
+
+      var row = document.createElement('div');
+      row.className = 'table-row' + (i % 2 === 1 ? ' even' : '');
+      row.id        = 'row' + i;
+      row.onclick   = function () { selectRow(i); };
+      row.innerHTML =
+        '<div class="expand-cell">' +
+          (hasMultiple
+            ? '<span class="expand-icon" id="expand' + i + '" onclick="event.stopPropagation();toggleExpand(' + i + ')">&#9654;</span>'
+            : '') +
+        '</div>' +
+        '<div><span class="dot ' + (uniqueExisting.length > 0 ? 'named' : 'unnamed') + '" id="dot' + i + '"></span></div>' +
+        '<div class="num">' + (i + 1) + '</div>' +
+        '<div class="def-name" title="' + esc(g.defName) + '">' + esc(g.defName) + existingNote + '</div>' +
+        '<div style="text-align:center"><span class="count-badge">' + g.instances.length + '</span></div>' +
+        '<div><input type="text" id="n' + i + '" placeholder="Nhập chung →"' +
+          ' oninput="fillGroup(' + i + ')"' +
+          ' onclick="event.stopPropagation()"></div>' +
+        '<div class="preview-list empty" id="p' + i + '">&#8211;</div>';
+      return row;
+    }
+
+    function createSubRowsContainer(g, i) {
+      var container = document.createElement('div');
+      container.className = 'sub-rows';
+      container.id        = 'sub' + i;
+
+      g.instances.forEach(function (inst, k) {
+        var existing = inst.current || '';
+        var letter   = k < 26 ? String.fromCharCode(97 + k) : String(k + 1);
+
+        var subRow = document.createElement('div');
+        subRow.className = 'sub-row';
+        subRow.id        = 'subrow' + i + '_' + k;
+        subRow.onclick   = function (e) {
+          e.stopPropagation();
+          setActiveSubRow(i, k);
+          sketchup.highlight_instance(String(inst.id));
+        };
+        subRow.innerHTML =
+          '<div class="sub-indent"></div>' +
+          '<div><span class="dot ' + (existing ? 'named' : 'unnamed') + '" id="subdot' + i + '_' + k + '"></span></div>' +
+          '<div class="num">' + letter + '</div>' +
+          '<div class="def-name" style="font-size:11px;color:#888">' +
+            (existing ? esc(existing) : '<em style="color:#bbb">ch&#432;a c&#243; t&#234;n</em>') + '</div>' +
+          '<div></div>' +
+          '<div><input type="text" id="sn' + i + '_' + k + '" placeholder="T&#234;n ri&#234;ng"' +
+            ' oninput="onSubInput(' + i + ',' + k + ')"' +
+            ' onclick="event.stopPropagation()"></div>' +
+          '<div class="preview-list empty" id="sp' + i + '_' + k + '">&#8211;</div>';
+        container.appendChild(subRow);
+      });
+
+      return container;
+    }
+
+    // ─── Expand / collapse ─────────────────────────────────────────────────────
+
+    function toggleExpand(i) {
+      var sub  = document.getElementById('sub' + i);
+      var icon = document.getElementById('expand' + i);
+      if (!sub) return;
+      var opening = sub.style.display === 'none' || sub.style.display === '';
+      sub.style.display = opening ? 'block' : 'none';
+      if (icon) {
+        if (opening) { icon.classList.add('expanded'); }
+        else         { icon.classList.remove('expanded'); }
+      }
+    }
+
+    // ─── Input handlers ────────────────────────────────────────────────────────
+
+    // Parent "nhập chung" → fill all sub-row inputs with base+suffix
+    function fillGroup(i) {
+      var base = document.getElementById('n' + i).value.trim();
+      var g    = groups[i];
+      g.instances.forEach(function (inst, k) {
+        var suffix   = g.instances.length === 1 ? '' : String(k + 1);
+        var subInput = document.getElementById('sn' + i + '_' + k);
+        if (subInput) {
+          subInput.value = base ? (base + suffix) : '';
+          updateSubPreview(i, k);
+          updateSubDot(i, k);
+        }
+      });
+      updateParentPreview(i);
+      updateDot(i);
+      updateSummary();
+    }
+
+    // Individual sub-row edited
+    function onSubInput(i, k) {
+      updateSubPreview(i, k);
+      updateSubDot(i, k);
+      updateParentPreview(i);
+      updateDot(i);
+      updateSummary();
+    }
+
+    // ─── Preview & dot updates ─────────────────────────────────────────────────
+
+    function updateSubPreview(i, k) {
+      var input = document.getElementById('sn' + i + '_' + k);
+      var el    = document.getElementById('sp' + i + '_' + k);
+      if (!input || !el) return;
+      var val = input.value.trim();
+      if (!val) { el.innerHTML = '&#8211;'; el.className = 'preview-list empty'; return; }
+      el.innerHTML = esc(buildName(val, ''));
+      el.className = 'preview-list';
+    }
+
+    function updateSubDot(i, k) {
+      var input = document.getElementById('sn' + i + '_' + k);
+      var dot   = document.getElementById('subdot' + i + '_' + k);
+      if (!input || !dot) return;
+      var has = input.value.trim().length > 0 || ((groups[i].instances[k].current || '').length > 0);
+      dot.className = 'dot ' + (has ? 'named' : 'unnamed');
+    }
+
+    function updateParentPreview(i) {
+      var g  = groups[i];
+      var el = document.getElementById('p' + i);
+      var lines = [];
+      g.instances.forEach(function (inst, k) {
+        var sub = document.getElementById('sn' + i + '_' + k);
+        var val = sub ? sub.value.trim() : '';
+        if (val) lines.push(buildName(val, ''));
+      });
+      if (lines.length === 0) { el.innerHTML = '&#8211;'; el.className = 'preview-list empty'; return; }
+      el.innerHTML = lines.map(esc).join('<br>');
+      el.className = 'preview-list';
+    }
+
+    function updateDot(i) {
+      var dot = document.getElementById('dot' + i);
+      if (!dot) return;
+      var any = groups[i].instances.some(function (inst, k) {
+        var sub = document.getElementById('sn' + i + '_' + k);
+        return (sub && sub.value.trim().length > 0) || ((inst.current || '').length > 0);
+      });
+      dot.className = 'dot ' + (any ? 'named' : 'unnamed');
+    }
+
+    function updateAllPreviews() {
+      groups.forEach(function (g, i) {
+        g.instances.forEach(function (_, k) { updateSubPreview(i, k); });
+        updateParentPreview(i);
+        updateDot(i);
+      });
+    }
+
+    // ─── Selection / highlight ─────────────────────────────────────────────────
+
+    function selectRow(i) {
+      clearAllActive();
+      activeIndex = i;
+      var row = document.getElementById('row' + i);
+      if (row) { row.classList.add('active'); row.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+      sketchup.highlight(groups[i].defId);
+    }
+
+    function setActiveSubRow(i, k) {
+      clearAllActive();
+      activeIndex = i;
+      var parent = document.getElementById('row' + i);
+      if (parent) parent.classList.add('active');
+      var sub = document.getElementById('subrow' + i + '_' + k);
+      if (sub) { sub.classList.add('active'); sub.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+    }
+
+    // Called from SketchUp (SelectionObserver) when user clicks in viewport
+    function highlightRow(i) {
+      clearAllActive();
+      activeIndex = i;
+      var row = document.getElementById('row' + i);
+      if (!row) return;
+      row.classList.add('active');
+      row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    function clearAllActive() {
+      if (activeIndex >= 0) {
+        var old = document.getElementById('row' + activeIndex);
+        if (old) old.classList.remove('active');
+        if (groups[activeIndex]) {
+          groups[activeIndex].instances.forEach(function (_, k) {
+            var sr = document.getElementById('subrow' + activeIndex + '_' + k);
+            if (sr) sr.classList.remove('active');
+          });
+        }
+      }
+    }
+
+    // ─── Summary counter ───────────────────────────────────────────────────────
+
+    function isRowDone(i) {
+      return groups[i].instances.some(function (inst, k) {
+        var sub = document.getElementById('sn' + i + '_' + k);
+        return (sub && sub.value.trim().length > 0) || ((inst.current || '').length > 0);
+      });
+    }
+
+    function updateSummary() {
+      var done  = 0;
+      groups.forEach(function (_, i) { if (isRowDone(i)) done++; });
+      var todo  = groups.length - done;
+      var total = groups.length;
+      document.getElementById('sumTotal').textContent = 'Tìm thấy ' + total + ' loại —';
+      document.getElementById('sumDone').textContent  = done + ' đã đặt tên';
+      document.getElementById('sumTodo').textContent  = todo > 0 ? todo + ' chưa đặt tên' : '';
+    }
+
+    // ─── Auto-detect room/module from existing names ───────────────────────────
+
+    function autoDetectRoomModule(data) {
+      for (var i = 0; i < data.length; i++) {
+        for (var j = 0; j < data[i].instances.length; j++) {
+          var name = data[i].instances[j].current;
+          if (!name || name.indexOf('_') < 0) continue;
+          var parts = name.split('_');
+          if (parts.length >= 3) {
+            if (!document.getElementById('room').value) document.getElementById('room').value = parts[0];
+            if (!document.getElementById('mod').value)  document.getElementById('mod').value  = parts[1];
+            updateAllPreviews();
+            return;
+          }
+        }
+      }
+    }
+
+    // ─── Apply / cancel ────────────────────────────────────────────────────────
+
+    function applyNames() {
+      var result = [];
+      groups.forEach(function (g, i) {
+        g.instances.forEach(function (inst, k) {
+          var sub = document.getElementById('sn' + i + '_' + k);
+          if (!sub) return;
+          var val = sub.value.trim();
+          if (!val) return;
+          result.push({ id: inst.id, name: buildName(val, '') });
+        });
+      });
+      sketchup.apply_names(JSON.stringify(result));
+    }
+
+    function cancel() { sketchup.cancel(); }
+
+    // ─── Helpers ───────────────────────────────────────────────────────────────
+
+    function buildName(base, suffix) {
+      var room  = document.getElementById('room').value.trim();
+      var mod   = document.getElementById('mod').value.trim();
+      var parts = [room, mod, base + suffix].filter(function (p) { return p.length > 0; });
+      return parts.join('_');
+    }
+
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  </script>
+</body>
+</html>

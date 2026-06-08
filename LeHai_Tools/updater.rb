@@ -43,7 +43,7 @@ module LeHai
         if content
           dest = File.join(plugins_dir, rel_path)
           FileUtils.mkdir_p(File.dirname(dest))
-          File.open(dest, 'w:UTF-8') { |f| f.write(content) }
+          File.open(dest, 'wb') { |f| f.write(content) }  # wb = binary, giữ nguyên bytes UTF-8
         else
           failed << rel_path
         end

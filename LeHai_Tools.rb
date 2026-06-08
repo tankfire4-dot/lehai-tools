@@ -76,7 +76,7 @@ module LeHai
               if file_res.code.to_i == 200
                 dest = File.join(plugins_dir, rel_path)
                 FileUtils.mkdir_p(File.dirname(dest))
-                File.open(dest, 'w:UTF-8') { |f| f.write(file_res.body) }
+                File.open(dest, 'wb') { |f| f.write(file_res.body) }  # wb = binary
               else
                 failed << rel_path
               end

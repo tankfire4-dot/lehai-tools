@@ -1,6 +1,7 @@
 {
-  "version": "1.2.3",
+  "version": "1.3.0",
   "ruby_files": [
+    "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
     "LeHai_Tools/updater.rb",
     "LeHai_Tools/auto_dan_canh/main.rb",

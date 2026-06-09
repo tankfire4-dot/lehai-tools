@@ -40,22 +40,15 @@ module TuDong
     end
 
     module Dialog
-      @entity_map         = {}
-      @groups             = []
-      @observer           = nil
-      @pre_isolate_hidden = {}
-      @isolated_key       = nil
+      @entity_map = {}
+      @groups     = []
+      @observer   = nil
+      @parent     = nil   # module lớn được chọn; dùng để vào nested edit context
 
       def self.show(targets, parent = nil)
         @entity_map = targets.each_with_object({}) { |e, h| h[e.entityID] = e }
         @groups     = Namer.build_groups(targets)
-
-        # Lưu trạng thái hidden gốc để khôi phục chính xác khi đóng dialog
-        @pre_isolate_hidden = {}
-        @entity_map.each do |id, entity|
-          @pre_isolate_hidden[id] = entity.hidden? rescue false
-        end
-        @isolated_key = nil
+        @parent     = parent
 
         id_to_row = {}
         @groups.each_with_index do |g, i|
@@ -85,45 +78,36 @@ module TuDong
           model.selection.add_observer(@observer)
         end
 
-        # Isolate: ẩn mọi entity trong danh sách NGOẠI TRỪ instances của group này.
-        # Gọi lại với cùng def_id → toggle: khôi phục tất cả.
-        dlg.add_action_callback('isolate') do |_ctx, def_id|
+        # Click dòng cha:
+        #   count = 1 → vào nested edit context [parent, instance] → tấm đó rõ, các tấm khác mờ
+        #   count ≥ 2 → ở lại parent context, select tất cả instances → viền xanh trên cả nhóm
+        dlg.add_action_callback('highlight') do |_ctx, def_id|
           group = @groups.find { |g| g[:defId] == def_id }
           next unless group
 
-          if @isolated_key == def_id
-            restore_visibility
-            @isolated_key = nil
-            model.selection.clear
+          ids      = group[:instances].map { |inst| inst[:id] }
+          entities = ids.map { |id| @entity_map[id] }.compact.reject(&:deleted?)
+          model.selection.clear
+
+          if entities.size == 1 && Sketchup.version.to_f >= 21.0
+            enter_context_if_direct(model, entities.first)
           else
-            ids_to_show      = group[:instances].map { |inst| inst[:id] }.to_set
-            entities_to_show = @entity_map
-                                 .select  { |id, _| ids_to_show.include?(id) }
-                                 .values
-                                 .reject(&:deleted?)
-            isolate_entities(entities_to_show)
-            @isolated_key = def_id
-            model.selection.clear
-            model.selection.add(entities_to_show)
+            # Nhiều instance: quay về parent context rồi select tất cả
+            if @parent && !@parent.deleted? && Sketchup.version.to_f >= 21.0
+              model.active_path = [@parent]
+            end
+            model.selection.add(entities)
           end
         end
 
-        # Isolate đúng 1 instance khi click sub-row.
-        # Gọi lại với cùng entity_id → toggle: khôi phục tất cả.
-        dlg.add_action_callback('isolate_instance') do |_ctx, entity_id_str|
-          entity_id = entity_id_str.to_i
-          entity    = @entity_map[entity_id]
+        # Click sub-row: luôn vào nested context của đúng instance đó
+        dlg.add_action_callback('highlight_instance') do |_ctx, entity_id_str|
+          entity = @entity_map[entity_id_str.to_i]
           next unless entity && !entity.deleted?
-
-          key = "inst_#{entity_id}"
-          if @isolated_key == key
-            restore_visibility
-            @isolated_key = nil
-            model.selection.clear
+          model.selection.clear
+          if Sketchup.version.to_f >= 21.0
+            enter_context_if_direct(model, entity)
           else
-            isolate_entities([entity])
-            @isolated_key = key
-            model.selection.clear
             model.selection.add(entity)
           end
         end
@@ -148,32 +132,32 @@ module TuDong
       class << self
         private
 
-        # Ẩn tất cả entity trong @entity_map trừ những cái trong show_set
-        def isolate_entities(entities_to_show)
-          show_set = entities_to_show.map(&:entityID).to_set
-          @entity_map.each do |id, entity|
-            next if entity.deleted?
-            entity.hidden = !show_set.include?(id)
-          end
-        end
-
-        # Khôi phục trạng thái hidden như trước khi mở dialog
-        def restore_visibility
-          @entity_map.each do |id, entity|
-            next if entity.deleted?
-            entity.hidden = @pre_isolate_hidden[id] || false
+        # Vào [parent, entity] nếu entity là con trực tiếp của @parent.
+        # Nếu nằm sâu hơn (trong sub-group) thì ở lại parent context và select.
+        def enter_context_if_direct(model, entity)
+          if @parent && !@parent.deleted?
+            container = @parent.is_a?(Sketchup::ComponentInstance) \
+              ? @parent.definition.entities \
+              : @parent.entities
+            if container.any? { |e| e.entityID == entity.entityID }
+              model.active_path = [@parent, entity]
+            else
+              model.active_path = [@parent]
+              model.selection.add(entity)
+            end
+          else
+            model.selection.add(entity)
           end
         end
 
         def cleanup(model)
-          restore_visibility
           if @observer
             model.selection.remove_observer(@observer)
             @observer = nil
           end
           model.selection.clear
           model.active_path = nil if Sketchup.version.to_f >= 21.0
-          @isolated_key = nil
+          @parent = nil
         end
       end
     end

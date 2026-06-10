@@ -381,13 +381,16 @@ function drawPreview() {
   }
 }
 
-function swapDims() {
+// Gọi từ Ruby khi người dùng nhấn S trong viewport
+function swapDimsExternal() {
   var L = document.getElementById('length');
   var W = document.getElementById('width');
-  var tmp = L.value;
-  L.value = W.value;
-  W.value = tmp;
+  var tmp = L.value; L.value = W.value; W.value = tmp;
   drawPreview();
+}
+function swapDims() {
+  swapDimsExternal();
+  if (typeof sketchup !== 'undefined') sketchup.swap_dims_from_dialog();
 }
 
 function doCreate(){

@@ -62,6 +62,14 @@ module Lehai
         end
       end
 
+      # S — swap length/width (khi dialog co focus)
+      @dialog.add_action_callback('swap_dims_from_dialog') do |_ctx|
+        UI.start_timer(0, false) do
+          tool = Lehai::TamGoGen.active_tool
+          tool.swap_dims_silent if tool
+        end
+      end
+
       # ESC — huy PlaceTool (khi dialog co focus)
       @dialog.add_action_callback('cancel_place_tool') do |_ctx|
         UI.start_timer(0, false) do
@@ -149,6 +157,17 @@ module Lehai
         Sketchup.active_model.active_view.invalidate
       end
 
+      def swap_dims
+        @length, @width = @width, @length
+        Sketchup.active_model.active_view.invalidate
+        sync_dialog_swap
+      end
+
+      def swap_dims_silent
+        @length, @width = @width, @length
+        Sketchup.active_model.active_view.invalidate
+      end
+
       def onMouseMove(flags, x, y, view)
         @ip.pick(view, x, y)
         @pos = @ip.position
@@ -170,6 +189,8 @@ module Lehai
           toggle_rotated
         when 70, 102   # F/f — toggle nam ngang / dung thang
           toggle_vertical
+        when 83, 115   # S/s — swap length/width
+          swap_dims
         end
         false
       end
@@ -214,6 +235,13 @@ module Lehai
           "typeof setRotateExternal==='function'   && setRotateExternal(#{@rotated});" +
           "typeof setVerticalExternal==='function' && setVerticalExternal(#{@vertical});"
         )
+      rescue StandardError
+        nil
+      end
+
+      def sync_dialog_swap
+        return unless @dialog && @dialog.visible?
+        @dialog.execute_script("typeof swapDimsExternal==='function' && swapDimsExternal();")
       rescue StandardError
         nil
       end

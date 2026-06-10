@@ -321,17 +321,22 @@ module Lehai
     class DrawTool
 
       def initialize(params)
-        @thick   = params[:thick]
-        @name    = params[:name]
-        @dialog  = params[:dialog]
-        @ip1     = Sketchup::InputPoint.new
-        @ip2     = Sketchup::InputPoint.new
-        @state   = :pt1
-        @pt1     = nil
-        @normal  = nil
-        @laser   = nil
-        @mouse_x = 0
-        @mouse_y = 0
+        @thick       = params[:thick]
+        @name        = params[:name]
+        @dialog      = params[:dialog]
+        @ip1         = Sketchup::InputPoint.new
+        @ip2         = Sketchup::InputPoint.new
+        @state       = :pt1
+        @pt1         = nil
+        @normal      = nil
+        @laser       = nil
+        @lock_normal = nil    # mũi tên khoá mặt phẳng
+        @flip        = false  # Tab đổi phía đùn độ dày
+        @cursor_pt2  = nil
+        @last_du     = nil
+        @last_dv     = nil
+        @mouse_x     = 0
+        @mouse_y     = 0
       end
 
       def activate
@@ -360,6 +365,20 @@ module Lehai
           view.tooltip = @ip2.tooltip if @ip2.valid?
         end
         @laser = LeHai::LaserSnap.scan(view, x, y)
+
+        # Cập nhật kích thước live trên ô Measurements
+        if @state == :pt2 && @pt1 && @ip2.valid?
+          pt2         = LeHai::LaserSnap.snapped_point(@laser) || @ip2.position
+          @cursor_pt2 = pt2
+          n    = current_normal(pt2)
+          u, v = plane_axes(n)
+          vec  = pt2.project_to_plane([@pt1, n]) - @pt1
+          @last_du = vec.dot(u)
+          @last_dv = vec.dot(v)
+          Sketchup.set_status_text(
+            "#{@last_du.abs.to_mm.round} x #{@last_dv.abs.to_mm.round} mm", SB_VCB_VALUE
+          )
+        end
         view.invalidate
       end
 
@@ -384,8 +403,9 @@ module Lehai
           @ip2.pick(view, x, y, @ip1)
           return unless @ip2.valid?
           pt2 = LeHai::LaserSnap.snapped_point(@laser) || @ip2.position
-          corners = compute_rect(@pt1, pt2, @normal)
-          place_panel(view.model, corners) if corners
+          n   = current_normal(pt2)
+          corners = compute_rect(@pt1, pt2, n)
+          place_panel(view.model, corners, n) if corners
           LeHai::LaserSnap.clear_cache!
           reset_to_pt1
         end
@@ -397,8 +417,49 @@ module Lehai
         case key
         when VK_ESCAPE
           @state == :pt2 ? reset_to_pt1 : view.model.select_tool(nil)
+        when VK_RIGHT
+          toggle_lock(X_AXIS)
+        when VK_LEFT
+          toggle_lock(Y_AXIS)
+        when VK_UP
+          toggle_lock(Z_AXIS)
+        when VK_DOWN
+          @lock_normal = nil
+          update_status
+          view.invalidate
+        when 9   # Tab — đổi phía đùn độ dày
+          @flip = !@flip
+          view.invalidate
         end
         false
+      end
+
+      # Gõ kích thước chính xác: "600;400", "600,400" hoặc "600x400" (mm)
+      # Hướng lấy theo phía con trỏ đang kéo
+      def enableVCB?; true; end
+
+      def onUserText(text, view)
+        return unless @state == :pt2 && @pt1
+        nums = text.strip.split(/\s*[;,x*]\s*/i).map(&:to_f)
+        if nums.length < 2 || nums.any? { |t| t <= 0 }
+          UI.beep
+          Sketchup.set_status_text('Sai cu phap — vi du: 600;400', SB_VCB_VALUE)
+          return
+        end
+        n    = current_normal
+        u, v = plane_axes(n)
+        du = nums[0] * MM_TO_INCH * ((@last_du || 1) < 0 ? -1 : 1)
+        dv = nums[1] * MM_TO_INCH * ((@last_dv || 1) < 0 ? -1 : 1)
+        corners = [
+          @pt1,
+          @pt1.offset(u, du),
+          @pt1.offset(u, du).offset(v, dv),
+          @pt1.offset(v, dv)
+        ]
+        place_panel(view.model, corners, n)
+        LeHai::LaserSnap.clear_cache!
+        reset_to_pt1
+        view.invalidate
       end
 
       def draw(view)
@@ -414,12 +475,14 @@ module Lehai
 
         if @ip2.valid?
           pt2     = LeHai::LaserSnap.snapped_point(@laser) || @ip2.position
-          corners = compute_rect(@pt1, pt2, @normal)
+          n       = current_normal(pt2)
+          corners = compute_rect(@pt1, pt2, n)
           if corners
-            top = corners.map { |c| c.offset(@normal, @thick) }
+            thick = @flip ? -@thick : @thick
+            top   = corners.map { |c| c.offset(n, thick) }
             view.line_stipple  = ''
             view.line_width    = 2
-            view.drawing_color = Sketchup::Color.new(30, 144, 255, 220)
+            view.drawing_color = preview_color
             view.draw_polyline(corners + [corners.first])
             view.draw_polyline(top + [top.first])
             corners.each_with_index { |c, i| view.draw(GL_LINES, [c, top[i]]) }
@@ -433,7 +496,7 @@ module Lehai
         bb = Geom::BoundingBox.new
         bb.add(@pt1) if @pt1
         if @state == :pt2 && @ip2.valid?
-          corners = compute_rect(@pt1, @ip2.position, @normal)
+          corners = compute_rect(@pt1, @ip2.position, current_normal(@ip2.position))
           corners&.each { |c| bb.add(c) }
         end
         LeHai::LaserSnap.add_extents(@laser, bb)
@@ -451,18 +514,60 @@ module Lehai
       private
 
       def update_status
+        lock = if    @lock_normal == X_AXIS then '  [Khoá ĐỎ]'
+               elsif @lock_normal == Y_AXIS then '  [Khoá XANH LÁ]'
+               elsif @lock_normal == Z_AXIS then '  [Khoá XANH DƯƠNG]'
+               else ''
+               end
         text = @state == :pt1 \
-          ? 'Click điểm 1 — góc đầu tiên tấm gỗ  |  ESC=Thoát' \
-          : 'Click điểm 2 — góc đối diện  |  ESC=Huỷ'
+          ? "Click điểm 1 — góc đầu tiên#{lock}  |  ➡⬅⬆=Khoá mặt  ESC=Thoát" \
+          : "Click điểm 2 — góc đối diện#{lock}  |  Gõ 600;400⏎=Kích thước  Tab=Đổi phía dày  ➡⬅⬆=Khoá mặt  ESC=Huỷ"
         Sketchup.set_status_text(text, SB_PROMPT)
+        Sketchup.set_status_text('Kích thước (mm)', SB_VCB_LABEL)
       end
 
       def reset_to_pt1
-        @state  = :pt1
-        @pt1    = nil
-        @normal = nil
+        @state      = :pt1
+        @pt1        = nil
+        @normal     = nil
+        @cursor_pt2 = nil
+        @last_du    = nil
+        @last_dv    = nil
         @ip2.clear
         update_status
+      end
+
+      # Mặt phẳng vẽ hiện tại:
+      # 1. Khoá bằng mũi tên → dùng trục khoá
+      # 2. Tự nhận theo hướng kéo: trục có chênh lệch nhỏ nhất giữa 2 điểm
+      # 3. Fallback: normal của face tại điểm 1
+      def current_normal(pt2 = nil)
+        return @lock_normal if @lock_normal
+        pt2 ||= @cursor_pt2
+        if @pt1 && pt2
+          dx = (pt2.x - @pt1.x).abs
+          dy = (pt2.y - @pt1.y).abs
+          dz = (pt2.z - @pt1.z).abs
+          min = [dx, dy, dz].min
+          return X_AXIS if dx == min
+          return Y_AXIS if dy == min
+          return Z_AXIS
+        end
+        @normal || Z_AXIS
+      end
+
+      def toggle_lock(axis)
+        @lock_normal = (@lock_normal == axis) ? nil : axis
+        update_status
+        Sketchup.active_model.active_view.invalidate
+      end
+
+      def preview_color
+        if    @lock_normal == X_AXIS then Sketchup::Color.new(255, 60, 60, 220)
+        elsif @lock_normal == Y_AXIS then Sketchup::Color.new(60, 200, 60, 220)
+        elsif @lock_normal == Z_AXIS then Sketchup::Color.new(60, 120, 255, 220)
+        else  Sketchup::Color.new(30, 144, 255, 220)
+        end
       end
 
       def plane_axes(normal)
@@ -493,14 +598,14 @@ module Lehai
         ]
       end
 
-      def place_panel(model, corners)
+      def place_panel(model, corners, normal)
         model.start_operation('Tao Tam Go Ve', true)
         begin
           grp  = model.active_entities.add_group
           grp.name = @name
           face = grp.entities.add_face(corners)
-          face.reverse! if face.normal.dot(@normal) < 0
-          face.pushpull(@thick)
+          face.reverse! if face.normal.dot(normal) < 0
+          face.pushpull(@flip ? -@thick : @thick)
           model.commit_operation
         rescue => e
           model.abort_operation

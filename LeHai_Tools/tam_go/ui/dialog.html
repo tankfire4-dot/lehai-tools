@@ -12,10 +12,20 @@
   }
   h2 {
     font-size: 15px; color: #89b4fa;
-    margin-bottom: 16px; padding-bottom: 10px;
+    margin-bottom: 12px; padding-bottom: 10px;
     border-bottom: 1px solid #313244;
     display: flex; align-items: center; gap: 8px;
   }
+  .mode-tabs { display: flex; gap: 4px; margin-bottom: 14px; }
+  .mode-tab {
+    flex: 1; padding: 6px 8px; text-align: center;
+    background: #313244; border: 1px solid #45475a;
+    border-radius: 6px; color: #a6adc8; cursor: pointer;
+    font-size: 11px; font-weight: 600; user-select: none;
+    transition: all .15s;
+  }
+  .mode-tab:hover { border-color: #585b70; color: #cdd6f4; }
+  .mode-tab.active { background: #1e2a3d; border-color: #89b4fa; color: #89b4fa; }
   .field { margin-bottom: 12px; }
   label {
     display: block; font-size: 11px; color: #a6adc8;
@@ -60,19 +70,12 @@
   .preset:hover  { background: #585b70; }
   .preset.active { background: #89b4fa; color: #1e1e2e; border-color: #89b4fa; font-weight: 700; }
   .divider { height: 1px; background: #313244; margin: 12px 0; }
-
-  /* Preview */
   .preview-wrap {
     background: radial-gradient(ellipse at 40% 40%, #2e2e42, #181820);
-    border-radius: 10px;
-    border: 1px solid #2a2a3e;
-    padding: 10px 10px 4px;
-    margin-bottom: 12px;
-    position: relative;
+    border-radius: 10px; border: 1px solid #2a2a3e;
+    padding: 10px 10px 4px; margin-bottom: 12px;
   }
   #prev { display: block; width: 100%; height: 110px; }
-
-  /* Orient + Rotate */
   .orient-section { margin-bottom: 12px; }
   .orient-row { display: flex; gap: 8px; margin-bottom: 8px; }
   .orient-btn {
@@ -85,7 +88,6 @@
   .orient-btn:hover  { border-color: #585b70; color: #cdd6f4; }
   .orient-btn.active { border-color: #89b4fa; color: #89b4fa; background: #1e2a3d; font-weight: 600; }
   .orient-icon { font-size: 16px; display: block; margin-bottom: 2px; }
-
   .rotate-btn {
     width: 100%; padding: 8px 12px;
     background: #313244; border: 2px solid #45475a;
@@ -98,7 +100,6 @@
   .rotate-btn.active { border-color: #f9e2af; color: #f9e2af; background: #2a2318; font-weight: 600; }
   .rotate-icon { font-size: 15px; transition: transform .3s ease; }
   .rotate-btn.active .rotate-icon { transform: rotate(90deg); }
-
   .btn-create {
     width: 100%; padding: 10px;
     background: #89b4fa; color: #1e1e2e;
@@ -108,6 +109,15 @@
   }
   .btn-create:hover  { background: #b4befe; }
   .btn-create:active { transform: scale(.98); }
+  .btn-draw {
+    width: 100%; padding: 10px;
+    background: #a6e3a1; color: #1e1e2e;
+    border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    transition: background .2s, transform .1s; margin-top: 2px;
+  }
+  .btn-draw:hover  { background: #c0f0b8; }
+  .btn-draw:active { transform: scale(.98); }
   .flash {
     display: none; background: #a6e3a1; color: #1e1e2e;
     border-radius: 6px; padding: 7px 10px;
@@ -121,23 +131,30 @@
 
 <h2>🪵 Tạo Tấm Gỗ Nhanh</h2>
 
+<div class="mode-tabs">
+  <div class="mode-tab active" id="tab-dims" onclick="setMode('dims')">📐 Nhập kích thước</div>
+  <div class="mode-tab" id="tab-draw" onclick="setMode('draw')">✏️ Vẽ trực tiếp</div>
+</div>
+
 <div class="field">
   <label>Tên tấm gỗ (tên Group)</label>
   <input type="text" id="name" placeholder="Vd: Tấm hậu, Tấm cạnh trái..." value="Tấm gỗ">
 </div>
 
-<div class="row">
-  <div class="field">
-    <label>Chiều dài (mm)</label>
-    <input class="calc" id="length" value="2400" placeholder="vd: 2400-17.5*2">
-  </div>
-  <div class="swap-btn" style="flex-direction:column;gap:3px;">
-    <button onclick="swapDims()" title="Đổi chiều dài ↔ chiều rộng">⇄</button>
-    <kbd style="display:block;text-align:center;">S</kbd>
-  </div>
-  <div class="field">
-    <label>Chiều rộng (mm)</label>
-    <input class="calc" id="width"  value="600">
+<div id="section-lw">
+  <div class="row">
+    <div class="field">
+      <label>Chiều dài (mm)</label>
+      <input class="calc" id="length" value="2400" placeholder="vd: 2400-17.5*2">
+    </div>
+    <div class="swap-btn" style="flex-direction:column;gap:3px;">
+      <button onclick="swapDims()" title="Đổi chiều dài ↔ chiều rộng">⇄</button>
+      <kbd style="display:block;text-align:center;">S</kbd>
+    </div>
+    <div class="field">
+      <label>Chiều rộng (mm)</label>
+      <input class="calc" id="width" value="600">
+    </div>
   </div>
 </div>
 
@@ -153,37 +170,63 @@
   </div>
 </div>
 
-<div class="divider"></div>
-
-<div class="preview-wrap">
-  <canvas id="prev"></canvas>
-</div>
-
-<div class="orient-section">
-  <label style="margin-bottom:7px;">Hướng đặt tấm <kbd>F</kbd></label>
-  <div class="orient-row">
-    <div class="orient-btn active" id="btn-flat" onclick="setOrient(false)">
-      <span class="orient-icon">━━</span>Nằm ngang
+<div id="section-dims-rest">
+  <div class="divider"></div>
+  <div class="preview-wrap">
+    <canvas id="prev"></canvas>
+  </div>
+  <div class="orient-section">
+    <label style="margin-bottom:7px;">Hướng đặt tấm <kbd>F</kbd></label>
+    <div class="orient-row">
+      <div class="orient-btn active" id="btn-flat" onclick="setOrient(false)">
+        <span class="orient-icon">━━</span>Nằm ngang
+      </div>
+      <div class="orient-btn" id="btn-vert" onclick="setOrient(true)">
+        <span class="orient-icon">┃</span>Đứng thẳng
+      </div>
     </div>
-    <div class="orient-btn" id="btn-vert" onclick="setOrient(true)">
-      <span class="orient-icon">┃</span>Đứng thẳng
+    <div class="rotate-btn" id="btn-rotate" onclick="toggleRotate()">
+      <span class="rotate-icon">↻</span>
+      <span id="rotate-label">Xoay 90° — Tắt</span>
+      <kbd>R</kbd>
     </div>
   </div>
-  <div class="rotate-btn" id="btn-rotate" onclick="toggleRotate()">
-    <span class="rotate-icon">↻</span>
-    <span id="rotate-label">Xoay 90° — Tắt</span>
-    <kbd>R</kbd>
-  </div>
+  <button class="btn-create" onclick="doCreate()">🖱 Tạo &amp; Đặt Tấm Gỗ</button>
+  <div class="flash" id="flash">✔ Di chuyển chuột vào viewport rồi click để đặt!</div>
+  <p class="note">Tấm gỗ bám theo con trỏ — click để đặt, ESC để huỷ</p>
 </div>
 
-<button class="btn-create" onclick="doCreate()">🖱 Tạo &amp; Đặt Tấm Gỗ</button>
-<div class="flash" id="flash">✔ Di chuyển chuột vào viewport rồi click để đặt!</div>
-<p class="note">Tấm gỗ bám theo con trỏ — click để đặt, ESC để huỷ</p>
+<div id="section-draw" style="display:none">
+  <div class="divider"></div>
+  <button class="btn-draw" onclick="startDraw()">✏️ Bắt Đầu Vẽ 2 Điểm</button>
+  <p class="note" style="margin-top:8px;">Snap góc, cạnh, hoặc tâm mặt ◇ · Click 2 góc chéo · ESC huỷ</p>
+</div>
+
 <p class="brand">Le Hai Studio v2.2.1</p>
 
 <script>
-var isVertical = false;
-var isRotated  = false;
+var isVertical  = false;
+var isRotated   = false;
+var currentMode = 'dims';
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('tab-dims').classList.toggle('active', mode === 'dims');
+  document.getElementById('tab-draw').classList.toggle('active', mode === 'draw');
+  var isDims = mode === 'dims';
+  document.getElementById('section-lw').style.display        = isDims ? '' : 'none';
+  document.getElementById('section-dims-rest').style.display = isDims ? '' : 'none';
+  document.getElementById('section-draw').style.display      = isDims ? 'none' : '';
+}
+
+function startDraw() {
+  var T    = evalMath(document.getElementById('thickness').value);
+  var name = document.getElementById('name').value.trim() || 'Tấm gỗ';
+  if (!T || T <= 0) { alert('Nhập độ dày hợp lệ!'); return; }
+  if (typeof sketchup !== 'undefined') {
+    sketchup.start_draw_tool(JSON.stringify({ thickness: T, name: name }));
+  }
+}
 
 function setThick(v,el) {
   document.getElementById('thickness').value = v;
@@ -203,7 +246,6 @@ function toggleRotate() {
   document.getElementById('rotate-label').textContent = isRotated ? 'Xoay 90° — Bật' : 'Xoay 90° — Tắt';
   drawPreview();
 }
-// Gọi từ Ruby khi người dùng nhấn R trong viewport
 function setRotateExternal(val) {
   isRotated = (val === true || val === 'true');
   var btn = document.getElementById('btn-rotate');
@@ -211,7 +253,6 @@ function setRotateExternal(val) {
   document.getElementById('rotate-label').textContent = isRotated ? 'Xoay 90° — Bật' : 'Xoay 90° — Tắt';
   drawPreview();
 }
-// Gọi từ Ruby khi người dùng nhấn F trong viewport
 function setVerticalExternal(val) {
   setOrient(val === true || val === 'true');
 }
@@ -238,16 +279,7 @@ function evalMath(e) {
   });
 });
 function getVal(id){var v=evalMath(document.getElementById(id).value);return isNaN(v)?0:v;}
-function calcDims(){
-  var L=getVal('length'),W=getVal('width'),T=getVal('thickness');
-  if(!L||!W||!T) return null;
-  return isVertical?(isRotated?[T,W,L]:[W,T,L]):(isRotated?[W,L,T]:[L,W,T]);
-}
 
-/* ─────────────────────────────────────────────
-   PREVIEW 2D — mặt phẳng + cạnh dày
-   Face: L × W  |  Strip bên phải: dày T
-───────────────────────────────────────────── */
 function drawPreview() {
   var canvas = document.getElementById('prev');
   var CW = canvas.width  = canvas.offsetWidth  || 380;
@@ -258,111 +290,68 @@ function drawPreview() {
   var L = getVal('length'), W = getVal('width'), T = getVal('thickness');
   if (!L || !W || !T) {
     ctx.fillStyle = '#3a3a50';
-    ctx.font = '11px Segoe UI,Arial';
-    ctx.textAlign = 'center';
+    ctx.font = '11px Segoe UI,Arial'; ctx.textAlign = 'center';
     ctx.fillText('Nhập kích thước để xem trước', CW/2, CH/2+4);
     return;
   }
 
-  /* ── Layout constants ── */
-  var PAD_X  = 20, PAD_Y = 12;
-  var GAP    = 4;          // khoảng giữa mặt và cạnh dày
-  var LBL_H  = 16;         // chiều cao vùng label phía dưới
+  var PAD_X = 20, PAD_Y = 12, GAP = 4, LBL_H = 16;
   var availH = CH - PAD_Y * 2 - LBL_H;
   var availW = CW - PAD_X * 2;
 
-  /* ── Tính kích thước rectangle mặt ──
-     Luôn hiển thị L theo chiều ngang, W theo chiều dọc.
-     Cạnh dày T nằm bên phải, width tối thiểu 6px.        */
   var STRIP_MIN = 6, STRIP_MAX = 32;
-  // Tính tỉ lệ strip so với mặt (theo chiều ngang)
-  // strip / face_w = T / L  → nhưng giới hạn min/max
-  // Ước tính trước để trừ ra khỏi availW
-  var approxFaceW = availW * 0.88;
-  var stripW = Math.round(
-    Math.max(STRIP_MIN, Math.min(STRIP_MAX, approxFaceW * T / L))
-  );
-
-  // Diện tích còn lại cho mặt
+  var stripW = Math.round(Math.max(STRIP_MIN, Math.min(STRIP_MAX, availW * 0.88 * T / L)));
   var maxFaceW = availW - stripW - GAP;
   var aspect   = L / W;
   var faceW, faceH;
-  if (aspect >= maxFaceW / availH) {
-    faceW = maxFaceW; faceH = faceW / aspect;
-  } else {
-    faceH = availH;   faceW = faceH * aspect;
-  }
+  if (aspect >= maxFaceW / availH) { faceW = maxFaceW; faceH = faceW / aspect; }
+  else                             { faceH = availH;   faceW = faceH * aspect; }
 
-  // Căn giữa theo chiều ngang
   var totalW = faceW + GAP + stripW;
   var rx = Math.round((CW - totalW) / 2);
   var ry = Math.round(PAD_Y + (availH - faceH) / 2);
-  var sx = rx + faceW + GAP;   // x bắt đầu của strip
+  var sx = rx + faceW + GAP;
 
-  /* ── 1. MẶT GỖ ──────────────────────────────────────── */
-  // Gradient nhẹ từ trên (sáng) xuống dưới (tối)
   var fg = ctx.createLinearGradient(rx, ry, rx, ry + faceH);
-  fg.addColorStop(0,   '#F0CB62');
-  fg.addColorStop(0.6, '#D8A840');
-  fg.addColorStop(1,   '#B88A28');
-  ctx.fillStyle = fg;
-  ctx.fillRect(rx, ry, faceW, faceH);
+  fg.addColorStop(0, '#F0CB62'); fg.addColorStop(0.6, '#D8A840'); fg.addColorStop(1, '#B88A28');
+  ctx.fillStyle = fg; ctx.fillRect(rx, ry, faceW, faceH);
 
-  /* ── 2. VÂN GỖ trên mặt (bezier curve ngang) ───────── */
   ctx.save();
   ctx.beginPath(); ctx.rect(rx, ry, faceW, faceH); ctx.clip();
   var nGrain = Math.max(3, Math.min(7, Math.round(faceH / 10)));
   for (var gi = 0; gi < nGrain; gi++) {
-    var d  = (gi + 0.5) / nGrain;
-    var gy = ry + faceH * d;
-    // Uốn cong nhẹ — deterministic bằng sin
-    var c1x = rx + faceW * 0.3,  c1y = gy + Math.sin(gi * 1.4) * 1.2;
-    var c2x = rx + faceW * 0.7,  c2y = gy + Math.sin(gi * 1.1 + 1) * 1.4;
+    var gy = ry + faceH * (gi + 0.5) / nGrain;
     ctx.beginPath();
     ctx.moveTo(rx, gy + Math.sin(gi * 0.9) * 0.8);
-    ctx.bezierCurveTo(c1x, c1y, c2x, c2y, rx + faceW, gy + Math.sin(gi * 1.3) * 0.6);
+    ctx.bezierCurveTo(rx + faceW * 0.3, gy + Math.sin(gi * 1.4) * 1.2,
+                      rx + faceW * 0.7, gy + Math.sin(gi * 1.1 + 1) * 1.4,
+                      rx + faceW, gy + Math.sin(gi * 1.3) * 0.6);
     ctx.strokeStyle = gi % 2 === 0 ? 'rgba(80,42,6,0.30)' : 'rgba(80,42,6,0.16)';
-    ctx.lineWidth = 0.8;
-    ctx.stroke();
+    ctx.lineWidth = 0.8; ctx.stroke();
   }
   ctx.restore();
-
-  /* ── 3. Viền mặt ────────────────────────────────────── */
   ctx.strokeStyle = '#4A2C08'; ctx.lineWidth = 1.2;
   ctx.strokeRect(rx + 0.6, ry + 0.6, faceW - 1.2, faceH - 1.2);
 
-  /* ── 4. CẠnh DÀY (strip bên phải) ──────────────────── */
   var sg = ctx.createLinearGradient(sx, ry, sx + stripW, ry + faceH);
-  sg.addColorStop(0, '#9A6820');
-  sg.addColorStop(1, '#5A3A0A');
-  ctx.fillStyle = sg;
-  ctx.fillRect(sx, ry, stripW, faceH);
-
-  // Vân đầu gỗ — đường ngang (end grain horizontal lines)
+  sg.addColorStop(0, '#9A6820'); sg.addColorStop(1, '#5A3A0A');
+  ctx.fillStyle = sg; ctx.fillRect(sx, ry, stripW, faceH);
   ctx.save();
   ctx.beginPath(); ctx.rect(sx, ry, stripW, faceH); ctx.clip();
   var nEG = Math.max(3, Math.round(faceH / 7));
   for (var ei = 0; ei < nEG; ei++) {
     var ey = ry + (ei + 0.5) * faceH / nEG;
-    ctx.beginPath();
-    ctx.moveTo(sx, ey); ctx.lineTo(sx + stripW, ey);
+    ctx.beginPath(); ctx.moveTo(sx, ey); ctx.lineTo(sx + stripW, ey);
     ctx.strokeStyle = 'rgba(25,10,2,0.35)'; ctx.lineWidth = 0.7; ctx.stroke();
   }
   ctx.restore();
-
-  // Viền strip
   ctx.strokeStyle = '#3A2008'; ctx.lineWidth = 1;
   ctx.strokeRect(sx + 0.5, ry + 0.5, stripW - 1, faceH - 1);
 
-  /* ── 5. NHÃN kích thước ─────────────────────────────── */
   var lby = ry + faceH + LBL_H - 3;
   ctx.font = '10px Segoe UI,Arial'; ctx.textAlign = 'center';
-
-  // Nhãn mặt: L × W
   ctx.fillStyle = '#7a8ab4';
   ctx.fillText(L + ' \xd7 ' + W + ' mm', rx + faceW / 2, lby);
-
-  // Nhãn dày: T — dọc nếu strip đủ rộng, ngang nếu không
   ctx.fillStyle = '#5a6a8a';
   if (stripW >= 16) {
     ctx.save();
@@ -371,17 +360,14 @@ function drawPreview() {
     ctx.font = '9px Segoe UI,Arial'; ctx.textAlign = 'center';
     ctx.fillText(T + 'mm', 0, 3.5);
     ctx.restore();
-    // Cũng ghi dưới
     ctx.font = '10px Segoe UI,Arial'; ctx.textAlign = 'center';
     ctx.fillText(T, sx + stripW / 2, lby);
   } else {
-    // Strip hẹp: ghi label ra ngoài bên phải
     ctx.textAlign = 'left'; ctx.font = '9px Segoe UI,Arial';
-    ctx.fillText('\u2194 ' + T + 'mm', sx + stripW + 3, ry + faceH / 2 + 3.5);
+    ctx.fillText('↔ ' + T + 'mm', sx + stripW + 3, ry + faceH / 2 + 3.5);
   }
 }
 
-// Gọi từ Ruby khi người dùng nhấn S trong viewport
 function swapDimsExternal() {
   var L = document.getElementById('length');
   var W = document.getElementById('width');
@@ -404,29 +390,21 @@ function doCreate(){
   f.style.display='block'; setTimeout(function(){f.style.display='none';},4000);
 }
 
-// Phím tắt khi dialog có focus
 window.addEventListener('keydown', function(e) {
   var tag = document.activeElement ? document.activeElement.tagName : '';
   var inInput = (tag === 'INPUT' && document.activeElement.type !== 'button');
-
   if (e.key === 'r' || e.key === 'R') {
     if (inInput) return;
-    e.preventDefault();
-    toggleRotate();
+    e.preventDefault(); toggleRotate();
     if (typeof sketchup !== 'undefined') sketchup.toggle_rotate_from_dialog();
-  }
-  else if (e.key === 'f' || e.key === 'F') {
+  } else if (e.key === 'f' || e.key === 'F') {
     if (inInput) return;
-    e.preventDefault();
-    setOrient(!isVertical);
+    e.preventDefault(); setOrient(!isVertical);
     if (typeof sketchup !== 'undefined') sketchup.toggle_vertical_from_dialog();
-  }
-  else if (e.key === 's' || e.key === 'S') {
+  } else if (e.key === 's' || e.key === 'S') {
     if (inInput) return;
-    e.preventDefault();
-    swapDims();
-  }
-  else if (e.key === 'Escape') {
+    e.preventDefault(); swapDims();
+  } else if (e.key === 'Escape') {
     e.preventDefault();
     if (typeof sketchup !== 'undefined') sketchup.cancel_place_tool();
   }

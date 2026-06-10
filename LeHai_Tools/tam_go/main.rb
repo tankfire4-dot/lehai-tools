@@ -78,6 +78,16 @@ module Lehai
         end
       end
 
+      # Ve 2 diem — kich hoat DrawTool
+      @dialog.add_action_callback('start_draw_tool') do |_ctx, json_str|
+        begin
+          params = JSON.parse(json_str)
+          UI.start_timer(0, false) { activate_draw_tool(params) }
+        rescue JSON::ParserError => e
+          UI.messagebox("Loi: #{e.message}")
+        end
+      end
+
       @dialog.show
     end
 
@@ -105,6 +115,18 @@ module Lehai
         rotated:  rotated,
         dialog:   @dialog
       )
+      Sketchup.active_model.select_tool(tool)
+    end
+
+    def self.activate_draw_tool(params)
+      thick_mm = params['thickness'].to_f
+      name     = params['name'].to_s.strip
+      name     = 'Tam go' if name.empty?
+      unless thick_mm > 0
+        UI.messagebox('Do day phai lon hon 0mm!')
+        return
+      end
+      tool = DrawTool.new(thick: thick_mm * MM_TO_INCH, name: name, dialog: @dialog)
       Sketchup.active_model.select_tool(tool)
     end
 
@@ -294,6 +316,209 @@ module Lehai
       end
 
     end # class PlaceTool
+
+    class DrawTool
+      FACE_CENTER_SNAP_PX = 12
+
+      def initialize(params)
+        @thick   = params[:thick]
+        @name    = params[:name]
+        @dialog  = params[:dialog]
+        @ip1     = Sketchup::InputPoint.new
+        @ip2     = Sketchup::InputPoint.new
+        @state   = :pt1
+        @pt1     = nil
+        @normal  = nil
+        @snap1   = nil
+        @snap2   = nil
+        @mouse_x = 0
+        @mouse_y = 0
+      end
+
+      def activate
+        Lehai::TamGoGen.active_tool = self
+        update_status
+        Sketchup.active_model.active_view.invalidate
+      end
+
+      def deactivate(view)
+        Lehai::TamGoGen.active_tool = nil
+        view.invalidate
+      end
+
+      def resume(view); activate; end
+      def suspend(view); view.invalidate; end
+
+      def onMouseMove(flags, x, y, view)
+        @mouse_x = x
+        @mouse_y = y
+        if @state == :pt1
+          @ip1.pick(view, x, y)
+          view.tooltip = @ip1.tooltip if @ip1.valid?
+          @snap1 = face_center_snap(@ip1, x, y, view)
+        else
+          @ip2.pick(view, x, y, @ip1)
+          view.tooltip = @ip2.tooltip if @ip2.valid?
+          @snap2 = face_center_snap(@ip2, x, y, view)
+        end
+        view.invalidate
+      end
+
+      def onLButtonDown(flags, x, y, view)
+        if @state == :pt1
+          @ip1.pick(view, x, y)
+          return unless @ip1.valid?
+          @pt1    = @snap1 || @ip1.position
+          @normal = @ip1.face ? @ip1.face.normal : Z_AXIS
+          @snap1  = nil
+          @state  = :pt2
+          update_status
+        else
+          @ip2.pick(view, x, y, @ip1)
+          return unless @ip2.valid?
+          pt2    = @snap2 || @ip2.position
+          @snap2 = nil
+          corners = compute_rect(@pt1, pt2, @normal)
+          place_panel(view.model, corners) if corners
+          reset_to_pt1
+        end
+        view.invalidate
+      end
+
+      def onKeyDown(key, repeat, flags, view)
+        return if repeat > 1
+        case key
+        when VK_ESCAPE
+          @state == :pt2 ? reset_to_pt1 : view.model.select_tool(nil)
+        end
+        false
+      end
+
+      def draw(view)
+        if @state == :pt1
+          @ip1.draw(view) if @ip1.valid? && @ip1.display?
+          draw_face_center_indicator(view, @snap1) if @snap1
+          return
+        end
+
+        return unless @pt1
+
+        view.draw_points([@pt1], 14, 2, Sketchup::Color.new(255, 150, 0))
+
+        if @ip2.valid?
+          pt2     = @snap2 || @ip2.position
+          corners = compute_rect(@pt1, pt2, @normal)
+          if corners
+            view.line_stipple  = ''
+            view.line_width    = 2
+            view.drawing_color = Sketchup::Color.new(30, 144, 255, 220)
+            view.draw_polyline(corners + [corners.first])
+          end
+          @ip2.draw(view) if @ip2.display? && !@snap2
+        end
+        draw_face_center_indicator(view, @snap2) if @snap2
+      end
+
+      def getExtents
+        bb = Geom::BoundingBox.new
+        bb.add(@pt1) if @pt1
+        if @state == :pt2 && @ip2.valid?
+          corners = compute_rect(@pt1, @ip2.position, @normal)
+          corners&.each { |c| bb.add(c) }
+        end
+        bb
+      rescue StandardError
+        Geom::BoundingBox.new
+      end
+
+      # No-op: dialog callbacks từ PlaceTool mode không crash khi DrawTool đang active
+      def toggle_rotated;   end
+      def toggle_vertical;  end
+      def swap_dims;        end
+      def swap_dims_silent; end
+
+      private
+
+      def update_status
+        text = @state == :pt1 \
+          ? 'Click điểm 1 — góc đầu tiên tấm gỗ  |  ESC=Thoát' \
+          : 'Click điểm 2 — góc đối diện  |  ESC=Huỷ'
+        Sketchup.set_status_text(text, SB_PROMPT)
+      end
+
+      def reset_to_pt1
+        @state  = :pt1
+        @pt1    = nil
+        @normal = nil
+        @snap1  = nil
+        @snap2  = nil
+        @ip2.clear
+        update_status
+      end
+
+      def face_center_snap(ip, x, y, view)
+        face = ip.face
+        return nil unless face
+        center = face.bounds.center
+        sc     = view.screen_coords(center)
+        return nil unless sc
+        dist = Math.sqrt((sc.x - x)**2 + (sc.y - y)**2)
+        dist < FACE_CENTER_SNAP_PX ? center : nil
+      end
+
+      def draw_face_center_indicator(view, pt)
+        sc = view.screen_coords(pt)
+        return unless sc
+        s = 8
+        view.line_width    = 2
+        view.drawing_color = Sketchup::Color.new(255, 200, 0)
+        view.line_stipple  = ''
+        view.draw2d(GL_LINE_LOOP, [
+          Geom::Point3d.new(sc.x,     sc.y - s, 0),
+          Geom::Point3d.new(sc.x + s, sc.y,     0),
+          Geom::Point3d.new(sc.x,     sc.y + s, 0),
+          Geom::Point3d.new(sc.x - s, sc.y,     0)
+        ])
+      end
+
+      def plane_axes(normal)
+        n = normal.normalize
+        return [X_AXIS, Y_AXIS] if n.parallel?(Z_AXIS)
+        u = n.cross(Z_AXIS).normalize
+        v = u.cross(n).normalize
+        [u, v]
+      end
+
+      def compute_rect(pt1, pt2, normal)
+        plane    = [pt1, normal]
+        pt2_proj = pt2.project_to_plane(plane)
+        vec      = pt2_proj - pt1
+        return nil if vec.length < 1.mm
+
+        u, v = plane_axes(normal)
+        du   = vec.dot(u)
+        dv   = vec.dot(v)
+        return nil if du.abs < 1.mm || dv.abs < 1.mm
+
+        [pt1, pt1 + u * du, pt1 + u * du + v * dv, pt1 + v * dv]
+      end
+
+      def place_panel(model, corners)
+        model.start_operation('Tao Tam Go Ve', true)
+        begin
+          grp  = model.active_entities.add_group
+          grp.name = @name
+          face = grp.entities.add_face(corners)
+          face.reverse! if face.normal.dot(@normal) < 0
+          face.pushpull(@thick)
+          model.commit_operation
+        rescue => e
+          model.abort_operation
+          UI.messagebox("Loi: #{e.message}\n#{e.backtrace.first(3).join("\n")}")
+        end
+      end
+
+    end # class DrawTool
 
     def self.create_cmd
       cmd = UI::Command.new('Tao Tam Go Nhanh') { Lehai::TamGoGen.show_dialog }

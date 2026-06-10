@@ -53,12 +53,15 @@ module CanhCNC
   # ----------------------------------------------------------
   class ClickToDrawTool
     def initialize(params)
-      @params = params
-      @ip1 = Sketchup::InputPoint.new
-      @ip2 = Sketchup::InputPoint.new
-      @state = 0
+      @params  = params
+      @ip1     = Sketchup::InputPoint.new
+      @ip2     = Sketchup::InputPoint.new
+      @state   = 0
       @mouse_x = nil
       @mouse_y = nil
+      @snap1   = nil
+      @snap2   = nil
+      @pt1     = nil
     end
 
     def activate
@@ -81,9 +84,11 @@ module CanhCNC
       if @state == 0
         @ip1.pick(view, x, y)
         view.tooltip = @ip1.tooltip if @ip1.valid?
+        @snap1 = face_center_snap(@ip1, x, y, view)
       else
         @ip2.pick(view, x, y, @ip1)
         view.tooltip = @ip2.tooltip if @ip2.valid?
+        @snap2 = face_center_snap(@ip2, x, y, view)
       end
       view.invalidate
     end
@@ -92,20 +97,50 @@ module CanhCNC
       if @state == 0
         @ip1.pick(view, x, y)
         if @ip1.valid?
+          @pt1   = @snap1 || @ip1.position
           @state = 1
           Sketchup.status_text = "Click điểm 2: Chọn góc đối diện để dựng cánh tủ."
         end
       else
         @ip2.pick(view, x, y, @ip1)
         if @ip2.valid?
-          CanhCNC.process_geometry(@ip1.position, @ip2.position, @params)
+          pt2 = @snap2 || @ip2.position
+          CanhCNC.process_geometry(@pt1, pt2, @params)
           @state = 0
           @ip1.clear
           @ip2.clear
+          @pt1   = nil
+          @snap1 = nil
+          @snap2 = nil
           Sketchup.status_text = "Đã tạo cánh xong! Click điểm 1 để tiếp tục khoang mới..."
         end
       end
       view.invalidate
+    end
+
+    def face_center_snap(ip, x, y, view)
+      face = ip.face
+      return nil unless face
+      center = face.bounds.center
+      sc     = view.screen_coords(center)
+      return nil unless sc
+      dist = Math.sqrt((sc.x - x)**2 + (sc.y - y)**2)
+      dist < 12 ? center : nil
+    end
+
+    def draw_face_center_indicator(view, pt)
+      sc = view.screen_coords(pt)
+      return unless sc
+      s = 8
+      view.line_width    = 2
+      view.drawing_color = Sketchup::Color.new(255, 200, 0)
+      view.line_stipple  = ''
+      view.draw2d(GL_LINE_LOOP, [
+        Geom::Point3d.new(sc.x,     sc.y - s, 0),
+        Geom::Point3d.new(sc.x + s, sc.y,     0),
+        Geom::Point3d.new(sc.x,     sc.y + s, 0),
+        Geom::Point3d.new(sc.x - s, sc.y,     0)
+      ])
     end
 
     # Vẽ crosshair 2D theo pixel màn hình (luôn hiện, không phụ thuộc snap)
@@ -146,14 +181,15 @@ module CanhCNC
       if @state == 0
         draw_crosshair_2d(view, green)
         @ip1.draw(view) if @ip1.valid? && @ip1.display?
+        draw_face_center_indicator(view, @snap1) if @snap1
         return
       end
 
       # Trạng thái 1: đã có điểm 1, đang hover điểm 2
-      return unless @ip1.valid? && @ip2.valid?
+      return unless @pt1 && @ip2.valid?
 
-      p1 = @ip1.position
-      p2 = @ip2.position
+      p1 = @pt1
+      p2 = @snap2 || @ip2.position
       plane = CanhCNC.detect_plane(p1, p2)
       corners = CanhCNC.rect_corners(p1, p2, plane)
 
@@ -170,7 +206,8 @@ module CanhCNC
 
       # Crosshair xanh tại con trỏ + snap indicator
       draw_crosshair_2d(view, green)
-      @ip2.draw(view) if @ip2.display?
+      @ip2.draw(view) if @ip2.display? && !@snap2
+      draw_face_center_indicator(view, @snap2) if @snap2
     end
   end
 

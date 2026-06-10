@@ -318,7 +318,6 @@ module Lehai
     end # class PlaceTool
 
     class DrawTool
-      FACE_CENTER_SNAP_PX = 12
 
       def initialize(params)
         @thick   = params[:thick]
@@ -459,26 +458,13 @@ module Lehai
       def face_center_snap(ip, x, y, view)
         face = ip.face
         return nil unless face
-        center = face.bounds.center
-        sc     = view.screen_coords(center)
-        return nil unless sc
-        dist = Math.sqrt((sc.x - x)**2 + (sc.y - y)**2)
-        dist < FACE_CENTER_SNAP_PX ? center : nil
+        center    = face.bounds.center
+        threshold = view.pixels_to_model(15, center)
+        ip.position.distance(center) < threshold ? center : nil
       end
 
       def draw_face_center_indicator(view, pt)
-        sc = view.screen_coords(pt)
-        return unless sc
-        s = 8
-        view.line_width    = 2
-        view.drawing_color = Sketchup::Color.new(255, 200, 0)
-        view.line_stipple  = ''
-        view.draw2d(GL_LINE_LOOP, [
-          Geom::Point3d.new(sc.x,     sc.y - s, 0),
-          Geom::Point3d.new(sc.x + s, sc.y,     0),
-          Geom::Point3d.new(sc.x,     sc.y + s, 0),
-          Geom::Point3d.new(sc.x - s, sc.y,     0)
-        ])
+        view.draw_points([pt], 14, 4, Sketchup::Color.new(255, 200, 0))
       end
 
       def plane_axes(normal)

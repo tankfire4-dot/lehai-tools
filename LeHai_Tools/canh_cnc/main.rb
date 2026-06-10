@@ -5,6 +5,7 @@
 
 require 'sketchup.rb'
 require 'json'
+require File.join(File.dirname(__FILE__), '..', 'shared', 'laser_snap')
 
 module CanhCNC
   PLUGIN_NAME = "Tạo Cánh_LeHaiDecor".freeze
@@ -53,16 +54,14 @@ module CanhCNC
   # ----------------------------------------------------------
   class ClickToDrawTool
     def initialize(params)
-      @params    = params
-      @ip1       = Sketchup::InputPoint.new
-      @ip2       = Sketchup::InputPoint.new
-      @state     = 0
-      @mouse_x   = nil
-      @mouse_y   = nil
-      @snap1     = nil
-      @snap2     = nil
-      @pt1       = nil
-      @face_hint = nil
+      @params  = params
+      @ip1     = Sketchup::InputPoint.new
+      @ip2     = Sketchup::InputPoint.new
+      @state   = 0
+      @mouse_x = nil
+      @mouse_y = nil
+      @pt1     = nil
+      @laser   = nil
     end
 
     def activate
@@ -71,6 +70,7 @@ module CanhCNC
       @ip2.clear
       @mouse_x = nil
       @mouse_y = nil
+      @laser   = nil
       Sketchup.status_text = "Click điểm 1: Chọn góc bắt đầu của khoang tủ."
       Sketchup.active_model.active_view.invalidate
     end
@@ -85,20 +85,11 @@ module CanhCNC
       if @state == 0
         @ip1.pick(view, x, y)
         view.tooltip = @ip1.tooltip if @ip1.valid?
-        center    = find_face_center(x, y, view)
-        threshold = center ? view.pixels_to_model(20, center) : nil
-        snapping  = center && @ip1.valid? && @ip1.position.distance(center) < threshold
-        @snap1     = snapping ? center : nil
-        @face_hint = snapping ? nil    : center
       else
         @ip2.pick(view, x, y, @ip1)
         view.tooltip = @ip2.tooltip if @ip2.valid?
-        center    = find_face_center(x, y, view)
-        threshold = center ? view.pixels_to_model(20, center) : nil
-        snapping  = center && @ip2.valid? && @ip2.position.distance(center) < threshold
-        @snap2     = snapping ? center : nil
-        @face_hint = snapping ? nil    : center
       end
+      @laser = LeHai::LaserSnap.scan(view, x, y)
       view.invalidate
     end
 
@@ -106,50 +97,34 @@ module CanhCNC
       if @state == 0
         @ip1.pick(view, x, y)
         if @ip1.valid?
-          @pt1       = @snap1 || @ip1.position
-          @state     = 1
-          @snap1     = nil
-          @face_hint = nil
+          @pt1   = LeHai::LaserSnap.snapped_point(@laser) || @ip1.position
+          @state = 1
           Sketchup.status_text = "Click điểm 2: Chọn góc đối diện để dựng cánh tủ."
         end
       else
         @ip2.pick(view, x, y, @ip1)
         if @ip2.valid?
-          pt2 = @snap2 || @ip2.position
+          pt2 = LeHai::LaserSnap.snapped_point(@laser) || @ip2.position
           CanhCNC.process_geometry(@pt1, pt2, @params)
-          @state     = 0
+          @state = 0
           @ip1.clear
           @ip2.clear
-          @pt1       = nil
-          @snap1     = nil
-          @snap2     = nil
-          @face_hint = nil
+          @pt1 = nil
           Sketchup.status_text = "Đã tạo cánh xong! Click điểm 1 để tiếp tục khoang mới..."
         end
       end
       view.invalidate
     end
 
-    def find_face_center(x, y, view)
-      ray    = view.pickray(x, y)
-      result = view.model.raytest(ray)
-      return nil unless result
-
-      path = result[1]
-      return nil unless path && !path.empty?
-
-      face = path.last
-      return nil unless face.is_a?(Sketchup::Face)
-
-      xform = Geom::Transformation.new
-      path[0..-2].each { |e| xform = xform * e.transformation if e.respond_to?(:transformation) }
-      xform * face.bounds.center
-    end
-
-    def draw_face_center_marker(view, pt, snapping)
-      color = snapping ? Sketchup::Color.new(255, 200, 0) : Sketchup::Color.new(140, 100, 0)
-      size  = snapping ? 14 : 10
-      view.draw_points([pt], size, 4, color)
+    def getExtents
+      bb = Geom::BoundingBox.new
+      bb.add(@pt1) if @pt1
+      bb.add(@ip1.position) if @ip1.valid?
+      bb.add(@ip2.position) if @ip2.valid?
+      LeHai::LaserSnap.add_extents(@laser, bb)
+      bb
+    rescue StandardError
+      Geom::BoundingBox.new
     end
 
     # Vẽ crosshair 2D theo pixel màn hình (luôn hiện, không phụ thuộc snap)
@@ -190,11 +165,7 @@ module CanhCNC
       if @state == 0
         draw_crosshair_2d(view, green)
         @ip1.draw(view) if @ip1.valid? && @ip1.display?
-        if @snap1
-          draw_face_center_marker(view, @snap1, true)
-        elsif @face_hint
-          draw_face_center_marker(view, @face_hint, false)
-        end
+        LeHai::LaserSnap.draw(view, @laser)
         return
       end
 
@@ -202,7 +173,7 @@ module CanhCNC
       return unless @pt1 && @ip2.valid?
 
       p1 = @pt1
-      p2 = @snap2 || @ip2.position
+      p2 = LeHai::LaserSnap.snapped_point(@laser) || @ip2.position
       plane = CanhCNC.detect_plane(p1, p2)
       corners = CanhCNC.rect_corners(p1, p2, plane)
 
@@ -217,14 +188,10 @@ module CanhCNC
       # Marker cam đậm tại điểm 1 đã chốt (filled square)
       view.draw_points([p1], 16, 2, orange)
 
-      # Crosshair xanh tại con trỏ + snap indicator
+      # Crosshair xanh tại con trỏ + tia laser
       draw_crosshair_2d(view, green)
-      @ip2.draw(view) if @ip2.display? && !@snap2
-      if @snap2
-        draw_face_center_marker(view, @snap2, true)
-      elsif @face_hint
-        draw_face_center_marker(view, @face_hint, false)
-      end
+      @ip2.draw(view) if @ip2.display? && !LeHai::LaserSnap.snapped_point(@laser)
+      LeHai::LaserSnap.draw(view, @laser)
     end
   end
 

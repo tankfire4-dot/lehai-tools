@@ -4,6 +4,7 @@
 
 require 'sketchup.rb'
 require 'json'
+require File.join(File.dirname(__FILE__), '..', 'shared', 'laser_snap')
 
 module Lehai
   module TamGoGen
@@ -320,19 +321,17 @@ module Lehai
     class DrawTool
 
       def initialize(params)
-        @thick     = params[:thick]
-        @name      = params[:name]
-        @dialog    = params[:dialog]
-        @ip1       = Sketchup::InputPoint.new
-        @ip2       = Sketchup::InputPoint.new
-        @state     = :pt1
-        @pt1       = nil
-        @normal    = nil
-        @snap1     = nil
-        @snap2     = nil
-        @face_hint = nil
-        @mouse_x   = 0
-        @mouse_y   = 0
+        @thick   = params[:thick]
+        @name    = params[:name]
+        @dialog  = params[:dialog]
+        @ip1     = Sketchup::InputPoint.new
+        @ip2     = Sketchup::InputPoint.new
+        @state   = :pt1
+        @pt1     = nil
+        @normal  = nil
+        @laser   = nil
+        @mouse_x = 0
+        @mouse_y = 0
       end
 
       def activate
@@ -355,20 +354,11 @@ module Lehai
         if @state == :pt1
           @ip1.pick(view, x, y)
           view.tooltip = @ip1.tooltip if @ip1.valid?
-          center    = find_face_center(x, y, view)
-          threshold = center ? view.pixels_to_model(20, center) : nil
-          snapping  = center && @ip1.valid? && @ip1.position.distance(center) < threshold
-          @snap1     = snapping ? center : nil
-          @face_hint = snapping ? nil    : center
         else
           @ip2.pick(view, x, y, @ip1)
           view.tooltip = @ip2.tooltip if @ip2.valid?
-          center    = find_face_center(x, y, view)
-          threshold = center ? view.pixels_to_model(20, center) : nil
-          snapping  = center && @ip2.valid? && @ip2.position.distance(center) < threshold
-          @snap2     = snapping ? center : nil
-          @face_hint = snapping ? nil    : center
         end
+        @laser = LeHai::LaserSnap.scan(view, x, y)
         view.invalidate
       end
 
@@ -376,16 +366,15 @@ module Lehai
         if @state == :pt1
           @ip1.pick(view, x, y)
           return unless @ip1.valid?
-          @pt1    = @snap1 || @ip1.position
-          @normal = @ip1.face ? @ip1.face.normal : Z_AXIS
-          @snap1  = nil
+          @pt1    = LeHai::LaserSnap.snapped_point(@laser) || @ip1.position
+          @normal = (@laser && @laser[:normal]) ||
+                    (@ip1.face ? @ip1.face.normal : Z_AXIS)
           @state  = :pt2
           update_status
         else
           @ip2.pick(view, x, y, @ip1)
           return unless @ip2.valid?
-          pt2    = @snap2 || @ip2.position
-          @snap2 = nil
+          pt2 = LeHai::LaserSnap.snapped_point(@laser) || @ip2.position
           corners = compute_rect(@pt1, pt2, @normal)
           place_panel(view.model, corners) if corners
           reset_to_pt1
@@ -405,11 +394,7 @@ module Lehai
       def draw(view)
         if @state == :pt1
           @ip1.draw(view) if @ip1.valid? && @ip1.display?
-          if @snap1
-            draw_face_center_marker(view, @snap1, true)
-          elsif @face_hint
-            draw_face_center_marker(view, @face_hint, false)
-          end
+          LeHai::LaserSnap.draw(view, @laser)
           return
         end
 
@@ -418,7 +403,7 @@ module Lehai
         view.draw_points([@pt1], 14, 2, Sketchup::Color.new(255, 150, 0))
 
         if @ip2.valid?
-          pt2     = @snap2 || @ip2.position
+          pt2     = LeHai::LaserSnap.snapped_point(@laser) || @ip2.position
           corners = compute_rect(@pt1, pt2, @normal)
           if corners
             view.line_stipple  = ''
@@ -426,13 +411,9 @@ module Lehai
             view.drawing_color = Sketchup::Color.new(30, 144, 255, 220)
             view.draw_polyline(corners + [corners.first])
           end
-          @ip2.draw(view) if @ip2.display? && !@snap2
+          @ip2.draw(view) if @ip2.display? && !LeHai::LaserSnap.snapped_point(@laser)
         end
-        if @snap2
-          draw_face_center_marker(view, @snap2, true)
-        elsif @face_hint
-          draw_face_center_marker(view, @face_hint, false)
-        end
+        LeHai::LaserSnap.draw(view, @laser)
       end
 
       def getExtents
@@ -442,6 +423,7 @@ module Lehai
           corners = compute_rect(@pt1, @ip2.position, @normal)
           corners&.each { |c| bb.add(c) }
         end
+        LeHai::LaserSnap.add_extents(@laser, bb)
         bb
       rescue StandardError
         Geom::BoundingBox.new
@@ -463,36 +445,11 @@ module Lehai
       end
 
       def reset_to_pt1
-        @state     = :pt1
-        @pt1       = nil
-        @normal    = nil
-        @snap1     = nil
-        @snap2     = nil
-        @face_hint = nil
+        @state  = :pt1
+        @pt1    = nil
+        @normal = nil
         @ip2.clear
         update_status
-      end
-
-      def find_face_center(x, y, view)
-        ray    = view.pickray(x, y)
-        result = view.model.raytest(ray)
-        return nil unless result
-
-        path = result[1]
-        return nil unless path && !path.empty?
-
-        face = path.last
-        return nil unless face.is_a?(Sketchup::Face)
-
-        xform = Geom::Transformation.new
-        path[0..-2].each { |e| xform = xform * e.transformation if e.respond_to?(:transformation) }
-        xform * face.bounds.center
-      end
-
-      def draw_face_center_marker(view, pt, snapping)
-        color = snapping ? Sketchup::Color.new(255, 200, 0) : Sketchup::Color.new(140, 100, 0)
-        size  = snapping ? 14 : 10
-        view.draw_points([pt], size, 4, color)
       end
 
       def plane_axes(normal)

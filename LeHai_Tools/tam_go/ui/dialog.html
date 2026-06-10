@@ -44,6 +44,12 @@
     transition: all .15s;
   }
   .swap-btn button:hover { background: #585b70; color: #b4befe; transform: scale(1.15); }
+  kbd {
+    display: inline-block; padding: 1px 5px; font-size: 10px;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #313244; border: 1px solid #585b70;
+    border-radius: 3px; color: #6c7086; line-height: 1.4;
+  }
   .presets { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
   .preset {
     padding: 3px 10px; background: #45475a;
@@ -125,8 +131,9 @@
     <label>Chiều dài (mm)</label>
     <input class="calc" id="length" value="2400" placeholder="vd: 2400-17.5*2">
   </div>
-  <div class="swap-btn">
+  <div class="swap-btn" style="flex-direction:column;gap:3px;">
     <button onclick="swapDims()" title="Đổi chiều dài ↔ chiều rộng">⇄</button>
+    <kbd style="display:block;text-align:center;">S</kbd>
   </div>
   <div class="field">
     <label>Chiều rộng (mm)</label>
@@ -153,7 +160,7 @@
 </div>
 
 <div class="orient-section">
-  <label style="margin-bottom:7px;">Hướng đặt tấm</label>
+  <label style="margin-bottom:7px;">Hướng đặt tấm <kbd>F</kbd></label>
   <div class="orient-row">
     <div class="orient-btn active" id="btn-flat" onclick="setOrient(false)">
       <span class="orient-icon">━━</span>Nằm ngang
@@ -165,6 +172,7 @@
   <div class="rotate-btn" id="btn-rotate" onclick="toggleRotate()">
     <span class="rotate-icon">↻</span>
     <span id="rotate-label">Xoay 90° — Tắt</span>
+    <kbd>R</kbd>
   </div>
 </div>
 
@@ -409,6 +417,11 @@ window.addEventListener('keydown', function(e) {
     e.preventDefault();
     setOrient(!isVertical);
     if (typeof sketchup !== 'undefined') sketchup.toggle_vertical_from_dialog();
+  }
+  else if (e.key === 's' || e.key === 'S') {
+    if (inInput) return;
+    e.preventDefault();
+    swapDims();
   }
   else if (e.key === 'Escape') {
     e.preventDefault();

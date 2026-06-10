@@ -366,9 +366,17 @@ module Lehai
         if @state == :pt1
           @ip1.pick(view, x, y)
           return unless @ip1.valid?
-          @pt1    = LeHai::LaserSnap.snapped_point(@laser) || @ip1.position
-          @normal = (@laser && @laser[:normal]) ||
-                    (@ip1.face ? @ip1.face.normal : Z_AXIS)
+          snap_pt = LeHai::LaserSnap.snapped_point(@laser)
+          @pt1    = snap_pt || @ip1.position
+          @normal = if snap_pt
+                      @laser[:normal]
+                    elsif @ip1.face
+                      @ip1.face.normal
+                    elsif @laser
+                      @laser[:normal]
+                    else
+                      Z_AXIS
+                    end
           @state  = :pt2
           update_status
         else
@@ -406,10 +414,13 @@ module Lehai
           pt2     = LeHai::LaserSnap.snapped_point(@laser) || @ip2.position
           corners = compute_rect(@pt1, pt2, @normal)
           if corners
+            top = corners.map { |c| c.offset(@normal, @thick) }
             view.line_stipple  = ''
             view.line_width    = 2
             view.drawing_color = Sketchup::Color.new(30, 144, 255, 220)
             view.draw_polyline(corners + [corners.first])
+            view.draw_polyline(top + [top.first])
+            corners.each_with_index { |c, i| view.draw(GL_LINES, [c, top[i]]) }
           end
           @ip2.draw(view) if @ip2.display? && !LeHai::LaserSnap.snapped_point(@laser)
         end
@@ -471,7 +482,13 @@ module Lehai
         dv   = vec.dot(v)
         return nil if du.abs < 1.mm || dv.abs < 1.mm
 
-        [pt1, pt1 + u * du, pt1 + u * du + v * dv, pt1 + v * dv]
+        # Vector3d#* là cross product — không nhân vô hướng được, phải dùng offset
+        [
+          pt1,
+          pt1.offset(u, du),
+          pt1.offset(u, du).offset(v, dv),
+          pt1.offset(v, dv)
+        ]
       end
 
       def place_panel(model, corners)

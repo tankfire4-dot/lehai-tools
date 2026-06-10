@@ -456,9 +456,24 @@ module Lehai
       end
 
       def face_center_snap(ip, x, y, view)
-        face = ip.face
+        ph = view.pick_helper
+        ph.do_pick(x, y)
+        return nil if ph.count.zero?
+
+        face  = nil
+        xform = Geom::Transformation.new
+
+        ph.count.times do |i|
+          leaf = ph.leaf_at(i)
+          if leaf.is_a?(Sketchup::Face)
+            face  = leaf
+            xform = ph.transformation_at(i)
+            break
+          end
+        end
+
         return nil unless face
-        center    = face.bounds.center
+        center    = xform * face.bounds.center
         threshold = view.pixels_to_model(15, center)
         ip.position.distance(center) < threshold ? center : nil
       end

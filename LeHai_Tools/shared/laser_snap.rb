@@ -4,26 +4,40 @@
 # Con trỏ "thước laser" dùng chung cho các tool vẽ:
 # Tại vị trí chuột, bắn ray xuyên qua group/component tìm face đang hover,
 # rồi chiếu 2 tia ngang/dọc trong mặt phẳng face → giao với biên face.
-# Từ 2 đoạn giao đó suy ra đường giữa dọc, đường giữa ngang và tâm thật
-# của face (giao 2 đường giữa) — hoạt động với mọi hình dạng face,
-# kể cả face nằm sâu trong group lồng nhau.
+# Từ 2 đoạn giao đó suy ra đường giữa dọc, đường giữa ngang và tâm thật.
+#
+# Ngoài face đang hover, laser còn quét các FACE ĐỒNG PHẲNG lân cận
+# (kể cả nằm trong group/component khác): nếu đường giữa của tấm khác
+# chạy qua gần con trỏ thì hút vào đó — ví dụ rê trên dải mặt của tấm
+# ngang vẫn bắt được đường tim của tấm đứng bên dưới.
 
 module LeHai
   module LaserSnap
 
-    SNAP_PX = 10  # ngưỡng hút vào đường giữa (pixel)
+    SNAP_PX   = 10     # ngưỡng hút vào đường giữa (pixel)
+    NEAR_2D   = 79.0   # chỉ xét face đồng phẳng có tâm cách con trỏ < ~2m
+    PLANE_TOL = 0.04   # lệch mặt phẳng cho phép ~1mm (inch)
+    MAX_FACES = 300    # chặn quét model quá lớn
+    MAX_DEPTH = 3      # độ sâu group lồng nhau khi quét
+
+    @plane_cache = nil
 
     module_function
+
+    # Gọi sau khi tạo/sửa geometry để laser quét lại các face đồng phẳng
+    def clear_cache!
+      @plane_cache = nil
+    end
 
     # Quét laser tại toạ độ chuột (x, y).
     # Trả về Hash hoặc nil nếu không hover lên face nào:
     #   :hit    — điểm chuột chạm face (world)
-    #   :point  — điểm sau khi hút (world): đã kéo về đường giữa/tâm nếu đủ gần
+    #   :point  — điểm sau khi hút (world)
     #   :normal — pháp tuyến face (world)
     #   :snap_u — true: đã hút vào đường giữa DỌC  (giữa trái-phải)
     #   :snap_v — true: đã hút vào đường giữa NGANG (giữa trên-dưới)
-    #   :line_u — [trái, phải] 2 đầu tia ngang trên face
-    #   :line_v — [dưới, trên] 2 đầu tia dọc trên face
+    #   :line_u — [trái, phải] 2 đầu tia ngang
+    #   :line_v — [dưới, trên] 2 đầu tia dọc
     def scan(view, x, y)
       ray    = view.pickray(x, y)
       result = view.model.raytest(ray)
@@ -42,8 +56,8 @@ module LeHai
       pts2d = boundary_2d(face, xform, hit, u, v)
       return nil if pts2d.length < 3
 
-      xs = crossings(pts2d, :u)   # giao tia ngang → offset theo u
-      ys = crossings(pts2d, :v)   # giao tia dọc  → offset theo v
+      xs = crossings(pts2d, :u)
+      ys = crossings(pts2d, :v)
 
       left  = xs.select { |t| t <= 0 }.max
       right = xs.select { |t| t >= 0 }.min
@@ -51,14 +65,41 @@ module LeHai
       top   = ys.select { |t| t >= 0 }.min
       return nil unless left && right && bot && top
 
-      thr    = view.pixels_to_model(SNAP_PX, hit)
-      mid_u  = (left + right) / 2.0   # offset từ chuột tới đường giữa dọc
-      mid_v  = (bot + top)   / 2.0    # offset từ chuột tới đường giữa ngang
-      snap_u = mid_u.abs < thr
-      snap_v = mid_v.abs < thr
+      thr   = view.pixels_to_model(SNAP_PX, hit)
+      mid_u = (left + right) / 2.0   # offset tới đường giữa dọc của face hover
+      mid_v = (bot + top)   / 2.0    # offset tới đường giữa ngang của face hover
 
-      du    = snap_u ? mid_u : 0.0
-      dv    = snap_v ? mid_v : 0.0
+      # Đường giữa của các tấm đồng phẳng lân cận (khi face hover không hút được)
+      ext_u = ext_v = nil
+      if mid_u.abs >= thr || mid_v.abs >= thr
+        ext_u, ext_v = neighbor_centerlines(view.model, face, hit, n, u, v, thr)
+      end
+
+      du = dv = 0.0
+      snap_u = snap_v = false
+      lo_u, hi_u = left, right
+      lo_v, hi_v = bot, top
+
+      if mid_u.abs < thr
+        du = mid_u
+        snap_u = true
+      elsif ext_u
+        du     = ext_u[0]
+        snap_u = true
+        lo_v   = [lo_v, ext_u[1]].min   # kéo dài tia dọc phủ cả tấm nguồn
+        hi_v   = [hi_v, ext_u[2]].max
+      end
+
+      if mid_v.abs < thr
+        dv = mid_v
+        snap_v = true
+      elsif ext_v
+        dv     = ext_v[0]
+        snap_v = true
+        lo_u   = [lo_u, ext_v[1]].min
+        hi_u   = [hi_u, ext_v[2]].max
+      end
+
       point = hit.offset(u, du).offset(v, dv)
 
       {
@@ -67,8 +108,8 @@ module LeHai
         normal: n,
         snap_u: snap_u,
         snap_v: snap_v,
-        line_u: [point.offset(u, left - du), point.offset(u, right - du)],
-        line_v: [point.offset(v, bot  - dv), point.offset(v, top   - dv)]
+        line_u: [point.offset(u, lo_u - du), point.offset(u, hi_u - du)],
+        line_v: [point.offset(v, lo_v - dv), point.offset(v, hi_v - dv)]
       }
     end
 
@@ -76,7 +117,7 @@ module LeHai
     def draw(view, s)
       return unless s
 
-      # 2 tia laser mờ chạy qua con trỏ, cắt hết bề mặt face
+      # 2 tia laser mờ chạy qua con trỏ
       view.line_width    = 1
       view.line_stipple  = '-'
       view.drawing_color = Sketchup::Color.new(0, 180, 255, 170)
@@ -119,6 +160,81 @@ module LeHai
     end
 
     # --- nội bộ ---------------------------------------------------
+
+    # Tìm đường giữa của các face đồng phẳng khác đủ gần con trỏ.
+    # Trả về [ext_u, ext_v]:
+    #   ext_u = [offset_u tới đường giữa dọc,  vmin, vmax của tấm nguồn]
+    #   ext_v = [offset_v tới đường giữa ngang, umin, umax của tấm nguồn]
+    def neighbor_centerlines(model, hit_face, hit, n, u, v, thr)
+      cands_u = []
+      cands_v = []
+
+      coplanar_faces(model, n, hit).each do |f, xf|
+        next if f.deleted? || f == hit_face
+
+        us = []
+        vs = []
+        f.outer_loop.vertices.each do |vert|
+          d = (xf * vert.position) - hit
+          us << d.dot(u)
+          vs << d.dot(v)
+        end
+        umin, umax = us.minmax
+        vmin, vmax = vs.minmax
+
+        cu = (umin + umax) / 2.0
+        cv = (vmin + vmax) / 2.0
+        next if cu.abs > NEAR_2D || cv.abs > NEAR_2D   # tấm quá xa
+
+        cands_u << [cu, vmin, vmax] if cu.abs < thr
+        cands_v << [cv, umin, umax] if cv.abs < thr
+      end
+
+      [
+        cands_u.min_by { |c| c[0].abs },
+        cands_v.min_by { |c| c[0].abs }
+      ]
+    end
+
+    # Danh sách [face, xform] đồng phẳng với mặt đang hover.
+    # Cache theo mặt phẳng — rê chuột trên cùng một mặt không quét lại model.
+    def coplanar_faces(model, n, hit)
+      key = plane_key(n, hit)
+      if @plane_cache && @plane_cache[:key] == key
+        @plane_cache[:faces].delete_if { |f, _| f.deleted? }
+        return @plane_cache[:faces]
+      end
+
+      faces = []
+      collect_coplanar(model.active_entities, Geom::Transformation.new, n, hit, faces, 0)
+      @plane_cache = { key: key, faces: faces }
+      faces
+    end
+
+    def plane_key(n, pt)
+      d = Geom::Vector3d.new(pt.x.to_f, pt.y.to_f, pt.z.to_f).dot(n)
+      [n.x.round(4), n.y.round(4), n.z.round(4), d.round(2)]
+    end
+
+    def collect_coplanar(ents, xf, n, hit, out, depth)
+      return if depth > MAX_DEPTH || out.length >= MAX_FACES
+      ents.each do |e|
+        return if out.length >= MAX_FACES
+        case e
+        when Sketchup::Face
+          fn = xf * e.normal
+          next if fn.length.zero?
+          next unless fn.parallel?(n)
+          p0 = xf * e.vertices.first.position
+          next if ((p0 - hit).dot(n)).abs > PLANE_TOL
+          out << [e, xf]
+        when Sketchup::Group
+          collect_coplanar(e.entities, xf * e.transformation, n, hit, out, depth + 1)
+        when Sketchup::ComponentInstance
+          collect_coplanar(e.definition.entities, xf * e.transformation, n, hit, out, depth + 1)
+        end
+      end
+    end
 
     def world_normal(face, xform)
       (xform * face.normal).normalize

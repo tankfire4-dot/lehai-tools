@@ -336,6 +336,7 @@ module Lehai
 
       def activate
         Lehai::TamGoGen.active_tool = self
+        LeHai::LaserSnap.clear_cache!
         update_status
         Sketchup.active_model.active_view.invalidate
       end
@@ -385,6 +386,7 @@ module Lehai
           pt2 = LeHai::LaserSnap.snapped_point(@laser) || @ip2.position
           corners = compute_rect(@pt1, pt2, @normal)
           place_panel(view.model, corners) if corners
+          LeHai::LaserSnap.clear_cache!
           reset_to_pt1
         end
         view.invalidate

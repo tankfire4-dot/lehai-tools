@@ -71,6 +71,7 @@ module CanhCNC
       @mouse_x = nil
       @mouse_y = nil
       @laser   = nil
+      LeHai::LaserSnap.clear_cache!
       Sketchup.status_text = "Click điểm 1: Chọn góc bắt đầu của khoang tủ."
       Sketchup.active_model.active_view.invalidate
     end
@@ -106,6 +107,7 @@ module CanhCNC
         if @ip2.valid?
           pt2 = LeHai::LaserSnap.snapped_point(@laser) || @ip2.position
           CanhCNC.process_geometry(@pt1, pt2, @params)
+          LeHai::LaserSnap.clear_cache!
           @state = 0
           @ip1.clear
           @ip2.clear

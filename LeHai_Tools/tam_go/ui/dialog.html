@@ -31,8 +31,19 @@
   input:focus { border-color: #89b4fa; background: #3b3d52; }
   input.ok  { border-color: #a6e3a1 !important; }
   input.err { border-color: #f38ba8 !important; }
-  .row { display: flex; gap: 10px; }
+  .row { display: flex; gap: 10px; align-items: flex-end; }
   .row .field { flex: 1; }
+  .swap-btn {
+    flex-shrink: 0; display: flex; align-items: center;
+    padding-bottom: 1px;
+  }
+  .swap-btn button {
+    background: #45475a; border: 1px solid #585b70;
+    border-radius: 6px; color: #89b4fa; cursor: pointer;
+    font-size: 15px; padding: 5px 7px; line-height: 1;
+    transition: all .15s;
+  }
+  .swap-btn button:hover { background: #585b70; color: #b4befe; transform: scale(1.15); }
   .presets { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
   .preset {
     padding: 3px 10px; background: #45475a;
@@ -113,6 +124,9 @@
   <div class="field">
     <label>Chiều dài (mm)</label>
     <input class="calc" id="length" value="2400" placeholder="vd: 2400-17.5*2">
+  </div>
+  <div class="swap-btn">
+    <button onclick="swapDims()" title="Đổi chiều dài ↔ chiều rộng">⇄</button>
   </div>
   <div class="field">
     <label>Chiều rộng (mm)</label>
@@ -357,6 +371,15 @@ function drawPreview() {
     ctx.textAlign = 'left'; ctx.font = '9px Segoe UI,Arial';
     ctx.fillText('\u2194 ' + T + 'mm', sx + stripW + 3, ry + faceH / 2 + 3.5);
   }
+}
+
+function swapDims() {
+  var L = document.getElementById('length');
+  var W = document.getElementById('width');
+  var tmp = L.value;
+  L.value = W.value;
+  W.value = tmp;
+  drawPreview();
 }
 
 function doCreate(){

@@ -122,23 +122,51 @@ module CanhCNC
           @pt1        = LeHai::LaserSnap.snapped_point(@laser) || @ip1.position
           @state      = 1
           @plane_lock = nil
-          Sketchup.status_text = "Click điểm 2: Chọn góc đối diện để dựng cánh tủ."
+          Sketchup.status_text = "Click điểm 2: Chọn góc đối diện để dựng cánh tủ.  |  ESC=Chọn lại điểm 1"
         end
       else
         @ip2.pick(view, x, y, @ip1)
         if @ip2.valid?
           pt2 = LeHai::LaserSnap.snapped_point(@laser) || @ip2.position
+          pt2 = project_to_door_plane(pt2)
           CanhCNC.process_geometry(@pt1, pt2, @params)
           LeHai::LaserSnap.clear_cache!
-          @state      = 0
-          @ip1.clear
-          @ip2.clear
-          @pt1        = nil
-          @plane_lock = nil
+          reset_to_pt1
           Sketchup.status_text = "Đã tạo cánh xong! Click điểm 1 để tiếp tục khoang mới..."
         end
       end
       view.invalidate
+    end
+
+    # ESC (và undo/đổi tool): đang chờ điểm 2 → quay lại chọn điểm 1;
+    # đang ở điểm 1 → thoát tool
+    def onCancel(reason, view)
+      if @state == 1
+        reset_to_pt1
+        Sketchup.status_text = "Đã huỷ. Click điểm 1: Chọn góc bắt đầu của khoang tủ."
+        view.invalidate
+      else
+        view.model.select_tool(nil)
+      end
+    end
+
+    def reset_to_pt1
+      @state      = 0
+      @ip1.clear
+      @ip2.clear
+      @pt1        = nil
+      @plane_lock = nil
+    end
+
+    # Chiếu điểm 2 về mặt phẳng cánh: click xuyên khoang trống trúng tấm hậu
+    # hay đợt bên trong cũng không làm cánh chạy sâu vào thùng tủ
+    def project_to_door_plane(pt2)
+      plane = @plane_lock || CanhCNC.detect_plane(@pt1, pt2)
+      case plane
+      when :xz then Geom::Point3d.new(pt2.x, @pt1.y, pt2.z)
+      when :yz then Geom::Point3d.new(@pt1.x, pt2.y, pt2.z)
+      else pt2
+      end
     end
 
     def getExtents
@@ -198,7 +226,7 @@ module CanhCNC
       return unless @pt1 && @ip2.valid?
 
       p1 = @pt1
-      p2 = LeHai::LaserSnap.snapped_point(@laser) || @ip2.position
+      p2 = project_to_door_plane(LeHai::LaserSnap.snapped_point(@laser) || @ip2.position)
       plane = CanhCNC.detect_plane(p1, p2)
       corners = CanhCNC.rect_corners(p1, p2, plane)
 

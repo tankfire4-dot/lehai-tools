@@ -414,8 +414,10 @@ module CanhCNC
           <div class="col">
             <label>Độ dày ván</label>
             <select id="day">
-              <option value="9">9 mm</option>
-              <option value="17.5" selected>17.5 mm</option>
+              <option value="9">9mm</option>
+              <option value="17.5" selected>17,5mm</option>
+              <option value="10">10mm AC</option>
+              <option value="18">18mm AC</option>
             </select>
           </div>
         </div>

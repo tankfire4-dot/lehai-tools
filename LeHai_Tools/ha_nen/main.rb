@@ -174,7 +174,8 @@ module LeHaiDecor
           "✓ Tạo xong!\n\n" \
           "Tấm: #{total_mm.round(0)} × #{panel_h_mm.round(0)} × #{THICKNESS_MM} mm\n" \
           "Vùng hạ nền: #{arc_mm.round(1)} mm rộng × #{hn_h_mm.round(0)} mm cao\n" \
-          "(lòi #{OVERHANG_MM.to_i} mm trên + dưới)"
+          "(lòi #{OVERHANG_MM.to_i} mm trên + dưới)\n\n" \
+          "Ván hiện tại đang sử dụng độ dày là 17,5mm setup theo Plugin NTT"
         )
       rescue => e
         model.abort_operation

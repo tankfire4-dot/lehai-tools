@@ -17,6 +17,8 @@ module LeHai
     SNAP_PX   = 10     # ngưỡng hút vào đường giữa (pixel)
     NEAR_2D   = 79.0   # chỉ xét face đồng phẳng có tâm cách con trỏ < ~2m
     PLANE_TOL = 0.04   # lệch mặt phẳng cho phép ~1mm (inch)
+    BAND_TOL  = 0.2    # chế độ khoá mặt: nhận face lệch tới ~5mm (mép thụt 2mm)
+    CLIP_LEN  = 24.0   # chế độ khoá mặt: tia vẽ tối đa ~600mm quanh con trỏ
     MAX_FACES = 300    # chặn quét model quá lớn
     MAX_DEPTH = 3      # độ sâu group lồng nhau khi quét
 
@@ -38,7 +40,13 @@ module LeHai
     #   :snap_v — true: đã hút vào đường giữa NGANG (giữa trên-dưới)
     #   :line_u — [trái, phải] 2 đầu tia ngang
     #   :line_v — [dưới, trên] 2 đầu tia dọc
-    def scan(view, x, y)
+    #
+    # plane (tuỳ chọn) = [origin, normal]: KHOÁ laser theo mặt phẳng vẽ —
+    # mọi tia/điểm hút nằm trên mặt đó, tham chiếu lấy từ các face song song
+    # trong dải ±BAND_TOL rồi chiếu phẳng về. Không truyền = hành vi cũ.
+    def scan(view, x, y, plane = nil)
+      return scan_locked(view, x, y, plane) if plane
+
       ray    = view.pickray(x, y)
       result = view.model.raytest(ray)
       return nil unless result
@@ -161,6 +169,112 @@ module LeHai
 
     # --- nội bộ ---------------------------------------------------
 
+    # Quét laser KHOÁ theo mặt phẳng vẽ (bước chọn điểm 2 của tool vẽ).
+    # Con trỏ được chiếu thẳng lên mặt phẳng; biên/tim của các face song song
+    # trong dải ±BAND_TOL (mép ván thụt 1-5mm vẫn tính) được chiếu phẳng về
+    # mặt vẽ rồi mới tính giao và hút — cái thấy luôn nằm đúng mặt đang vẽ.
+    def scan_locked(view, x, y, plane)
+      origin = plane[0]
+      n      = plane[1].normalize
+      ray    = view.pickray(x, y)
+      hit    = Geom.intersect_line_plane(ray, [origin, n])
+      return nil unless hit
+
+      u, v = plane_axes(n)
+      thr  = view.pixels_to_model(SNAP_PX, hit)
+
+      xs = []
+      ys = []
+      cands_u = []
+      cands_v = []
+
+      banded_faces(view.model, n, origin).each do |f, xf|
+        next if f.deleted?
+        pts = f.outer_loop.vertices.map do |vert|
+          d = (xf * vert.position) - hit
+          [d.dot(u), d.dot(v)]
+        end
+        next if pts.length < 3
+
+        xs.concat(crossings(pts, :u))
+        ys.concat(crossings(pts, :v))
+
+        umin, umax = pts.map { |p| p[0] }.minmax
+        vmin, vmax = pts.map { |p| p[1] }.minmax
+        cu = (umin + umax) / 2.0
+        cv = (vmin + vmax) / 2.0
+        next if cu.abs > NEAR_2D || cv.abs > NEAR_2D
+        cands_u << [cu, vmin, vmax] if cu.abs < thr
+        cands_v << [cv, umin, umax] if cv.abs < thr
+      end
+
+      left  = xs.select { |t| t <= 0 }.max
+      right = xs.select { |t| t >= 0 }.min
+      bot   = ys.select { |t| t <= 0 }.max
+      top   = ys.select { |t| t >= 0 }.min
+
+      du = dv = 0.0
+      snap_u = snap_v = false
+      lo_u = left  || -CLIP_LEN
+      hi_u = right ||  CLIP_LEN
+      lo_v = bot   || -CLIP_LEN
+      hi_v = top   ||  CLIP_LEN
+
+      # Tâm cục bộ giữa 2 biên thật gần nhất: tim ván hoặc tim khoang trống
+      if left && right && ((left + right) / 2.0).abs < thr
+        du     = (left + right) / 2.0
+        snap_u = true
+      elsif (best = cands_u.min_by { |c| c[0].abs })
+        du     = best[0]
+        snap_u = true
+        lo_v   = [lo_v, best[1]].min
+        hi_v   = [hi_v, best[2]].max
+      end
+
+      if bot && top && ((bot + top) / 2.0).abs < thr
+        dv     = (bot + top) / 2.0
+        snap_v = true
+      elsif (best = cands_v.min_by { |c| c[0].abs })
+        dv     = best[0]
+        snap_v = true
+        lo_u   = [lo_u, best[1]].min
+        hi_u   = [hi_u, best[2]].max
+      end
+
+      # Cắt tia quanh con trỏ — không kéo dài xuyên qua module khác
+      lo_u = -CLIP_LEN if lo_u < -CLIP_LEN
+      hi_u =  CLIP_LEN if hi_u >  CLIP_LEN
+      lo_v = -CLIP_LEN if lo_v < -CLIP_LEN
+      hi_v =  CLIP_LEN if hi_v >  CLIP_LEN
+
+      point = hit.offset(u, du).offset(v, dv)
+
+      {
+        hit:    hit,
+        point:  point,
+        normal: n,
+        snap_u: snap_u,
+        snap_v: snap_v,
+        line_u: [point.offset(u, lo_u - du), point.offset(u, hi_u - du)],
+        line_v: [point.offset(v, lo_v - dv), point.offset(v, hi_v - dv)]
+      }
+    end
+
+    # Danh sách [face, xform] song song và nằm trong dải ±BAND_TOL quanh
+    # mặt phẳng khoá. Cache riêng theo key :band.
+    def banded_faces(model, n, origin)
+      key = [:band] + plane_key(n, origin)
+      if @plane_cache && @plane_cache[:key] == key
+        @plane_cache[:faces].delete_if { |f, _| f.deleted? }
+        return @plane_cache[:faces]
+      end
+
+      faces = []
+      collect_coplanar(model.active_entities, Geom::Transformation.new, n, origin, faces, 0, BAND_TOL)
+      @plane_cache = { key: key, faces: faces }
+      faces
+    end
+
     # Tìm đường giữa của các face đồng phẳng khác đủ gần con trỏ.
     # Trả về [ext_u, ext_v]:
     #   ext_u = [offset_u tới đường giữa dọc,  vmin, vmax của tấm nguồn]
@@ -216,7 +330,7 @@ module LeHai
       [n.x.round(4), n.y.round(4), n.z.round(4), d.round(2)]
     end
 
-    def collect_coplanar(ents, xf, n, hit, out, depth)
+    def collect_coplanar(ents, xf, n, hit, out, depth, tol = PLANE_TOL)
       return if depth > MAX_DEPTH || out.length >= MAX_FACES
       ents.each do |e|
         return if out.length >= MAX_FACES
@@ -226,12 +340,12 @@ module LeHai
           next if fn.length.zero?
           next unless fn.parallel?(n)
           p0 = xf * e.vertices.first.position
-          next if ((p0 - hit).dot(n)).abs > PLANE_TOL
+          next if ((p0 - hit).dot(n)).abs > tol
           out << [e, xf]
         when Sketchup::Group
-          collect_coplanar(e.entities, xf * e.transformation, n, hit, out, depth + 1)
+          collect_coplanar(e.entities, xf * e.transformation, n, hit, out, depth + 1, tol)
         when Sketchup::ComponentInstance
-          collect_coplanar(e.definition.entities, xf * e.transformation, n, hit, out, depth + 1)
+          collect_coplanar(e.definition.entities, xf * e.transformation, n, hit, out, depth + 1, tol)
         end
       end
     end

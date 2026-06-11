@@ -54,23 +54,25 @@ module CanhCNC
   # ----------------------------------------------------------
   class ClickToDrawTool
     def initialize(params)
-      @params  = params
-      @ip1     = Sketchup::InputPoint.new
-      @ip2     = Sketchup::InputPoint.new
-      @state   = 0
-      @mouse_x = nil
-      @mouse_y = nil
-      @pt1     = nil
-      @laser   = nil
+      @params     = params
+      @ip1        = Sketchup::InputPoint.new
+      @ip2        = Sketchup::InputPoint.new
+      @state      = 0
+      @mouse_x    = nil
+      @mouse_y    = nil
+      @pt1        = nil
+      @laser      = nil
+      @plane_lock = nil
     end
 
     def activate
       @state = 0
       @ip1.clear
       @ip2.clear
-      @mouse_x = nil
-      @mouse_y = nil
-      @laser   = nil
+      @mouse_x    = nil
+      @mouse_y    = nil
+      @laser      = nil
+      @plane_lock = nil
       LeHai::LaserSnap.clear_cache!
       Sketchup.status_text = "Click điểm 1: Chọn góc bắt đầu của khoang tủ."
       Sketchup.active_model.active_view.invalidate
@@ -86,20 +88,40 @@ module CanhCNC
       if @state == 0
         @ip1.pick(view, x, y)
         view.tooltip = @ip1.tooltip if @ip1.valid?
+        @laser = LeHai::LaserSnap.scan(view, x, y)
       else
         @ip2.pick(view, x, y, @ip1)
         view.tooltip = @ip2.tooltip if @ip2.valid?
+        # Khoá laser theo mặt phẳng cánh — tia/điểm hút nằm đúng mặt đang vẽ
+        @laser = LeHai::LaserSnap.scan(view, x, y, door_plane)
       end
-      @laser = LeHai::LaserSnap.scan(view, x, y)
       view.invalidate
+    end
+
+    # Mặt phẳng cánh ở bước điểm 2 (suy từ điểm 1 + con trỏ).
+    # Giữ mặt cũ khi con trỏ gần đường chéo 45° để tránh nhấp nháy XZ/YZ.
+    def door_plane
+      return nil unless @pt1 && @ip2.valid?
+      p2   = @ip2.position
+      cand = CanhCNC.detect_plane(@pt1, p2)
+      return nil if cand == :xy
+      if @plane_lock && @plane_lock != cand
+        dx = (p2.x - @pt1.x).abs
+        dy = (p2.y - @pt1.y).abs
+        lo, hi = [dx, dy].minmax
+        cand = @plane_lock if hi < 1.0e-9 || lo / hi > 0.8
+      end
+      @plane_lock = cand
+      [@pt1, cand == :xz ? Y_AXIS : X_AXIS]
     end
 
     def onLButtonDown(flags, x, y, view)
       if @state == 0
         @ip1.pick(view, x, y)
         if @ip1.valid?
-          @pt1   = LeHai::LaserSnap.snapped_point(@laser) || @ip1.position
-          @state = 1
+          @pt1        = LeHai::LaserSnap.snapped_point(@laser) || @ip1.position
+          @state      = 1
+          @plane_lock = nil
           Sketchup.status_text = "Click điểm 2: Chọn góc đối diện để dựng cánh tủ."
         end
       else
@@ -108,10 +130,11 @@ module CanhCNC
           pt2 = LeHai::LaserSnap.snapped_point(@laser) || @ip2.position
           CanhCNC.process_geometry(@pt1, pt2, @params)
           LeHai::LaserSnap.clear_cache!
-          @state = 0
+          @state      = 0
           @ip1.clear
           @ip2.clear
-          @pt1 = nil
+          @pt1        = nil
+          @plane_lock = nil
           Sketchup.status_text = "Đã tạo cánh xong! Click điểm 1 để tiếp tục khoang mới..."
         end
       end

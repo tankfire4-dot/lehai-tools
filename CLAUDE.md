@@ -1,5 +1,17 @@
 # LeHai Tools — Unified SketchUp Plugin
 
+## Khởi động session
+
+Đọc `C:\Users\tankf\.claude\profile\PROFILE.md` và các file liên quan trước khi làm việc.
+Cập nhật profile nếu có thông tin mới đáng lưu trong session này.
+Sau khi cập nhật bất kỳ file nào trong profile, chạy luôn: `cd C:\Users\tankf\.claude\profile && git add . && git commit -m "update: <nội dung>" && git push`
+
+## Cách làm việc
+
+- Xưng hô: **ông** (Claude) / **tôi** (Khoa) — luôn luôn
+- Giải thích như báo cáo cho sếp không chuyên IT — tránh jargon kỹ thuật
+- Đưa khuyến nghị rõ ràng, không liệt kê options trung lập
+
 ## Mục đích
 
 Gộp tất cả plugin SketchUp của Le Hai Studio vào **1 file `.rbz` duy nhất**, 1 toolbar duy nhất.
@@ -37,17 +49,31 @@ lehai_tools/
     │   ├── main.rb                  ← Module LeHaiDecor::HaNen
     │   ├── LeHai_HaNen_16.png
     │   └── LeHai_HaNen_24.png
-    └── dien_ten/
-        ├── main.rb                  ← Module TuDong::DienTen
+    ├── dien_ten/
+    │   ├── main.rb                  ← Module TuDong::DienTen
+    │   ├── core/
+    │   │   └── namer.rb
+    │   ├── ui/
+    │   │   ├── menu.rb              ← chỉ expose create_cmd, không đăng ký toolbar
+    │   │   ├── dialog.rb
+    │   │   └── dialog.html
+    │   └── icons/
+    │       ├── icon_16.png
+    │       └── icon_24.png
+    └── thu_vien/
+        ├── main.rb                  ← Module TK::ThuVien
         ├── core/
-        │   └── namer.rb
+        │   └── library.rb           ← quét .skp, thumbnail cache, chèn/lưu component
         ├── ui/
-        │   ├── menu.rb              ← chỉ expose create_cmd, không đăng ký toolbar
-        │   ├── dialog.rb
-        │   └── dialog.html
+        │   ├── menu.rb              ← chỉ expose create_cmd
+        │   ├── dialog.rb            ← HtmlDialog + action callbacks
+        │   └── html/
+        │       └── index.html       ← giao diện thư viện (sidebar 2 cấp + lưới thumbnail)
+        ├── components/              ← thư viện .skp mặc định (chọn lại được qua nút ⚙)
+        │   └── HUONG_DAN.txt
         └── icons/
-            ├── icon_16.png
-            └── icon_24.png
+            ├── tk_thuvien_16.png
+            └── tk_thuvien_24.png
 ```
 
 ---
@@ -64,7 +90,7 @@ def self.create_cmd   # → trả về UI::Command đã config đầy đủ
 
 ```ruby
 toolbar = UI::Toolbar.new("LeHai's Decor Tools")
-[MyStudio::AutoEdgeBand, CanhCNC, Lehai::TamGoGen, LeHaiDecor::HaNen, TuDong::DienTen]
+[MyStudio::AutoEdgeBand, CanhCNC, Lehai::TamGoGen, LeHaiDecor::HaNen, TuDong::DienTen, TK::ThuVien]
   .each { |mod| toolbar.add_item(mod.create_cmd) }
 toolbar.restore
 ```
@@ -116,6 +142,7 @@ Script tự động:
 | Tạo Tấm Gỗ | `Lehai::TamGoGen` |
 | Hạ Nền Uốn Cong | `LeHaiDecor::HaNen` |
 | Điền Tên Nhanh | `TuDong::DienTen` |
+| Thư Viện Component | `TK::ThuVien` |
 
 ---
 
@@ -124,3 +151,4 @@ Script tự động:
 | Phiên bản | Ngày       | Nội dung |
 |-----------|------------|----------|
 | 1.0.0     | 2026-06-08 | Gộp 5 plugin thành 1 bộ LeHai's Decor Tools |
+| 1.7.0     | 2026-06-12 | Thêm tool Thư Viện Component (`thu_vien/`, module `TK::ThuVien`): trình duyệt thư viện .skp dùng chung — thumbnail, danh mục 2 cấp, tìm kiếm, chèn component, lưu component từ model vào thư viện (save_as → thumbnail iso chuẩn), chọn thư mục thư viện trên ổ mạng/Drive |

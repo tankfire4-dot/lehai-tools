@@ -1,0 +1,15 @@
+Đây là thư mục thư viện MẶC ĐỊNH (dùng thử trên một máy).
+
+Để cả phòng thiết kế dùng chung: bấm nút "⚙ Chọn thư viện" trong cửa sổ
+plugin và trỏ về thư mục thư viện công ty trên ổ mạng / Drive đồng bộ.
+
+Cách sắp xếp (danh mục 2 cấp):
+- File .skp đặt trực tiếp ở gốc -> danh mục "Chung".
+- Thư mục con cấp 1 (vd: "01_Module Bep") -> danh mục.
+- Thư mục con cấp 2 (vd: "01_Module Bep\Tu Bep Duoi") -> danh mục con.
+- Sau khi thêm file, bấm "⟳ Làm mới" trong cửa sổ thư viện.
+- Thumbnail được lấy tự động từ ảnh nhúng trong file .skp.
+
+Quy ước đặt tên file gợi ý:
+  <MÃ>_<Tên mô tả>_<KíchThước>.skp
+  vd: TBD-012_Tu bep duoi 2 canh_800x720x560.skp

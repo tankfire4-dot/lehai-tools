@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Thư Viện Component</title>
+<style>
+  :root {
+    --bg:        #f5f6f8;
+    --panel:     #ffffff;
+    --border:    #e1e4e8;
+    --text:      #24292f;
+    --muted:     #6e7781;
+    --accent:    #1a73e8;
+    --accent-bg: #e8f0fe;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Thanh trên ───────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex: 0 0 auto;
+  }
+  header .brand {
+    font-weight: 600;
+    font-size: 14px;
+    margin-right: 4px;
+    white-space: nowrap;
+  }
+  header input[type="search"] {
+    flex: 1;
+    min-width: 120px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+  }
+  header input[type="search"]:focus { border-color: var(--accent); }
+  header button, .empty button {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel);
+    cursor: pointer;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  header button:hover, .empty button:hover { background: var(--bg); }
+
+  /* ── Khung chính ──────────────────────────── */
+  main { flex: 1; display: flex; min-height: 0; }
+
+  nav {
+    flex: 0 0 200px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 8px 7px;
+  }
+  nav .section {
+    font-size: 10.5px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 12px 10px 5px;
+    user-select: none;
+  }
+  nav button {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    text-align: left;
+    padding: 7px 9px;
+    border: none;
+    border-radius: 7px;
+    background: none;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text);
+    margin: 1px 0;
+  }
+  nav button:hover { background: var(--bg); }
+  nav button.active {
+    background: var(--accent-bg);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  nav .icon { flex: 0 0 auto; display: flex; color: #b0b6be; }
+  nav button.active .icon { color: var(--accent); }
+  nav .chev {
+    flex: 0 0 auto;
+    display: flex;
+    width: 10px;
+    color: var(--muted);
+    transition: transform .15s ease;
+  }
+  nav .chev.open { transform: rotate(90deg); }
+  nav .chev.none { visibility: hidden; }
+  nav .label { flex: 1; word-break: break-word; min-width: 0; }
+  nav .count {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--muted);
+    background: var(--bg);
+    border-radius: 999px;
+    padding: 1px 8px;
+    line-height: 1.6;
+  }
+  nav button.active .count {
+    background: rgba(26, 115, 232, .14);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  nav .subwrap {
+    margin: 0 0 2px 17px;
+    padding-left: 8px;
+    border-left: 1px solid var(--border);
+  }
+  nav .subwrap button { font-size: 12.5px; padding: 5px 8px; }
+
+  /* ── Lưới thumbnail ───────────────────────── */
+  section {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+    gap: 10px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: box-shadow .12s, border-color .12s;
+  }
+  .card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 2px 8px rgba(26,115,232,.18);
+  }
+  .card .thumb {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #fafbfc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .card .thumb img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+  .card .thumb .noimg { font-size: 32px; color: var(--border); }
+  .card .name {
+    padding: 6px 8px;
+    font-size: 12px;
+    line-height: 1.3;
+    border-top: 1px solid var(--border);
+    word-break: break-word;
+  }
+  .card .name small { display: block; color: var(--muted); margin-top: 2px; }
+
+  /* ── Trạng thái rỗng / lỗi ────────────────── */
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 60px 24px;
+    line-height: 1.7;
+  }
+  .empty .big { font-size: 40px; }
+  .empty code {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 12px;
+    word-break: break-all;
+  }
+
+  footer {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 12px;
+    padding: 5px 12px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  footer .root {
+    margin-left: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 50%;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">📚 Thư Viện</span>
+  <input type="search" id="search" placeholder="Tìm kiếm component..." autocomplete="off">
+  <button id="btn-save" title="Lưu component đang chọn trong model vào thư viện (thumbnail iso tự động)">⤴ Lưu vào thư viện</button>
+  <button id="btn-refresh" title="Quét lại thư mục thư viện">⟳ Làm mới</button>
+  <button id="btn-folder" title="Mở thư mục chứa file .skp">📂 Mở thư mục</button>
+  <button id="btn-choose" title="Chọn thư mục thư viện (ổ mạng / Drive dùng chung)">⚙ Chọn thư viện</button>
+</header>
+
+<div id="save-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:10; align-items:center; justify-content:center;">
+  <div style="background:var(--panel); border-radius:10px; padding:18px; width:340px; box-shadow:0 8px 30px rgba(0,0,0,.25);">
+    <div style="font-weight:600; font-size:14px; margin-bottom:12px;">⤴ Lưu component vào thư viện</div>
+
+    <label style="display:block; color:var(--muted); margin-bottom:3px;">Tên file (không cần .skp)</label>
+    <input type="text" id="save-name" style="width:100%; padding:6px 10px; border:1px solid var(--border); border-radius:6px; margin-bottom:10px;" placeholder="vd: TBD-012_Tu bep duoi 2 canh_800x720x560">
+
+    <label style="display:block; color:var(--muted); margin-bottom:3px;">Danh mục</label>
+    <select id="save-cat" style="width:100%; padding:6px 8px; border:1px solid var(--border); border-radius:6px; margin-bottom:6px; background:var(--panel); font-size:13px;"></select>
+    <input type="text" id="save-cat-new" style="display:none; width:100%; padding:6px 10px; border:1px solid var(--accent); border-radius:6px; margin-bottom:6px;" placeholder="Gõ tên danh mục mới...">
+
+    <label style="display:block; color:var(--muted); margin:6px 0 3px;">Danh mục con (tùy chọn)</label>
+    <select id="save-sub" style="width:100%; padding:6px 8px; border:1px solid var(--border); border-radius:6px; margin-bottom:6px; background:var(--panel); font-size:13px;"></select>
+    <input type="text" id="save-sub-new" style="display:none; width:100%; padding:6px 10px; border:1px solid var(--accent); border-radius:6px; margin-bottom:6px;" placeholder="Gõ tên danh mục con mới...">
+    <div style="height:8px;"></div>
+
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button id="save-cancel">Hủy</button>
+      <button id="save-ok" style="background:var(--accent); color:#fff; border-color:var(--accent);">Lưu vào thư viện</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <nav id="categories"></nav>
+  <section id="content"></section>
+</main>
+
+<footer>
+  <span id="status">Đang tải thư viện...</span>
+  <span class="root" id="root-path" title=""></span>
+</footer>
+
+<script>
+  var app = (function () {
+    var library = { root: '', exists: true, categories: [], items: [] };
+    var activeCat = null;    // null = tất cả
+    var activeSub = null;
+    var expanded = {};       // danh mục cha đang mở
+    var searchText = '';
+
+    function su(name, arg) {
+      if (window.sketchup && window.sketchup[name]) {
+        arg === undefined ? window.sketchup[name]() : window.sketchup[name](arg);
+      }
+    }
+
+    function fileUrl(path) {
+      return 'file:///' + encodeURI(path.replace(/\\/g, '/'));
+    }
+
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+      });
+    }
+
+    function countOf(cat, sub) {
+      return library.items.filter(function (it) {
+        if (cat && it.category !== cat) return false;
+        if (sub && it.subcategory !== sub) return false;
+        return true;
+      }).length;
+    }
+
+    function filteredItems() {
+      return library.items.filter(function (it) {
+        if (activeCat && it.category !== activeCat) return false;
+        if (activeSub && it.subcategory !== activeSub) return false;
+        if (searchText && it.name.toLowerCase().indexOf(searchText) === -1) return false;
+        return true;
+      });
+    }
+
+    /* ── Sidebar dạng cây 2 cấp ─────────────── */
+    var SVG_CHEV = '<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l5 5-5 5"/></svg>';
+    var SVG_GRID = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.3"/><rect x="9" y="1" width="6" height="6" rx="1.3"/><rect x="1" y="9" width="6" height="6" rx="1.3"/><rect x="9" y="9" width="6" height="6" rx="1.3"/></svg>';
+    var SVG_FOLDER = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 4A1.5 1.5 0 0 1 3 2.5h2.6c.4 0 .79.16 1.06.44l1.1 1.1c.1.1.23.16.36.16H13A1.5 1.5 0 0 1 14.5 5.7V12A1.5 1.5 0 0 1 13 13.5H3A1.5 1.5 0 0 1 1.5 12V4z"/></svg>';
+    var SVG_FOLDER_OPEN = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 4A1.5 1.5 0 0 1 3 2.5h2.6c.4 0 .79.16 1.06.44l1.1 1.1c.1.1.23.16.36.16H12A1.5 1.5 0 0 1 13.5 5.7v.8H4.6c-.67 0-1.26.44-1.45 1.08L1.5 12.2V4z"/><path d="M4.6 7.5h9.55c.5 0 .86.48.72.96l-1.27 4.3a1.5 1.5 0 0 1-1.44 1.07H2.4c-.5 0-.86-.48-.72-.96l1.48-4.3A1.5 1.5 0 0 1 4.6 7.5z" opacity=".75"/></svg>';
+    var SVG_DOC = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><path d="M5.5 6.5h5M5.5 9.5h3"/></svg>';
+
+    function renderCategories() {
+      var nav = document.getElementById('categories');
+      var html = navButton(null, null, SVG_GRID, 'Tất cả', library.items.length, null);
+
+      if (library.categories.length > 0) {
+        html += '<div class="section">Danh mục</div>';
+      }
+      library.categories.forEach(function (cat) {
+        var hasKids = cat.children.length > 0;
+        var isOpen = !!expanded[cat.name];
+        var chev = hasKids ? (isOpen ? 'open' : '') : 'none';
+        var icon = (isOpen && hasKids) ? SVG_FOLDER_OPEN : SVG_FOLDER;
+        html += navButton(cat.name, null, icon, cat.name, countOf(cat.name, null), chev);
+        if (hasKids && isOpen) {
+          html += '<div class="subwrap">';
+          cat.children.forEach(function (sub) {
+            html += navButton(cat.name, sub, SVG_DOC, sub, countOf(cat.name, sub), null);
+          });
+          html += '</div>';
+        }
+      });
+      nav.innerHTML = html;
+
+      Array.prototype.forEach.call(nav.querySelectorAll('button'), function (btn) {
+        btn.onclick = function () {
+          var cat = btn.dataset.cat || null;
+          var sub = btn.dataset.sub || null;
+          if (cat && !sub) {
+            // click danh mục cha: chọn nó và mở/đóng cây con
+            if (activeCat === cat && !activeSub) {
+              expanded[cat] = !expanded[cat];
+            } else {
+              expanded[cat] = true;
+            }
+          }
+          activeCat = cat;
+          activeSub = sub;
+          render();
+        };
+      });
+    }
+
+    function navButton(cat, sub, icon, label, count, chevState) {
+      var isActive = (cat === activeCat) && (sub === activeSub);
+      var chev = chevState === null
+        ? ''
+        : '<span class="chev' + (chevState ? ' ' + chevState : '') + '">' + SVG_CHEV + '</span>';
+      return '<button class="' + (isActive ? 'active' : '') + '"'
+           + ' data-cat="' + (cat ? esc(cat) : '') + '"'
+           + ' data-sub="' + (sub ? esc(sub) : '') + '">'
+           + chev
+           + '<span class="icon">' + icon + '</span>'
+           + '<span class="label">' + esc(label) + '</span>'
+           + '<span class="count">' + count + '</span></button>';
+    }
+
+    /* ── Lưới thumbnail ─────────────────────── */
+    function renderGrid() {
+      var content = document.getElementById('content');
+
+      if (!library.exists) {
+        content.innerHTML =
+          '<div class="empty"><div class="big">⚠️</div>' +
+          '<p><b>Không truy cập được thư mục thư viện.</b></p>' +
+          '<p><code>' + esc(library.root) + '</code></p>' +
+          '<p>Kiểm tra kết nối ổ mạng / Drive, hoặc chọn lại thư mục.</p>' +
+          '<p><button onclick="app.chooseFolder()">⚙ Chọn thư mục thư viện</button> ' +
+          '<button onclick="app.refresh()">⟳ Thử lại</button></p></div>';
+        return;
+      }
+
+      if (library.items.length === 0) {
+        content.innerHTML =
+          '<div class="empty"><div class="big">📭</div>' +
+          '<p><b>Thư viện đang trống.</b></p>' +
+          '<p>Hãy chép các file <code>.skp</code> vào thư mục thư viện.<br>' +
+          'Thư mục con cấp 1 là danh mục, cấp 2 là danh mục con.</p>' +
+          '<p><button onclick="app.openFolder()">📂 Mở thư mục thư viện</button></p></div>';
+        return;
+      }
+
+      var items = filteredItems();
+      if (items.length === 0) {
+        content.innerHTML = '<div class="empty"><div class="big">🔍</div>' +
+          '<p>Không tìm thấy component nào phù hợp.</p></div>';
+        return;
+      }
+
+      var html = '<div class="grid">';
+      items.forEach(function (it, idx) {
+        var thumb = it.thumb
+          ? '<img src="' + fileUrl(it.thumb) + '?v=' + (it.thumb_v || 0) + '" alt="" loading="lazy">'
+          : '<span class="noimg">◻</span>';
+        var where = it.category + (it.subcategory ? ' / ' + it.subcategory : '');
+        html += '<div class="card" data-idx="' + idx + '" title="Click để chèn: ' + esc(it.name) + '">'
+              + '<div class="thumb">' + thumb + '</div>'
+              + '<div class="name">' + esc(it.name)
+              + '<small>' + esc(where) + '</small></div></div>';
+      });
+      html += '</div>';
+      content.innerHTML = html;
+
+      Array.prototype.forEach.call(content.querySelectorAll('.card'), function (card) {
+        card.onclick = function () {
+          var it = items[parseInt(card.dataset.idx, 10)];
+          if (it) su('insert', it.path);
+        };
+      });
+    }
+
+    function renderStatus() {
+      var status = document.getElementById('status');
+      var rootEl = document.getElementById('root-path');
+      if (library.exists) {
+        status.textContent = filteredItems().length + ' / ' + library.items.length +
+          ' component — click vào hình để chèn vào model';
+      } else {
+        status.textContent = 'Mất kết nối thư viện';
+      }
+      rootEl.textContent = library.root;
+      rootEl.title = library.root;
+    }
+
+    function render() {
+      renderCategories();
+      renderGrid();
+      renderStatus();
+    }
+
+    document.getElementById('search').addEventListener('input', function (e) {
+      searchText = e.target.value.trim().toLowerCase();
+      render();
+    });
+    document.getElementById('btn-refresh').onclick = function () { su('refresh'); };
+    document.getElementById('btn-folder').onclick = function () { su('open_folder'); };
+    document.getElementById('btn-choose').onclick = function () { su('choose_folder'); };
+    document.getElementById('btn-save').onclick = function () { su('save_dialog'); };
+
+    /* ── Form "Lưu vào thư viện" ─────────────── */
+    var saveCats = [];
+    var NEW_VALUE = '__new__';
+
+    function fillCatSelect(preselect) {
+      var html = '<option value="">(Chung — gốc thư viện)</option>';
+      saveCats.forEach(function (c) {
+        html += '<option value="' + esc(c.name) + '">' + esc(c.name) + '</option>';
+      });
+      html += '<option value="' + NEW_VALUE + '">＋ Tạo danh mục mới...</option>';
+      var sel = document.getElementById('save-cat');
+      sel.innerHTML = html;
+      sel.value = preselect || '';
+      if (sel.value !== (preselect || '')) sel.value = '';
+    }
+
+    function fillSubSelect(preselect) {
+      var catVal = document.getElementById('save-cat').value;
+      var cat = null;
+      saveCats.forEach(function (c) { if (c.name === catVal) cat = c; });
+      var html = '<option value="">(Không)</option>';
+      (cat ? cat.children : []).forEach(function (s) {
+        html += '<option value="' + esc(s) + '">' + esc(s) + '</option>';
+      });
+      if (catVal) html += '<option value="' + NEW_VALUE + '">＋ Tạo danh mục con mới...</option>';
+      var sel = document.getElementById('save-sub');
+      sel.innerHTML = html;
+      sel.value = preselect || '';
+      if (sel.value !== (preselect || '')) sel.value = '';
+      syncNewInputs();
+    }
+
+    function syncNewInputs() {
+      var catNew = document.getElementById('save-cat').value === NEW_VALUE;
+      var subNew = document.getElementById('save-sub').value === NEW_VALUE;
+      document.getElementById('save-cat-new').style.display = catNew ? 'block' : 'none';
+      document.getElementById('save-sub-new').style.display = subNew ? 'block' : 'none';
+      if (catNew) document.getElementById('save-cat-new').focus();
+      else if (subNew) document.getElementById('save-sub-new').focus();
+    }
+
+    function resolvedValue(selId, newId) {
+      var v = document.getElementById(selId).value;
+      if (v === NEW_VALUE) v = document.getElementById(newId).value.trim();
+      return v;
+    }
+
+    function hideSaveForm() {
+      document.getElementById('save-overlay').style.display = 'none';
+    }
+
+    document.getElementById('save-cat').addEventListener('change', function () {
+      fillSubSelect('');
+    });
+    document.getElementById('save-sub').addEventListener('change', syncNewInputs);
+    document.getElementById('save-cancel').onclick = hideSaveForm;
+    document.getElementById('save-overlay').addEventListener('click', function (e) {
+      if (e.target === this) hideSaveForm();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') hideSaveForm();
+    });
+
+    document.getElementById('save-ok').onclick = function () {
+      var name = document.getElementById('save-name').value.trim();
+      if (!name) {
+        document.getElementById('save-name').focus();
+        return;
+      }
+      var category = resolvedValue('save-cat', 'save-cat-new');
+      var subcategory = category ? resolvedValue('save-sub', 'save-sub-new') : '';
+      su('save_to_library', JSON.stringify({
+        name:        name,
+        category:    category,
+        subcategory: subcategory
+      }));
+      hideSaveForm();
+    };
+
+    document.addEventListener('DOMContentLoaded', function () { su('ready'); });
+
+    return {
+      setLibrary: function (data) {
+        library = data || { root: '', exists: true, categories: [], items: [] };
+        var names = library.categories.map(function (c) { return c.name; });
+        if (activeCat && names.indexOf(activeCat) === -1) {
+          activeCat = null;
+          activeSub = null;
+        }
+        render();
+      },
+      openFolder:   function () { su('open_folder'); },
+      chooseFolder: function () { su('choose_folder'); },
+      refresh:      function () { su('refresh'); },
+      showSaveForm: function (info) {
+        saveCats = (info && info.categories) || [];
+        document.getElementById('save-name').value = (info && info.name) || '';
+        document.getElementById('save-cat-new').value = '';
+        document.getElementById('save-sub-new').value = '';
+        fillCatSelect(activeCat || '');
+        fillSubSelect(activeSub || '');
+        document.getElementById('save-overlay').style.display = 'flex';
+        document.getElementById('save-name').focus();
+        document.getElementById('save-name').select();
+      }
+    };
+  })();
+</script>
+</body>
+</html>

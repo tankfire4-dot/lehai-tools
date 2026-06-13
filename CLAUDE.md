@@ -151,6 +151,7 @@ Script tự động:
 | Phiên bản | Ngày       | Nội dung |
 |-----------|------------|----------|
 | 1.0.0     | 2026-06-08 | Gộp 5 plugin thành 1 bộ LeHai's Decor Tools |
+| 1.7.4     | 2026-06-13 | AutoDánCạnh: dán toàn bộ cung khi camera thấy bất kỳ mặt nào trong cung (`group_arc_faces` + `shared_arc_edge?`) — trước đó mỗi mặt cong check riêng lẻ → dán vá víu |
 | 1.7.3     | 2026-06-13 | AutoDánCạnh: bỏ filter axis-alignment — cho phép dán toàn bộ mặt cong góc bo (trước đó chỉ dán mặt thẳng do filter AXIS_ALIGN_THRESHOLD quá nghiêm) |
 | 1.7.1     | 2026-06-13 | CanhCNC: preview 3D cánh ma khi chọn điểm 2 (đúng số cánh/khe hở/độ dày, khung đỏ khi hở vượt khoang); tách công thức `door_layout` dùng chung cho preview + dựng thật |
 | 1.7.0     | 2026-06-12 | Thêm tool Thư Viện Component (`thu_vien/`, module `TK::ThuVien`): trình duyệt thư viện .skp dùng chung — thumbnail, danh mục 2 cấp, tìm kiếm, chèn component, lưu component từ model vào thư viện (save_as → thumbnail iso chuẩn), chọn thư mục thư viện trên ổ mạng/Drive |

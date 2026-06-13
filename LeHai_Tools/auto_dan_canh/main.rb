@@ -387,11 +387,7 @@ module MyStudio
         next false if face == large_face
         fn = face.normal
         next false if fn.length < 0.001
-        next false unless fn.dot(large_normal).abs < PERPENDICULAR_DOT
-        next false if face.edges.any? { |e| e.curve }
-        fn.x.abs > AXIS_ALIGN_THRESHOLD ||
-        fn.y.abs > AXIS_ALIGN_THRESHOLD ||
-        fn.z.abs > AXIS_ALIGN_THRESHOLD
+        fn.dot(large_normal).abs < PERPENDICULAR_DOT
       end
     end
 

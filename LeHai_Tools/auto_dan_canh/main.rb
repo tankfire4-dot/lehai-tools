@@ -400,31 +400,37 @@ module MyStudio
       count
     end
 
-    # Nhóm các mặt cong liên tiếp qua cạnh arc chung
+    # Nhóm các mặt cong thuộc cùng ArcCurve (dùng entityID của curve object)
+    # Hai mặt liền kề trong góc bo chia sẻ cạnh đứng thẳng, không phải cạnh arc —
+    # nhưng cạnh arc của chúng thuộc CÙNG đối tượng ArcCurve → nhóm theo đó
     def self.group_arc_faces(faces)
+      face_cids = {}
+      faces.each do |face|
+        face_cids[face.entityID] = face.edges.map(&:curve).compact.map(&:entityID).uniq
+      end
+
       remaining = faces.dup
       groups    = []
       until remaining.empty?
-        seed    = remaining.shift
-        group   = [seed]
-        changed = true
+        seed            = remaining.shift
+        group           = [seed]
+        group_cids      = face_cids[seed.entityID].dup
+        changed         = true
         while changed
           changed = false
           remaining.dup.each do |f|
-            if group.any? { |g| shared_arc_edge?(g, f) }
-              group   << f
+            f_cids = face_cids[f.entityID]
+            if (f_cids & group_cids).any?
+              group      << f
               remaining.delete(f)
-              changed  = true
+              group_cids |= f_cids
+              changed     = true
             end
           end
         end
         groups << group
       end
       groups
-    end
-
-    def self.shared_arc_edge?(a, b)
-      a.edges.any? { |e| e.curve && b.edges.include?(e) }
     end
 
     def self.identify_straight_edge_faces(ents)

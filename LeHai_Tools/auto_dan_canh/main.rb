@@ -400,34 +400,37 @@ module MyStudio
       count
     end
 
-    # Nhóm các mặt cong thuộc cùng ArcCurve (dùng entityID của curve object)
-    # Hai mặt liền kề trong góc bo chia sẻ cạnh đứng thẳng, không phải cạnh arc —
-    # nhưng cạnh arc của chúng thuộc CÙNG đối tượng ArcCurve → nhóm theo đó
+    # BFS qua curve.edges: từ mỗi mặt, lần theo các cạnh arc → tìm mặt kề cùng cung
+    # Không dùng entityID của curve (không ổn định), mà dùng entityID của face
     def self.group_arc_faces(faces)
-      face_cids = {}
-      faces.each do |face|
-        face_cids[face.entityID] = face.edges.map(&:curve).compact.map(&:entityID).uniq
-      end
+      id_to_face = {}
+      faces.each { |f| id_to_face[f.entityID] = f }
 
-      remaining = faces.dup
+      unvisited = faces.map(&:entityID)
       groups    = []
-      until remaining.empty?
-        seed            = remaining.shift
-        group           = [seed]
-        group_cids      = face_cids[seed.entityID].dup
-        changed         = true
-        while changed
-          changed = false
-          remaining.dup.each do |f|
-            f_cids = face_cids[f.entityID]
-            if (f_cids & group_cids).any?
-              group      << f
-              remaining.delete(f)
-              group_cids |= f_cids
-              changed     = true
+
+      until unvisited.empty?
+        seed_id = unvisited.shift
+        group   = [id_to_face[seed_id]]
+        queue   = [id_to_face[seed_id]]
+
+        while queue.any?
+          current = queue.shift
+          current.edges.each do |e|
+            next unless e.curve
+            e.curve.edges.each do |arc_edge|
+              arc_edge.faces.each do |neighbor|
+                n_id = neighbor.entityID
+                idx  = unvisited.index(n_id)
+                next if idx.nil?
+                unvisited.delete_at(idx)
+                group << neighbor
+                queue << neighbor
+              end
             end
           end
         end
+
         groups << group
       end
       groups

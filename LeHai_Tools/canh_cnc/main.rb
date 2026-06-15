@@ -50,9 +50,106 @@ module CanhCNC
   end
 
   # ----------------------------------------------------------
+  # CÔNG THỨC CHUNG: tính layout các cánh từ 2 điểm góc chéo.
+  # Dùng cho CẢ preview lẫn dựng hình thật — 2 bên không bao giờ lệch nhau.
+  # Trả về Hash:
+  #   :plane   — :xz | :yz | :xy
+  #   :doors   — mảng [w_pos, h_pos, d_pos, width, height] (mm), nil nếu lỗi
+  #   :error   — :plane | :too_small | :gap_h | :gap_w
+  #   :total_w, :total_h, :need — số liệu cho thông báo lỗi
+  # ----------------------------------------------------------
+  def self.door_layout(p1, p2, p)
+    plane = detect_plane(p1, p2)
+    return { plane: plane, error: :plane } if plane == :xy
+
+    bb = Geom::BoundingBox.new
+    bb.add(p1)
+    bb.add(p2)
+
+    if plane == :xz
+      total_w  = (bb.max.x - bb.min.x).to_mm
+      total_h  = (bb.max.z - bb.min.z).to_mm
+      origin_w = bb.min.x.to_mm
+      origin_h = bb.min.z.to_mm
+      origin_d = bb.min.y.to_mm
+    else # :yz
+      total_w  = (bb.max.y - bb.min.y).to_mm
+      total_h  = (bb.max.z - bb.min.z).to_mm
+      origin_w = bb.min.y.to_mm
+      origin_h = bb.min.z.to_mm
+      origin_d = bb.min.x.to_mm
+    end
+
+    base = { plane: plane, total_w: total_w, total_h: total_h }
+    if total_w < MIN_SIZE_MM || total_h < MIN_SIZE_MM
+      return base.merge(error: :too_small)
+    end
+
+    n     = p[:so_canh]
+    ngang = p[:chieu_canh] == 'ngang'
+    avail_h = total_h - p[:ho_tren] - p[:ho_duoi]
+    avail_w = total_w - p[:ho_trai] - p[:ho_phai]
+
+    if ngang
+      need = p[:ho_tren] + p[:ho_duoi] + (n - 1) * p[:ho_giua]
+      return base.merge(error: :gap_h, need: need) if need >= total_h
+    else
+      need = p[:ho_trai] + p[:ho_phai] + (n - 1) * p[:ho_giua]
+      return base.merge(error: :gap_w, need: need) if need >= total_w
+    end
+
+    doors   = []
+    start_h = origin_h + p[:ho_duoi]
+    start_w = origin_w + p[:ho_trai]
+
+    if ngang
+      door_h = (avail_h - (n - 1) * p[:ho_giua]) / n.to_f
+      n.times do |i|
+        z = start_h + i * (door_h + p[:ho_giua])
+        doors << [start_w, z, origin_d, avail_w, door_h]
+      end
+    else
+      door_w = (avail_w - (n - 1) * p[:ho_giua]) / n.to_f
+      n.times do |i|
+        w = start_w + i * (door_w + p[:ho_giua])
+        doors << [w, start_h, origin_d, door_w, avail_h]
+      end
+    end
+
+    base.merge(doors: doors)
+  end
+
+  # 8 đỉnh hộp 3D của 1 cánh (toạ độ mm -> inch) — cho preview vẽ wireframe
+  def self.door_box_corners(plane, door, thickness)
+    w, h, d, width, height = door
+    if plane == :xz
+      x0 = w.mm; x1 = (w + width).mm
+      y0 = d.mm; y1 = (d + thickness).mm
+      z0 = h.mm; z1 = (h + height).mm
+    else # :yz
+      x0 = d.mm; x1 = (d + thickness).mm
+      y0 = w.mm; y1 = (w + width).mm
+      z0 = h.mm; z1 = (h + height).mm
+    end
+    [
+      Geom::Point3d.new(x0, y0, z0), Geom::Point3d.new(x1, y0, z0),
+      Geom::Point3d.new(x1, y1, z0), Geom::Point3d.new(x0, y1, z0),
+      Geom::Point3d.new(x0, y0, z1), Geom::Point3d.new(x1, y0, z1),
+      Geom::Point3d.new(x1, y1, z1), Geom::Point3d.new(x0, y1, z1)
+    ]
+  end
+
+  # ----------------------------------------------------------
   # CÔNG CỤ BẮT ĐIỂM INTERACTIVE TOOL
   # ----------------------------------------------------------
   class ClickToDrawTool
+    # 12 cạnh của hộp wireframe (index vào mảng 8 đỉnh)
+    BOX_EDGES = [
+      [0, 1], [1, 2], [2, 3], [3, 0],
+      [4, 5], [5, 6], [6, 7], [7, 4],
+      [0, 4], [1, 5], [2, 6], [3, 7]
+    ].freeze
+
     def initialize(params)
       @params     = params
       @ip1        = Sketchup::InputPoint.new
@@ -63,6 +160,7 @@ module CanhCNC
       @pt1        = nil
       @laser      = nil
       @plane_lock = nil
+      @preview    = nil
     end
 
     def activate
@@ -94,8 +192,28 @@ module CanhCNC
         view.tooltip = @ip2.tooltip if @ip2.valid?
         # Khoá laser theo mặt phẳng cánh — tia/điểm hút nằm đúng mặt đang vẽ
         @laser = LeHai::LaserSnap.scan(view, x, y, door_plane)
+        update_preview
       end
       view.invalidate
+    end
+
+    # Tính trước các hộp cánh ma cho draw() — draw chỉ việc vẽ dữ liệu cache.
+    # Có lưới an toàn: gặp lỗi bất kỳ thì bỏ preview, draw rút về khung tím cũ.
+    def update_preview
+      @preview = nil
+      return unless @state == 1 && @pt1 && @ip2.valid?
+      pt2    = project_to_door_plane(LeHai::LaserSnap.snapped_point(@laser) || @ip2.position)
+      layout = CanhCNC.door_layout(@pt1, pt2, @params)
+      if layout[:doors]
+        boxes = layout[:doors].map do |d|
+          CanhCNC.door_box_corners(layout[:plane], d, @params[:day])
+        end
+        @preview = { boxes: boxes }
+      else
+        @preview = { error: layout[:error] }
+      end
+    rescue StandardError
+      @preview = nil
     end
 
     # Mặt phẳng cánh ở bước điểm 2 (suy từ điểm 1 + con trỏ).
@@ -156,6 +274,7 @@ module CanhCNC
       @ip2.clear
       @pt1        = nil
       @plane_lock = nil
+      @preview    = nil
     end
 
     # Chiếu điểm 2 về mặt phẳng cánh: click xuyên khoang trống trúng tấm hậu
@@ -174,6 +293,9 @@ module CanhCNC
       bb.add(@pt1) if @pt1
       bb.add(@ip1.position) if @ip1.valid?
       bb.add(@ip2.position) if @ip2.valid?
+      if @preview && @preview[:boxes]
+        @preview[:boxes].each { |pts| pts.each { |pt| bb.add(pt) } }
+      end
       LeHai::LaserSnap.add_extents(@laser, bb)
       bb
     rescue StandardError
@@ -230,11 +352,26 @@ module CanhCNC
       plane = CanhCNC.detect_plane(p1, p2)
       corners = CanhCNC.rect_corners(p1, p2, plane)
 
-      # Preview rectangle tím
-      if corners
+      if @preview && @preview[:boxes] && !@preview[:boxes].empty?
+        # Khung khoang mờ nét đứt + các cánh ma 3D đúng khe hở/độ dày
+        if corners
+          view.line_width = 1
+          view.line_stipple = "-"
+          view.drawing_color = Sketchup::Color.new(170, 100, 255, 130)
+          view.draw_polyline(corners + [corners.first])
+          view.line_stipple = ""
+        end
+        view.line_width = 2
+        view.drawing_color = purple
+        @preview[:boxes].each do |pts|
+          BOX_EDGES.each { |i, j| view.draw(GL_LINES, [pts[i], pts[j]]) }
+        end
+      elsif corners
+        # Fallback: khung khoang như bản cũ — ĐỎ khi khe hở vượt khoang
+        gap_error = @preview && [:gap_w, :gap_h].include?(@preview[:error])
         view.line_width = 3
         view.line_stipple = ""
-        view.drawing_color = purple
+        view.drawing_color = gap_error ? Sketchup::Color.new(230, 60, 60) : purple
         view.draw_polyline(corners + [corners.first])
       end
 
@@ -303,89 +440,32 @@ module CanhCNC
   def self.process_geometry(pt1, pt2, p)
     model = Sketchup.active_model
 
-    # Detect mặt phẳng vẽ
-    plane = detect_plane(pt1, pt2)
-    if plane == :xy
+    # Quy về toạ độ local của context đang edit rồi tính layout
+    # bằng CÙNG công thức với preview (door_layout)
+    tr_inverse = model.edit_transform.inverse
+    layout = door_layout(pt1.transform(tr_inverse), pt2.transform(tr_inverse), p)
+
+    case layout[:error]
+    when :plane
       UI.messagebox("Plugin chỉ hỗ trợ vẽ cánh trên mặt đứng.\nCố gắng click 2 góc của mặt trước hoặc mặt hông khoang tủ.")
+      return
+    when :too_small
+      UI.messagebox("Khoang quá nhỏ hoặc 2 điểm trùng nhau.\nKhoang phát hiện: #{layout[:total_w].round(1)}mm × #{layout[:total_h].round(1)}mm")
+      return
+    when :gap_h
+      UI.messagebox("Khoảng hở dọc vượt quá chiều cao khoang!\nCần ≥ #{layout[:need].round(1)}mm, khoang chỉ #{layout[:total_h].round(1)}mm")
+      return
+    when :gap_w
+      UI.messagebox("Khoảng hở ngang vượt quá chiều rộng khoang!\nCần ≥ #{layout[:need].round(1)}mm, khoang chỉ #{layout[:total_w].round(1)}mm")
       return
     end
 
     model.start_operation(PLUGIN_NAME, true)
-
     begin
-      tr_inverse = model.edit_transform.inverse
-      local_pt1 = pt1.transform(tr_inverse)
-      local_pt2 = pt2.transform(tr_inverse)
-
-      bb = Geom::BoundingBox.new
-      bb.add(local_pt1)
-      bb.add(local_pt2)
-
-      # Lấy kích thước theo plane
-      # w_axis: chiều rộng cánh | h_axis: chiều cao cánh | d_axis: chiều dày (depth)
-      if plane == :xz
-        total_w = (bb.max.x - bb.min.x).to_mm
-        total_h = (bb.max.z - bb.min.z).to_mm
-        origin_w = bb.min.x.to_mm
-        origin_h = bb.min.z.to_mm
-        origin_d = bb.min.y.to_mm
-      else # :yz
-        total_w = (bb.max.y - bb.min.y).to_mm
-        total_h = (bb.max.z - bb.min.z).to_mm
-        origin_w = bb.min.y.to_mm
-        origin_h = bb.min.z.to_mm
-        origin_d = bb.min.x.to_mm
+      layout[:doors].each_with_index do |d, i|
+        draw_one(model.active_entities, layout[:plane],
+                 d[0], d[1], d[2], d[3], d[4], p[:day], "Canh_#{i + 1}")
       end
-
-      # Validate kích thước khoang
-      if total_w < MIN_SIZE_MM || total_h < MIN_SIZE_MM
-        model.abort_operation
-        UI.messagebox("Khoang quá nhỏ hoặc 2 điểm trùng nhau.\nKhoang phát hiện: #{total_w.round(1)}mm × #{total_h.round(1)}mm")
-        return
-      end
-
-      n            = p[:so_canh]
-      ngang        = p[:chieu_canh] == 'ngang'
-      avail_h_base = total_h - p[:ho_tren] - p[:ho_duoi]
-      avail_w_base = total_w - p[:ho_trai] - p[:ho_phai]
-
-      # Validate hở theo chiều chia
-      if ngang
-        need = p[:ho_tren] + p[:ho_duoi] + (n - 1) * p[:ho_giua]
-        if need >= total_h
-          model.abort_operation
-          UI.messagebox("Khoảng hở dọc vượt quá chiều cao khoang!\nCần ≥ #{need.round(1)}mm, khoang chỉ #{total_h.round(1)}mm")
-          return
-        end
-      else
-        need = p[:ho_trai] + p[:ho_phai] + (n - 1) * p[:ho_giua]
-        if need >= total_w
-          model.abort_operation
-          UI.messagebox("Khoảng hở ngang vượt quá chiều rộng khoang!\nCần ≥ #{need.round(1)}mm, khoang chỉ #{total_w.round(1)}mm")
-          return
-        end
-      end
-
-      # Dựng n cánh
-      start_h = origin_h + p[:ho_duoi]
-      start_w = origin_w + p[:ho_trai]
-
-      if ngang
-        # Chia theo chiều cao (Z): mỗi cánh rộng full, cao = avail_h / n
-        door_h = (avail_h_base - (n - 1) * p[:ho_giua]) / n.to_f
-        n.times do |i|
-          z = start_h + i * (door_h + p[:ho_giua])
-          draw_one(model.active_entities, plane, start_w, z, origin_d, avail_w_base, door_h, p[:day], "Canh_#{i + 1}")
-        end
-      else
-        # Chia theo chiều rộng (X/Y): mỗi cánh cao full, rộng = avail_w / n
-        door_w = (avail_w_base - (n - 1) * p[:ho_giua]) / n.to_f
-        n.times do |i|
-          w = start_w + i * (door_w + p[:ho_giua])
-          draw_one(model.active_entities, plane, w, start_h, origin_d, door_w, avail_h_base, p[:day], "Canh_#{i + 1}")
-        end
-      end
-
       model.commit_operation
     rescue => e
       model.abort_operation

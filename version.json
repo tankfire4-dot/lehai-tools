@@ -1,5 +1,5 @@
 {
-  "version": "1.7.0",
+  "version": "1.8.0",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -15,10 +15,13 @@
     "LeHai_Tools/dien_ten/ui/menu.rb",
     "LeHai_Tools/dien_ten/ui/dialog.rb",
     "LeHai_Tools/dien_ten/ui/dialog.html",
-    "LeHai_Tools/tk_thuvien/main.rb",
-    "LeHai_Tools/tk_thuvien/core/library.rb",
-    "LeHai_Tools/tk_thuvien/ui/commands.rb",
-    "LeHai_Tools/tk_thuvien/ui/dialog.rb",
-    "LeHai_Tools/tk_thuvien/ui/html/index.html"
+    "LeHai_Tools/thu_vien/main.rb",
+    "LeHai_Tools/thu_vien/core/library.rb",
+    "LeHai_Tools/thu_vien/ui/menu.rb",
+    "LeHai_Tools/thu_vien/ui/dialog.rb",
+    "LeHai_Tools/thu_vien/ui/html/index.html",
+    "LeHai_Tools/thu_vien/icons/tk_thuvien_16.png",
+    "LeHai_Tools/thu_vien/icons/tk_thuvien_24.png",
+    "LeHai_Tools/thu_vien/components/HUONG_DAN.txt"
   ]
 }

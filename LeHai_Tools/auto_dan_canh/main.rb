@@ -365,8 +365,14 @@ module MyStudio
         end
       end
       edge_faces = identify_straight_edge_faces(ents)
+
+      # Tách mặt cong (thuộc cung tròn) ra xử lý theo nhóm
+      curved, straight = edge_faces.partition { |f| f.edges.any? { |e| e.curve } }
+      curve_groups     = group_arc_faces(curved)
+
       count = 0
-      edge_faces.each do |face|
+
+      straight.each do |face|
         next if face.deleted?
         next if mode == :accumulate && face_has_banding?(face)
         if face_visible_from_camera?(face, world_xform, camera_dir, camera_eye, model)
@@ -374,7 +380,60 @@ module MyStudio
           count += 1
         end
       end
+
+      # Nếu camera thấy BẤT KỲ mặt nào trong một cung → dán CẢ cung
+      curve_groups.each do |group|
+        next if group.all?(&:deleted?)
+        next if mode == :accumulate && group.all? { |f| face_has_banding?(f) }
+        visible = group.any? { |f|
+          !f.deleted? && face_visible_from_camera?(f, world_xform, camera_dir, camera_eye, model)
+        }
+        next unless visible
+        group.each do |face|
+          next if face.deleted?
+          next if mode == :accumulate && face_has_banding?(face)
+          apply_band(face, 0, mat)
+          count += 1
+        end
+      end
+
       count
+    end
+
+    # BFS qua curve.edges: từ mỗi mặt, lần theo các cạnh arc → tìm mặt kề cùng cung
+    # Không dùng entityID của curve (không ổn định), mà dùng entityID của face
+    def self.group_arc_faces(faces)
+      id_to_face = {}
+      faces.each { |f| id_to_face[f.entityID] = f }
+
+      unvisited = faces.map(&:entityID)
+      groups    = []
+
+      until unvisited.empty?
+        seed_id = unvisited.shift
+        group   = [id_to_face[seed_id]]
+        queue   = [id_to_face[seed_id]]
+
+        while queue.any?
+          current = queue.shift
+          current.edges.each do |e|
+            next unless e.curve
+            e.curve.edges.each do |arc_edge|
+              arc_edge.faces.each do |neighbor|
+                n_id = neighbor.entityID
+                idx  = unvisited.index(n_id)
+                next if idx.nil?
+                unvisited.delete_at(idx)
+                group << neighbor
+                queue << neighbor
+              end
+            end
+          end
+        end
+
+        groups << group
+      end
+      groups
     end
 
     def self.identify_straight_edge_faces(ents)
@@ -387,10 +446,7 @@ module MyStudio
         next false if face == large_face
         fn = face.normal
         next false if fn.length < 0.001
-        next false unless fn.dot(large_normal).abs < PERPENDICULAR_DOT
-        fn.x.abs > AXIS_ALIGN_THRESHOLD ||
-        fn.y.abs > AXIS_ALIGN_THRESHOLD ||
-        fn.z.abs > AXIS_ALIGN_THRESHOLD
+        fn.dot(large_normal).abs < PERPENDICULAR_DOT
       end
     end
 

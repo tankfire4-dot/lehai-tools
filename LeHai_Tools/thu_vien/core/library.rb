@@ -44,10 +44,11 @@ module TK
         catalog = read_catalog
         items = skp_files(dir).map { |file| item_for(file, dir, catalog) }
         {
-          root:       dir,
-          exists:     true,
-          categories: category_tree,
-          items:      items.sort_by { |i| i[:name].downcase }
+          root:          dir,
+          exists:        true,
+          categories:    category_tree,
+          items:         items.sort_by { |i| i[:name].downcase },
+          reporter_name: Sketchup.read_default(PREFS_SECTION, 'reporter_name').to_s
         }
       end
 
@@ -188,6 +189,71 @@ module TK
         { ok: true, msg: nil }
       rescue IOError, RuntimeError, Errno::EACCES => e
         { ok: false, msg: "Lỗi:\n#{e.message}" }
+      end
+
+      def self.save_report(params)
+        reporter = params['reporter'].to_s.strip
+        title    = params['title'].to_s.strip
+        return { ok: false, msg: 'Vui lòng nhập tiêu đề lỗi.' } if title.empty?
+
+        dir = File.join(components_dir, 'reports')
+        FileUtils.mkdir_p(dir)
+
+        stamp    = Time.now.strftime('%Y%m%d_%H%M%S')
+        filename = "report_#{stamp}.json"
+        path     = File.join(dir, filename)
+
+        report = {
+          'reporter'     => reporter,
+          'title'        => title,
+          'description'  => params['description'].to_s.strip,
+          'item_name'    => params['item_name'].to_s.strip,
+          'item_path'    => params['item_path'].to_s.strip,
+          'status'       => 'open',
+          'created_at'   => Time.now.strftime('%Y-%m-%dT%H:%M:%S'),
+          'resolved_at'  => nil,
+          'resolve_note' => ''
+        }
+
+        File.open(path, 'w:UTF-8') { |f| f.write(JSON.pretty_generate(report)) }
+        { ok: true, msg: nil }
+      rescue IOError, Errno::EACCES => e
+        { ok: false, msg: "Không lưu được báo cáo:\n#{e.message}" }
+      end
+
+      def self.load_reports
+        dir = File.join(components_dir, 'reports')
+        return [] unless File.directory?(dir)
+
+        Dir.glob(File.join(dir, 'report_*.json')).sort.reverse.map do |f|
+          content = File.open(f, 'r:UTF-8') { |io| io.read }
+          report  = JSON.parse(content)
+          report['file'] = f
+          report
+        rescue JSON::ParserError
+          nil
+        end.compact
+      rescue IOError
+        []
+      end
+
+      def self.resolve_report(params)
+        file_path    = params['file'].to_s
+        note         = params['note'].to_s.strip
+        reports_root = File.expand_path(File.join(components_dir, 'reports'))
+        abs_path     = File.expand_path(file_path)
+        return { ok: false, msg: 'File không hợp lệ.' }   unless abs_path.start_with?(reports_root)
+        return { ok: false, msg: 'File không tồn tại.' }  unless File.exist?(abs_path)
+
+        content = File.open(abs_path, 'r:UTF-8') { |f| f.read }
+        report  = JSON.parse(content)
+        report['status']       = 'fixed'
+        report['resolved_at']  = Time.now.strftime('%Y-%m-%dT%H:%M:%S')
+        report['resolve_note'] = note
+        File.open(abs_path, 'w:UTF-8') { |f| f.write(JSON.pretty_generate(report)) }
+        { ok: true, msg: nil }
+      rescue IOError, JSON::ParserError, Errno::EACCES => e
+        { ok: false, msg: "Lỗi cập nhật:\n#{e.message}" }
       end
 
       # ── private ──────────────────────────────────────────────

@@ -175,24 +175,6 @@
     position: relative;
   }
   .card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(26,115,232,.18); }
-  .card .edit-btn {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    width: 24px;
-    height: 24px;
-    background: rgba(255,255,255,.92);
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    cursor: pointer;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    z-index: 2;
-    line-height: 1;
-  }
-  .card:hover .edit-btn { display: flex; }
   .card .thumb {
     width: 100%;
     aspect-ratio: 1 / 1;
@@ -228,6 +210,27 @@
     font-weight: 500;
   }
 
+  /* ── Card hover buttons (✏ và 🐛) ────────── */
+  .card .card-btn {
+    position: absolute;
+    top: 5px;
+    width: 24px;
+    height: 24px;
+    background: rgba(255,255,255,.92);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    z-index: 2;
+    line-height: 1;
+  }
+  .card:hover .card-btn { display: flex; }
+  .card .edit-btn  { right: 5px; }
+  .card .bug-btn   { right: 33px; font-size: 12px; }
+
   /* ── Trạng thái rỗng / lỗi ────────────────── */
   .empty { text-align: center; color: var(--muted); padding: 60px 24px; line-height: 1.7; }
   .empty .big { font-size: 40px; }
@@ -251,7 +254,7 @@
     text-overflow: ellipsis; white-space: nowrap; max-width: 50%;
   }
 
-  /* ── Form lưu ─────────────────────────────── */
+  /* ── Form lưu / sửa ───────────────────────── */
   .form-label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 3px; }
   .form-input {
     width: 100%;
@@ -281,6 +284,22 @@
     color: var(--accent);
     font-weight: 600;
   }
+
+  /* ── Report card (lịch sử) ────────────────── */
+  .report-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+  .report-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+  .rbadge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
+  .rbadge.open  { background: #fde8e8; color: #c0392b; }
+  .rbadge.fixed { background: #e6f4ea; color: #1e7e34; }
+  .report-meta { flex: 1; }
+  .report-title { display: block; font-weight: 600; font-size: 13px; }
+  .report-by { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .report-desc { font-size: 12px; color: var(--text); margin-bottom: 6px; white-space: pre-wrap; }
+  .report-item-ref { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .report-resolve { font-size: 12px; background: var(--bg); border-radius: 5px; padding: 6px 10px; color: var(--muted); margin-top: 4px; }
+  .fix-btn { margin-top: 6px; padding: 4px 12px; background: #28a745; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; }
+  .fix-confirm { padding: 4px 12px; background: #28a745; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-size: 12px; }
+  .fix-cancel { padding: 4px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel); cursor: pointer; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -289,6 +308,7 @@
   <span class="brand">📚 Thư Viện</span>
   <input type="search" id="search" placeholder="Tìm kiếm component..." autocomplete="off">
   <button id="btn-save" title="Lưu component đang chọn trong model vào thư viện">⤴ Lưu vào thư viện</button>
+  <button id="btn-reports" title="Báo cáo lỗi & lịch sử">📋 Báo cáo</button>
   <button id="btn-refresh" title="Quét lại thư mục thư viện">⟳ Làm mới</button>
   <button id="btn-choose" title="Chọn thư mục thư viện">⚙ Chọn thư viện</button>
 </header>
@@ -339,6 +359,42 @@
   </div>
 </div>
 
+<!-- Overlay báo cáo lỗi -->
+<div id="report-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:10; align-items:center; justify-content:center;">
+  <div style="background:var(--panel); border-radius:10px; padding:18px; width:380px; max-height:90vh; overflow-y:auto; box-shadow:0 8px 30px rgba(0,0,0,.25);">
+    <div style="font-weight:600; font-size:14px; margin-bottom:12px;">🐛 Báo cáo lỗi</div>
+
+    <label class="form-label">Tên bạn</label>
+    <input type="text" id="report-reporter" class="form-input" style="margin-bottom:10px;" placeholder="vd: Nguyễn Văn A">
+
+    <label class="form-label">Tiêu đề lỗi <span style="color:#c0392b;">*</span></label>
+    <input type="text" id="report-title-input" class="form-input" style="margin-bottom:10px;" placeholder="vd: Kích thước sai, file bị hỏng...">
+
+    <label class="form-label">Mô tả chi tiết</label>
+    <textarea id="report-desc" class="form-input" rows="4" style="margin-bottom:10px; resize:vertical;" placeholder="Mô tả thêm nếu cần..."></textarea>
+
+    <div id="report-item-info" style="display:none; margin-bottom:12px; padding:8px 10px; background:var(--bg); border-radius:6px; font-size:12px; color:var(--muted);">
+      📦 Model: <b id="report-item-label"></b>
+    </div>
+
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button id="report-cancel" class="form-input" style="width:auto; cursor:pointer;">Hủy</button>
+      <button id="report-ok" style="background:#c0392b; color:#fff; border:none; border-radius:6px; padding:6px 16px; cursor:pointer; font-size:13px; font-weight:600;">Gửi báo cáo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay lịch sử báo cáo -->
+<div id="reports-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:10; align-items:center; justify-content:center;">
+  <div style="background:var(--panel); border-radius:10px; padding:18px; width:600px; max-height:85vh; display:flex; flex-direction:column; box-shadow:0 8px 30px rgba(0,0,0,.25);">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-shrink:0;">
+      <div style="font-weight:600; font-size:14px;">📋 Lịch sử báo cáo lỗi</div>
+      <button id="reports-close" style="border:none; background:none; cursor:pointer; font-size:20px; color:var(--muted); line-height:1; padding:0 4px;">×</button>
+    </div>
+    <div id="reports-list" style="flex:1; overflow-y:auto; padding-right:4px;"></div>
+  </div>
+</div>
+
 <main>
   <nav id="categories"></nav>
   <section>
@@ -380,6 +436,10 @@ var app = (function () {
   var isEditMode   = false;
   var editItemPath = null;
 
+  var savedReporter = '';
+  var reportTarget  = { name: null, path: null };
+  var allReports    = null;
+
   var STYLE_LABELS = {
     hien_dai:'Hiện đại', toi_gian:'Tối giản', tan_co_dien:'Tân cổ điển',
     scandinavian:'Scandinavian', japandi:'Japandi', industrial:'Industrial'
@@ -417,7 +477,6 @@ var app = (function () {
     });
   }
 
-  // Items filtered by cat/sub/search only (base for counting chips)
   function baseItems() {
     return library.items.filter(function (it) {
       if (activeCat && it.category !== activeCat) return false;
@@ -571,8 +630,7 @@ var app = (function () {
         '<div class="empty"><div class="big">📭</div>' +
         '<p><b>Thư viện đang trống.</b></p>' +
         '<p>Hãy chép các file <code>.skp</code> vào thư mục thư viện.<br>' +
-        'Thư mục con cấp 1 là danh mục, cấp 2 là danh mục con.</p>' +
-        '<p><button onclick="app.openFolder()">📂 Mở thư mục thư viện</button></p></div>';
+        'Thư mục con cấp 1 là danh mục, cấp 2 là danh mục con.</p></div>';
       return;
     }
 
@@ -611,7 +669,8 @@ var app = (function () {
 
       html += '<div class="card" data-idx="' + idx + '" title="Click để chèn: ' + esc(it.name) + '">'
             + '<div class="thumb">' + thumb + '</div>'
-            + '<div class="edit-btn" data-path="' + esc(it.path) + '" title="Sửa thông tin">✏</div>'
+            + '<div class="card-btn edit-btn" data-path="' + esc(it.path) + '" title="Sửa thông tin">✏</div>'
+            + '<div class="card-btn bug-btn" data-name="' + esc(it.name) + '" data-path="' + esc(it.path) + '" title="Báo cáo lỗi">🐛</div>'
             + '<div class="name">' + esc(it.name) + '<small>' + esc(where) + '</small></div>'
             + dimHtml
             + tagHtml
@@ -631,6 +690,13 @@ var app = (function () {
       btn.onclick = function (e) {
         e.stopPropagation();
         su('edit_dialog', btn.dataset.path);
+      };
+    });
+
+    Array.prototype.forEach.call(content.querySelectorAll('.bug-btn'), function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        app.showReportForm(btn.dataset.name, btn.dataset.path);
       };
     });
   }
@@ -655,6 +721,81 @@ var app = (function () {
     renderStatus();
   }
 
+  /* ── Lịch sử báo cáo ────────────────────── */
+  function renderReportsList() {
+    var list = document.getElementById('reports-list');
+    if (!allReports || allReports.length === 0) {
+      list.innerHTML = '<div style="text-align:center;padding:48px;color:var(--muted);"><div style="font-size:36px;margin-bottom:8px;">✅</div><p>Chưa có báo cáo lỗi nào.</p></div>';
+      return;
+    }
+
+    var html = '';
+    allReports.forEach(function (r, idx) {
+      var isFixed  = r.status === 'fixed';
+      var dateStr  = (r.created_at || '').substring(0, 10);
+      var badge    = isFixed
+        ? '<span class="rbadge fixed">✓ Đã fix</span>'
+        : '<span class="rbadge open">● Đang mở</span>';
+
+      html += '<div class="report-card">';
+      html += '<div class="report-header">' + badge + '<div class="report-meta">';
+      html += '<span class="report-title">' + esc(r.title) + '</span>';
+      html += '<span class="report-by">' + esc(r.reporter || 'Ẩn danh') + ' · ' + dateStr + '</span>';
+      html += '</div></div>';
+
+      if (r.description) {
+        html += '<p class="report-desc">' + esc(r.description) + '</p>';
+      }
+      if (r.item_name) {
+        html += '<p class="report-item-ref">📦 ' + esc(r.item_name) + '</p>';
+      }
+      if (isFixed && r.resolve_note) {
+        html += '<p class="report-resolve">🔧 ' + esc(r.resolve_note) + '</p>';
+      }
+      if (!isFixed) {
+        html += '<div class="fix-area" data-idx="' + idx + '">';
+        html += '<button class="fix-btn" data-idx="' + idx + '">✓ Đánh dấu đã fix</button>';
+        html += '<div class="fix-form" style="display:none; margin-top:8px;">';
+        html += '<input type="text" class="form-input fix-note" placeholder="Ghi chú cách fix (tùy chọn)" style="margin-bottom:6px;">';
+        html += '<div style="display:flex; gap:6px;">';
+        html += '<button class="fix-confirm" data-idx="' + idx + '">Xác nhận</button>';
+        html += '<button class="fix-cancel">Hủy</button>';
+        html += '</div></div></div>';
+      }
+      html += '</div>';
+    });
+    list.innerHTML = html;
+
+    Array.prototype.forEach.call(list.querySelectorAll('.fix-btn'), function (btn) {
+      btn.onclick = function () {
+        var area = btn.parentElement;
+        btn.style.display = 'none';
+        area.querySelector('.fix-form').style.display = 'block';
+        area.querySelector('.fix-note').focus();
+      };
+    });
+
+    Array.prototype.forEach.call(list.querySelectorAll('.fix-cancel'), function (btn) {
+      btn.onclick = function () {
+        var area = btn.closest('.fix-area');
+        area.querySelector('.fix-btn').style.display = '';
+        area.querySelector('.fix-form').style.display = 'none';
+      };
+    });
+
+    Array.prototype.forEach.call(list.querySelectorAll('.fix-confirm'), function (btn) {
+      btn.onclick = function () {
+        var idx    = parseInt(btn.dataset.idx, 10);
+        var area   = btn.closest('.fix-area');
+        var note   = area.querySelector('.fix-note').value.trim();
+        var report = allReports[idx];
+        if (report) {
+          su('resolve_report', JSON.stringify({ file: report.file, note: note }));
+        }
+      };
+    });
+  }
+
   document.getElementById('search').addEventListener('input', function (e) {
     searchText = e.target.value.trim().toLowerCase();
     render();
@@ -662,6 +803,7 @@ var app = (function () {
   document.getElementById('btn-refresh').onclick = function () { su('refresh'); };
   document.getElementById('btn-choose').onclick  = function () { su('choose_folder'); };
   document.getElementById('btn-save').onclick    = function () { su('save_dialog'); };
+  document.getElementById('btn-reports').onclick = function () { app.showReportsOverlay(); };
 
   /* ── Form "Lưu vào thư viện" ─────────────── */
   function fillCatSelect(preselect) {
@@ -744,7 +886,11 @@ var app = (function () {
     if (e.target === this) hideSaveForm();
   });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') hideSaveForm();
+    if (e.key === 'Escape') {
+      hideSaveForm();
+      document.getElementById('report-overlay').style.display = 'none';
+      document.getElementById('reports-overlay').style.display = 'none';
+    }
   });
 
   document.getElementById('save-ok').onclick = function () {
@@ -781,11 +927,45 @@ var app = (function () {
     hideSaveForm();
   };
 
+  /* ── Form "Báo cáo lỗi" ─────────────────── */
+  document.getElementById('report-reporter').addEventListener('blur', function () {
+    var name = this.value.trim();
+    if (name) { savedReporter = name; su('save_reporter', name); }
+  });
+  document.getElementById('report-cancel').onclick = function () {
+    document.getElementById('report-overlay').style.display = 'none';
+  };
+  document.getElementById('report-overlay').addEventListener('click', function (e) {
+    if (e.target === this) document.getElementById('report-overlay').style.display = 'none';
+  });
+  document.getElementById('report-ok').onclick = function () {
+    var title = document.getElementById('report-title-input').value.trim();
+    if (!title) { document.getElementById('report-title-input').focus(); return; }
+    su('save_report', JSON.stringify({
+      reporter:    document.getElementById('report-reporter').value.trim(),
+      title:       title,
+      description: document.getElementById('report-desc').value.trim(),
+      item_name:   reportTarget.name || '',
+      item_path:   reportTarget.path || ''
+    }));
+    document.getElementById('report-overlay').style.display = 'none';
+    app.showReportsOverlay();
+  };
+
+  /* ── Panel lịch sử báo cáo ──────────────── */
+  document.getElementById('reports-close').onclick = function () {
+    document.getElementById('reports-overlay').style.display = 'none';
+  };
+  document.getElementById('reports-overlay').addEventListener('click', function (e) {
+    if (e.target === this) document.getElementById('reports-overlay').style.display = 'none';
+  });
+
   document.addEventListener('DOMContentLoaded', function () { su('ready'); });
 
   return {
     setLibrary: function (data) {
       library = data || { root: '', exists: true, categories: [], items: [] };
+      if (data && data.reporter_name !== undefined) savedReporter = data.reporter_name;
       var names = library.categories.map(function (c) { return c.name; });
       if (activeCat && names.indexOf(activeCat) === -1) { activeCat = null; activeSub = null; }
       render();
@@ -832,6 +1012,35 @@ var app = (function () {
       document.getElementById('save-overlay').style.display = 'flex';
       document.getElementById('save-name').focus();
       document.getElementById('save-name').select();
+    },
+    showReportForm: function (itemName, itemPath) {
+      reportTarget = { name: itemName || null, path: itemPath || null };
+      document.getElementById('report-reporter').value = savedReporter;
+      document.getElementById('report-title-input').value = '';
+      document.getElementById('report-desc').value = '';
+      var info = document.getElementById('report-item-info');
+      if (itemName) {
+        document.getElementById('report-item-label').textContent = itemName;
+        info.style.display = 'block';
+      } else {
+        info.style.display = 'none';
+      }
+      document.getElementById('report-overlay').style.display = 'flex';
+      document.getElementById('report-title-input').focus();
+    },
+    showReportsOverlay: function () {
+      document.getElementById('reports-overlay').style.display = 'flex';
+      if (allReports === null) {
+        document.getElementById('reports-list').innerHTML =
+          '<div style="text-align:center;padding:40px;color:var(--muted);">Đang tải...</div>';
+        su('load_reports');
+      } else {
+        renderReportsList();
+      }
+    },
+    setReports: function (data) {
+      allReports = data || [];
+      renderReportsList();
     }
   };
 })();

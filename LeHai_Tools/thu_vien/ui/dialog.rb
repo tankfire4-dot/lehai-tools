@@ -71,6 +71,31 @@ module TK
             UI.messagebox(result[:msg])
           end
         end
+        dialog.add_action_callback('save_reporter') do |_ctx, name|
+          Sketchup.write_default(Library::PREFS_SECTION, 'reporter_name', name.to_s.strip)
+        end
+        dialog.add_action_callback('save_report') do |_ctx, json|
+          result = Library.save_report(JSON.parse(json))
+          if result[:ok]
+            reports = Library.load_reports
+            @dialog.execute_script("app.setReports(#{reports.to_json});")
+          elsif result[:msg]
+            UI.messagebox(result[:msg])
+          end
+        end
+        dialog.add_action_callback('load_reports') do
+          reports = Library.load_reports
+          @dialog.execute_script("app.setReports(#{reports.to_json});")
+        end
+        dialog.add_action_callback('resolve_report') do |_ctx, json|
+          result = Library.resolve_report(JSON.parse(json))
+          if result[:ok]
+            reports = Library.load_reports
+            @dialog.execute_script("app.setReports(#{reports.to_json});")
+          elsif result[:msg]
+            UI.messagebox(result[:msg])
+          end
+        end
       end
       private_class_method :attach_callbacks
 

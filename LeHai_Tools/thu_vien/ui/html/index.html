@@ -172,8 +172,27 @@
     overflow: hidden;
     cursor: pointer;
     transition: box-shadow .12s, border-color .12s;
+    position: relative;
   }
   .card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(26,115,232,.18); }
+  .card .edit-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 24px;
+    height: 24px;
+    background: rgba(255,255,255,.92);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    z-index: 2;
+    line-height: 1;
+  }
+  .card:hover .edit-btn { display: flex; }
   .card .thumb {
     width: 100%;
     aspect-ratio: 1 / 1;
@@ -277,18 +296,20 @@
 <!-- Overlay lưu component -->
 <div id="save-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:10; align-items:center; justify-content:center;">
   <div style="background:var(--panel); border-radius:10px; padding:18px; width:360px; max-height:90vh; overflow-y:auto; box-shadow:0 8px 30px rgba(0,0,0,.25);">
-    <div style="font-weight:600; font-size:14px; margin-bottom:12px;">⤴ Lưu component vào thư viện</div>
+    <div id="save-form-title" style="font-weight:600; font-size:14px; margin-bottom:12px;">⤴ Lưu component vào thư viện</div>
 
     <label class="form-label">Tên file (không cần .skp)</label>
     <input type="text" id="save-name" class="form-input" style="margin-bottom:10px;" placeholder="vd: TBD-012_Tu bep duoi 2 canh_800x720x560">
 
-    <label class="form-label">Danh mục</label>
-    <select id="save-cat" class="form-input" style="margin-bottom:6px;"></select>
-    <input type="text" id="save-cat-new" class="form-input" style="display:none; margin-bottom:6px; border-color:var(--accent);" placeholder="Gõ tên danh mục mới...">
+    <div id="save-cat-section">
+      <label class="form-label">Danh mục</label>
+      <select id="save-cat" class="form-input" style="margin-bottom:6px;"></select>
+      <input type="text" id="save-cat-new" class="form-input" style="display:none; margin-bottom:6px; border-color:var(--accent);" placeholder="Gõ tên danh mục mới...">
 
-    <label class="form-label" style="margin-top:6px;">Danh mục con (tùy chọn)</label>
-    <select id="save-sub" class="form-input" style="margin-bottom:6px;"></select>
-    <input type="text" id="save-sub-new" class="form-input" style="display:none; margin-bottom:6px; border-color:var(--accent);" placeholder="Gõ tên danh mục con mới...">
+      <label class="form-label" style="margin-top:6px;">Danh mục con (tùy chọn)</label>
+      <select id="save-sub" class="form-input" style="margin-bottom:6px;"></select>
+      <input type="text" id="save-sub-new" class="form-input" style="display:none; margin-bottom:6px; border-color:var(--accent);" placeholder="Gõ tên danh mục con mới...">
+    </div>
 
     <label class="form-label" style="margin-top:8px;">Phong cách (tùy chọn)</label>
     <div id="save-style-chips" class="form-chips"></div>
@@ -350,12 +371,14 @@ var app = (function () {
   var activeStyle = null;
   var activePhong = null;
 
-  var saveCats   = [];
-  var saveStyles = [];
-  var savePhongs = [];
-  var selStyles  = [];
-  var selPhongs  = [];
-  var NEW_VALUE  = '__new__';
+  var saveCats     = [];
+  var saveStyles   = [];
+  var savePhongs   = [];
+  var selStyles    = [];
+  var selPhongs    = [];
+  var NEW_VALUE    = '__new__';
+  var isEditMode   = false;
+  var editItemPath = null;
 
   var STYLE_LABELS = {
     hien_dai:'Hiện đại', toi_gian:'Tối giản', tan_co_dien:'Tân cổ điển',
@@ -588,6 +611,7 @@ var app = (function () {
 
       html += '<div class="card" data-idx="' + idx + '" title="Click để chèn: ' + esc(it.name) + '">'
             + '<div class="thumb">' + thumb + '</div>'
+            + '<div class="edit-btn" data-path="' + esc(it.path) + '" title="Sửa thông tin">✏</div>'
             + '<div class="name">' + esc(it.name) + '<small>' + esc(where) + '</small></div>'
             + dimHtml
             + tagHtml
@@ -600,6 +624,13 @@ var app = (function () {
       card.onclick = function () {
         var it = items[parseInt(card.dataset.idx, 10)];
         if (it) su('insert', it.path);
+      };
+    });
+
+    Array.prototype.forEach.call(content.querySelectorAll('.edit-btn'), function (btn) {
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        su('edit_dialog', btn.dataset.path);
       };
     });
   }
@@ -699,6 +730,11 @@ var app = (function () {
 
   function hideSaveForm() {
     document.getElementById('save-overlay').style.display = 'none';
+    isEditMode   = false;
+    editItemPath = null;
+    document.getElementById('save-form-title').textContent = '⤴ Lưu component vào thư viện';
+    document.getElementById('save-ok').textContent = 'Lưu vào thư viện';
+    document.getElementById('save-cat-section').style.display = '';
   }
 
   document.getElementById('save-cat').addEventListener('change', function () { fillSubSelect(''); });
@@ -714,6 +750,22 @@ var app = (function () {
   document.getElementById('save-ok').onclick = function () {
     var name = document.getElementById('save-name').value.trim();
     if (!name) { document.getElementById('save-name').focus(); return; }
+    var r = document.getElementById('save-r').value.trim();
+    var s = document.getElementById('save-s').value.trim();
+    var c = document.getElementById('save-c').value.trim();
+    if (isEditMode) {
+      su('edit_item', JSON.stringify({
+        path:  editItemPath,
+        name:  name,
+        style: selStyles,
+        phong: selPhongs,
+        r:     r,
+        s:     s,
+        c:     c
+      }));
+      hideSaveForm();
+      return;
+    }
     var category    = resolvedValue('save-cat', 'save-cat-new');
     var subcategory = category ? resolvedValue('save-sub', 'save-sub-new') : '';
     su('save_to_library', JSON.stringify({
@@ -722,9 +774,9 @@ var app = (function () {
       subcategory: subcategory,
       style:       selStyles,
       phong:       selPhongs,
-      r:           document.getElementById('save-r').value.trim(),
-      s:           document.getElementById('save-s').value.trim(),
-      c:           document.getElementById('save-c').value.trim()
+      r:           r,
+      s:           s,
+      c:           c
     }));
     hideSaveForm();
   };
@@ -755,6 +807,26 @@ var app = (function () {
       document.getElementById('save-c').value = '';
       fillCatSelect(activeCat || '');
       fillSubSelect(activeSub || '');
+      renderFormChips('save-style-chips', saveStyles, selStyles);
+      renderFormChips('save-phong-chips', savePhongs, selPhongs);
+      document.getElementById('save-overlay').style.display = 'flex';
+      document.getElementById('save-name').focus();
+      document.getElementById('save-name').select();
+    },
+    showEditForm: function (info) {
+      isEditMode   = true;
+      editItemPath = info.path;
+      saveStyles   = info.styles || [];
+      savePhongs   = info.phongs || [];
+      selStyles    = info.style  || [];
+      selPhongs    = info.phong  || [];
+      document.getElementById('save-form-title').textContent = '✏ Sửa thông tin';
+      document.getElementById('save-ok').textContent = 'Lưu thay đổi';
+      document.getElementById('save-name').value = info.name || '';
+      document.getElementById('save-r').value = info.r || '';
+      document.getElementById('save-s').value = info.s || '';
+      document.getElementById('save-c').value = info.c || '';
+      document.getElementById('save-cat-section').style.display = 'none';
       renderFormChips('save-style-chips', saveStyles, selStyles);
       renderFormChips('save-phong-chips', savePhongs, selPhongs);
       document.getElementById('save-overlay').style.display = 'flex';

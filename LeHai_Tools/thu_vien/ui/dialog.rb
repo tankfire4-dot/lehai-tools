@@ -59,6 +59,18 @@ module TK
             UI.messagebox(result[:msg])
           end
         end
+        dialog.add_action_callback('edit_dialog') do |_ctx, path|
+          info = Library.edit_dialog_info(path)
+          @dialog.execute_script("app.showEditForm(#{info.to_json});") if info
+        end
+        dialog.add_action_callback('edit_item') do |_ctx, json|
+          result = Library.edit_item(JSON.parse(json))
+          if result[:ok]
+            push_library
+          elsif result[:msg]
+            UI.messagebox(result[:msg])
+          end
+        end
       end
       private_class_method :attach_callbacks
 

@@ -1,5 +1,5 @@
 {
-  "version": "1.8.3",
+  "version": "1.8.4",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",

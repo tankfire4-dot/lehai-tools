@@ -124,6 +124,72 @@ module TK
         UI.openURL("file:///#{dir.tr('\\', '/')}")
       end
 
+      def self.edit_dialog_info(path)
+        return nil unless valid_skp?(path)
+        catalog = read_catalog
+        rel     = relative_path(path, components_dir)
+        meta    = catalog[rel] || {}
+        {
+          path:   path,
+          name:   File.basename(path, '.skp'),
+          style:  Array(meta['style']),
+          phong:  Array(meta['phong']),
+          r:      meta['r'],
+          s:      meta['s'],
+          c:      meta['c'],
+          styles: STYLES,
+          phongs: PHONGS
+        }
+      end
+
+      def self.edit_item(params)
+        path     = params['path'].to_s
+        return { ok: false, msg: 'File không tồn tại.' } unless valid_skp?(path)
+
+        new_name = sanitize_filename(params['name'].to_s)
+        return { ok: false, msg: 'Tên file không hợp lệ.' } if new_name.empty?
+
+        dir      = File.dirname(path)
+        new_path = File.join(dir, "#{new_name}.skp")
+
+        if new_path != path
+          if File.exist?(new_path)
+            ans = UI.messagebox("File đã tồn tại:\n#{new_path}\n\nGhi đè?", MB_YESNO)
+            return { ok: false, msg: nil } unless ans == IDYES
+          end
+          begin
+            File.rename(path, new_path)
+            old_png = File.join(CACHE_DIR, "#{Digest::MD5.hexdigest(path)}.png")
+            File.delete(old_png) if File.exist?(old_png)
+          rescue => e
+            return { ok: false, msg: "Không đổi tên được:\n#{e.message}" }
+          end
+        end
+
+        catalog = read_catalog
+        old_rel = relative_path(path, components_dir)
+        new_rel = relative_path(new_path, components_dir)
+        entry   = catalog.delete(old_rel) || {}
+
+        style = Array(params['style']).reject { |s| s.to_s.strip.empty? }
+        phong = Array(params['phong']).reject { |s| s.to_s.strip.empty? }
+        r     = params['r'].to_s.strip
+        s     = params['s'].to_s.strip
+        c     = params['c'].to_s.strip
+
+        if style.empty? then entry.delete('style') else entry['style'] = style end
+        if phong.empty? then entry.delete('phong') else entry['phong'] = phong end
+        if r.empty?     then entry.delete('r')     else entry['r']     = r.to_i end
+        if s.empty?     then entry.delete('s')     else entry['s']     = s.to_i end
+        if c.empty?     then entry.delete('c')     else entry['c']     = c.to_i end
+
+        catalog[new_rel] = entry unless entry.empty?
+        write_catalog(catalog)
+        { ok: true, msg: nil }
+      rescue IOError, RuntimeError, Errno::EACCES => e
+        { ok: false, msg: "Lỗi:\n#{e.message}" }
+      end
+
       # ── private ──────────────────────────────────────────────
 
       def self.ensure_cache_dir

@@ -152,6 +152,7 @@ module TK
           style:       Array(meta['style']),
           phong:       Array(meta['phong']),
           r:           meta['r'],
+          s:           meta['s'],
           c:           meta['c']
         }
       end
@@ -263,8 +264,9 @@ module TK
         style = Array(params['style']).reject { |s| s.to_s.strip.empty? }
         phong = Array(params['phong']).reject { |s| s.to_s.strip.empty? }
         r     = params['r'].to_s.strip
+        s     = params['s'].to_s.strip
         c     = params['c'].to_s.strip
-        return if style.empty? && phong.empty? && r.empty? && c.empty?
+        return if style.empty? && phong.empty? && r.empty? && s.empty? && c.empty?
 
         catalog = read_catalog
         rel     = relative_path(path, components_dir)
@@ -272,6 +274,7 @@ module TK
         entry['style'] = style        unless style.empty?
         entry['phong'] = phong        unless phong.empty?
         entry['r']     = r.to_i       unless r.empty?
+        entry['s']     = s.to_i       unless s.empty?
         entry['c']     = c.to_i       unless c.empty?
         catalog[rel]   = entry
         write_catalog(catalog)

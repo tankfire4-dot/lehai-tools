@@ -193,6 +193,12 @@
     word-break: break-word;
   }
   .card .name small { display: block; color: var(--muted); margin-top: 2px; }
+  .card .dim {
+    padding: 2px 8px 4px;
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
   .card .tags { display: flex; flex-wrap: wrap; gap: 3px; padding: 0 8px 6px; }
   .tag {
     font-size: 10px;
@@ -297,8 +303,12 @@
         <input type="number" id="save-r" class="form-input" placeholder="vd: 600">
       </div>
       <div style="flex:1;">
+        <label class="form-label">Sâu — S (mm)</label>
+        <input type="number" id="save-s" class="form-input" placeholder="vd: 560">
+      </div>
+      <div style="flex:1;">
         <label class="form-label">Cao — C (mm)</label>
-        <input type="number" id="save-c" class="form-input" placeholder="vd: 2100">
+        <input type="number" id="save-c" class="form-input" placeholder="vd: 850">
       </div>
     </div>
 
@@ -558,6 +568,14 @@ var app = (function () {
         : '<span class="noimg">◻</span>';
       var where = it.category + (it.subcategory ? ' / ' + it.subcategory : '');
 
+      var dimParts = [];
+      if (it.r) dimParts.push('R' + it.r);
+      if (it.s) dimParts.push('S' + it.s);
+      if (it.c) dimParts.push('C' + it.c);
+      var dimHtml = dimParts.length > 0
+        ? '<div class="dim">' + esc(dimParts.join(' × ')) + '</div>'
+        : '';
+
       var tagHtml = '';
       var allTags = (it.style || []).concat(it.phong || []);
       if (allTags.length > 0) {
@@ -572,6 +590,7 @@ var app = (function () {
       html += '<div class="card" data-idx="' + idx + '" title="Click để chèn: ' + esc(it.name) + '">'
             + '<div class="thumb">' + thumb + '</div>'
             + '<div class="name">' + esc(it.name) + '<small>' + esc(where) + '</small></div>'
+            + dimHtml
             + tagHtml
             + '</div>';
     });
@@ -706,6 +725,7 @@ var app = (function () {
       style:       selStyles,
       phong:       selPhongs,
       r:           document.getElementById('save-r').value.trim(),
+      s:           document.getElementById('save-s').value.trim(),
       c:           document.getElementById('save-c').value.trim()
     }));
     hideSaveForm();
@@ -733,6 +753,7 @@ var app = (function () {
       document.getElementById('save-cat-new').value = '';
       document.getElementById('save-sub-new').value = '';
       document.getElementById('save-r').value = '';
+      document.getElementById('save-s').value = '';
       document.getElementById('save-c').value = '';
       fillCatSelect(activeCat || '');
       fillSubSelect(activeSub || '');

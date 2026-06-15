@@ -78,7 +78,13 @@ module TK
         end
         name = defn.name.to_s.strip
         name = 'Component' if name.empty?
-        { name: name, categories: category_tree, styles: STYLES, phongs: PHONGS }
+        {
+          name:       name,
+          categories: category_tree,
+          styles:     STYLES,
+          phongs:     PHONGS,
+          saved_by:   Sketchup.read_default(PREFS_SECTION, 'reporter_name').to_s
+        }
       end
 
       def self.save_selected(params)
@@ -285,7 +291,9 @@ module TK
           phong:       Array(meta['phong']),
           r:           meta['r'],
           s:           meta['s'],
-          c:           meta['c']
+          c:           meta['c'],
+          saved_by:    meta['saved_by'],
+          saved_at:    meta['saved_at']
         }
       end
       private_class_method :item_for
@@ -393,22 +401,24 @@ module TK
       private_class_method :write_catalog
 
       def self.update_catalog(path, params)
-        style = Array(params['style']).reject { |s| s.to_s.strip.empty? }
-        phong = Array(params['phong']).reject { |s| s.to_s.strip.empty? }
-        r     = params['r'].to_s.strip
-        s     = params['s'].to_s.strip
-        c     = params['c'].to_s.strip
-        return if style.empty? && phong.empty? && r.empty? && s.empty? && c.empty?
+        style    = Array(params['style']).reject { |s| s.to_s.strip.empty? }
+        phong    = Array(params['phong']).reject { |s| s.to_s.strip.empty? }
+        r        = params['r'].to_s.strip
+        s        = params['s'].to_s.strip
+        c        = params['c'].to_s.strip
+        saved_by = params['saved_by'].to_s.strip
 
         catalog = read_catalog
         rel     = relative_path(path, components_dir)
         entry   = catalog[rel] || {}
-        entry['style'] = style        unless style.empty?
-        entry['phong'] = phong        unless phong.empty?
-        entry['r']     = r.to_i       unless r.empty?
-        entry['s']     = s.to_i       unless s.empty?
-        entry['c']     = c.to_i       unless c.empty?
-        catalog[rel]   = entry
+        entry['style']    = style        unless style.empty?
+        entry['phong']    = phong        unless phong.empty?
+        entry['r']        = r.to_i       unless r.empty?
+        entry['s']        = s.to_i       unless s.empty?
+        entry['c']        = c.to_i       unless c.empty?
+        entry['saved_by'] = saved_by     unless saved_by.empty?
+        entry['saved_at'] = Time.now.strftime('%Y-%m-%d')
+        catalog[rel]      = entry
         write_catalog(catalog)
       end
       private_class_method :update_catalog

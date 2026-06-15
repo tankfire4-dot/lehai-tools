@@ -200,7 +200,8 @@
     color: var(--muted);
     font-variant-numeric: tabular-nums;
   }
-  .card .tags { display: flex; flex-wrap: wrap; gap: 3px; padding: 0 8px 6px; }
+  .card .tags { display: flex; flex-wrap: wrap; gap: 3px; padding: 0 8px 4px; }
+  .card .saver { padding: 0 8px 6px; font-size: 10px; color: var(--muted); opacity: .8; }
   .tag {
     font-size: 10px;
     padding: 1px 6px;
@@ -321,6 +322,11 @@
     <label class="form-label">Tên file (không cần .skp)</label>
     <input type="text" id="save-name" class="form-input" style="margin-bottom:4px;" placeholder="vd: TuBep_2canh hoặc BanAn_4chan">
     <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">Tên + đặc điểm nổi bật. Kích thước & phong cách điền ở dưới, không cần ghi vào tên.</div>
+
+    <div id="save-by-section">
+      <label class="form-label">Người lưu</label>
+      <input type="text" id="save-saved-by" class="form-input" style="margin-bottom:10px;" placeholder="Tên của bạn">
+    </div>
 
     <div id="save-cat-section">
       <label class="form-label">Danh mục</label>
@@ -668,6 +674,13 @@ var app = (function () {
         tagHtml += '</div>';
       }
 
+      var saverParts = [];
+      if (it.saved_by) saverParts.push(it.saved_by);
+      if (it.saved_at) saverParts.push(it.saved_at);
+      var saverHtml = saverParts.length > 0
+        ? '<div class="saver">' + esc(saverParts.join(' · ')) + '</div>'
+        : '';
+
       html += '<div class="card" data-idx="' + idx + '" title="Click để chèn: ' + esc(it.name) + '">'
             + '<div class="thumb">' + thumb + '</div>'
             + '<div class="card-btn edit-btn" data-path="' + esc(it.path) + '" title="Sửa thông tin">✏</div>'
@@ -675,6 +688,7 @@ var app = (function () {
             + '<div class="name">' + esc(it.name) + '<small>' + esc(where) + '</small></div>'
             + dimHtml
             + tagHtml
+            + saverHtml
             + '</div>';
     });
     html += '</div>';
@@ -878,6 +892,7 @@ var app = (function () {
     document.getElementById('save-form-title').textContent = '⤴ Lưu component vào thư viện';
     document.getElementById('save-ok').textContent = 'Lưu vào thư viện';
     document.getElementById('save-cat-section').style.display = '';
+    document.getElementById('save-by-section').style.display = '';
   }
 
   document.getElementById('save-cat').addEventListener('change', function () { fillSubSelect(''); });
@@ -923,12 +938,17 @@ var app = (function () {
       phong:       selPhongs,
       r:           r,
       s:           s,
-      c:           c
+      c:           c,
+      saved_by:    document.getElementById('save-saved-by').value.trim()
     }));
     hideSaveForm();
   };
 
   /* ── Form "Báo cáo lỗi" ─────────────────── */
+  document.getElementById('save-saved-by').addEventListener('blur', function () {
+    var name = this.value.trim();
+    if (name) { savedReporter = name; su('save_reporter', name); }
+  });
   document.getElementById('report-reporter').addEventListener('blur', function () {
     var name = this.value.trim();
     if (name) { savedReporter = name; su('save_reporter', name); }
@@ -981,6 +1001,7 @@ var app = (function () {
       selStyles  = [];
       selPhongs  = [];
       document.getElementById('save-name').value = (info && info.name) || '';
+      document.getElementById('save-saved-by').value = (info && info.saved_by) || savedReporter;
       document.getElementById('save-cat-new').value = '';
       document.getElementById('save-sub-new').value = '';
       document.getElementById('save-r').value = '';
@@ -1008,6 +1029,7 @@ var app = (function () {
       document.getElementById('save-s').value = info.s || '';
       document.getElementById('save-c').value = info.c || '';
       document.getElementById('save-cat-section').style.display = 'none';
+      document.getElementById('save-by-section').style.display = 'none';
       renderFormChips('save-style-chips', saveStyles, selStyles);
       renderFormChips('save-phong-chips', savePhongs, selPhongs);
       document.getElementById('save-overlay').style.display = 'flex';

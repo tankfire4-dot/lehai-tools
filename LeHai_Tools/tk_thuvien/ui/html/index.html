@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Thư Viện Component</title>
+<style>
+  :root {
+    --bg:        #f5f6f8;
+    --panel:     #ffffff;
+    --border:    #e1e4e8;
+    --text:      #24292f;
+    --muted:     #6e7781;
+    --accent:    #1a73e8;
+    --accent-bg: #e8f0fe;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Thanh trên ───────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex: 0 0 auto;
+  }
+  header .brand { font-weight: 600; font-size: 14px; margin-right: 4px; white-space: nowrap; }
+  header input[type="search"] {
+    flex: 1;
+    min-width: 120px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+  }
+  header input[type="search"]:focus { border-color: var(--accent); }
+  header button, .empty button {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel);
+    cursor: pointer;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  header button:hover, .empty button:hover { background: var(--bg); }
+
+  /* ── Khung chính ──────────────────────────── */
+  main { flex: 1; display: flex; min-height: 0; }
+
+  /* ── Sidebar ──────────────────────────────── */
+  nav {
+    flex: 0 0 200px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 8px 7px;
+  }
+  nav .section {
+    font-size: 10.5px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 12px 10px 5px;
+    user-select: none;
+  }
+  nav button {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    text-align: left;
+    padding: 7px 9px;
+    border: none;
+    border-radius: 7px;
+    background: none;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text);
+    margin: 1px 0;
+  }
+  nav button:hover { background: var(--bg); }
+  nav button.active { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+  nav .icon { flex: 0 0 auto; display: flex; color: #b0b6be; }
+  nav button.active .icon { color: var(--accent); }
+  nav .chev {
+    flex: 0 0 auto; display: flex; width: 10px;
+    color: var(--muted); transition: transform .15s ease;
+  }
+  nav .chev.open { transform: rotate(90deg); }
+  nav .chev.none { visibility: hidden; }
+  nav .label { flex: 1; word-break: break-word; min-width: 0; }
+  nav .count {
+    font-size: 11px; font-weight: 400; color: var(--muted);
+    background: var(--bg); border-radius: 999px; padding: 1px 8px; line-height: 1.6;
+  }
+  nav button.active .count {
+    background: rgba(26,115,232,.14); color: var(--accent); font-weight: 600;
+  }
+  nav .subwrap { margin: 0 0 2px 17px; padding-left: 8px; border-left: 1px solid var(--border); }
+  nav .subwrap button { font-size: 12.5px; padding: 5px 8px; }
+
+  /* ── Phần phải (filter + lưới) ───────────── */
+  section { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+  /* ── Filter bar ───────────────────────────── */
+  #filter-bar {
+    flex: 0 0 auto;
+    padding: 7px 12px 5px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 3px 0;
+    flex-wrap: wrap;
+  }
+  .filter-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    white-space: nowrap;
+    min-width: 68px;
+  }
+  .filter-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--panel);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text);
+    white-space: nowrap;
+    transition: border-color .1s, color .1s;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chip-count { font-size: 11px; opacity: .72; }
+  .chip.active .chip-count { opacity: .88; }
+
+  /* ── Lưới thumbnail ───────────────────────── */
+  #content { flex: 1; overflow-y: auto; padding: 12px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+    gap: 10px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: box-shadow .12s, border-color .12s;
+  }
+  .card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(26,115,232,.18); }
+  .card .thumb {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #fafbfc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .card .thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .card .thumb .noimg { font-size: 32px; color: var(--border); }
+  .card .name {
+    padding: 6px 8px;
+    font-size: 12px;
+    line-height: 1.3;
+    border-top: 1px solid var(--border);
+    word-break: break-word;
+  }
+  .card .name small { display: block; color: var(--muted); margin-top: 2px; }
+  .card .tags { display: flex; flex-wrap: wrap; gap: 3px; padding: 0 8px 6px; }
+  .tag {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--accent-bg);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* ── Trạng thái rỗng / lỗi ────────────────── */
+  .empty { text-align: center; color: var(--muted); padding: 60px 24px; line-height: 1.7; }
+  .empty .big { font-size: 40px; }
+  .empty code {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 4px; padding: 2px 6px; font-size: 12px; word-break: break-all;
+  }
+
+  footer {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 12px;
+    padding: 5px 12px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  footer .root {
+    margin-left: auto; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; max-width: 50%;
+  }
+
+  /* ── Form lưu ─────────────────────────────── */
+  .form-label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 3px; }
+  .form-input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    background: var(--panel);
+    color: var(--text);
+  }
+  .form-input:focus { outline: none; border-color: var(--accent); }
+  .form-chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 10px; }
+  .form-chip {
+    padding: 4px 11px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--panel);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text);
+    transition: border-color .1s;
+  }
+  .form-chip:hover { border-color: var(--accent); }
+  .form-chip.active {
+    background: var(--accent-bg);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">📚 Thư Viện</span>
+  <input type="search" id="search" placeholder="Tìm kiếm component..." autocomplete="off">
+  <button id="btn-save" title="Lưu component đang chọn trong model vào thư viện">⤴ Lưu vào thư viện</button>
+  <button id="btn-refresh" title="Quét lại thư mục thư viện">⟳ Làm mới</button>
+  <button id="btn-folder" title="Mở thư mục chứa file .skp">📂 Mở thư mục</button>
+  <button id="btn-choose" title="Chọn thư mục thư viện">⚙ Chọn thư viện</button>
+</header>
+
+<!-- Overlay lưu component -->
+<div id="save-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:10; align-items:center; justify-content:center;">
+  <div style="background:var(--panel); border-radius:10px; padding:18px; width:360px; max-height:90vh; overflow-y:auto; box-shadow:0 8px 30px rgba(0,0,0,.25);">
+    <div style="font-weight:600; font-size:14px; margin-bottom:12px;">⤴ Lưu component vào thư viện</div>
+
+    <label class="form-label">Tên file (không cần .skp)</label>
+    <input type="text" id="save-name" class="form-input" style="margin-bottom:10px;" placeholder="vd: TBD-012_Tu bep duoi 2 canh_800x720x560">
+
+    <label class="form-label">Danh mục</label>
+    <select id="save-cat" class="form-input" style="margin-bottom:6px;"></select>
+    <input type="text" id="save-cat-new" class="form-input" style="display:none; margin-bottom:6px; border-color:var(--accent);" placeholder="Gõ tên danh mục mới...">
+
+    <label class="form-label" style="margin-top:6px;">Danh mục con (tùy chọn)</label>
+    <select id="save-sub" class="form-input" style="margin-bottom:6px;"></select>
+    <input type="text" id="save-sub-new" class="form-input" style="display:none; margin-bottom:6px; border-color:var(--accent);" placeholder="Gõ tên danh mục con mới...">
+
+    <label class="form-label" style="margin-top:8px;">Phong cách (tùy chọn)</label>
+    <div id="save-style-chips" class="form-chips"></div>
+
+    <label class="form-label">Phòng (tùy chọn)</label>
+    <div id="save-phong-chips" class="form-chips"></div>
+
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <div style="flex:1;">
+        <label class="form-label">Rộng — R (mm)</label>
+        <input type="number" id="save-r" class="form-input" placeholder="vd: 600">
+      </div>
+      <div style="flex:1;">
+        <label class="form-label">Cao — C (mm)</label>
+        <input type="number" id="save-c" class="form-input" placeholder="vd: 2100">
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button id="save-cancel" class="form-input" style="width:auto; cursor:pointer;">Hủy</button>
+      <button id="save-ok" style="background:var(--accent); color:#fff; border:none; border-radius:6px; padding:6px 16px; cursor:pointer; font-size:13px; font-weight:600;">Lưu vào thư viện</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <nav id="categories"></nav>
+  <section>
+    <div id="filter-bar" style="display:none;">
+      <div class="filter-row" id="filter-style-row">
+        <span class="filter-label">Phong cách</span>
+        <div id="filter-style" class="filter-chips"></div>
+      </div>
+      <div class="filter-row" id="filter-phong-row">
+        <span class="filter-label">Phòng</span>
+        <div id="filter-phong" class="filter-chips"></div>
+      </div>
+    </div>
+    <div id="content"></div>
+  </section>
+</main>
+
+<footer>
+  <span id="status">Đang tải thư viện...</span>
+  <span class="root" id="root-path" title=""></span>
+</footer>
+
+<script>
+var app = (function () {
+  var library = { root: '', exists: true, categories: [], items: [] };
+  var activeCat   = null;
+  var activeSub   = null;
+  var expanded    = {};
+  var searchText  = '';
+  var activeStyle = null;
+  var activePhong = null;
+
+  var saveCats   = [];
+  var saveStyles = [];
+  var savePhongs = [];
+  var selStyles  = [];
+  var selPhongs  = [];
+  var NEW_VALUE  = '__new__';
+
+  var STYLE_LABELS = {
+    hien_dai:'Hiện đại', toi_gian:'Tối giản', tan_co_dien:'Tân cổ điển',
+    scandinavian:'Scandinavian', japandi:'Japandi', industrial:'Industrial'
+  };
+  var PHONG_LABELS = {
+    bep:'Bếp', khach:'Khách', ngu:'Ngủ', an:'Ăn',
+    lam_viec:'Làm việc', wc:'WC', hanh_lang:'Hành lang'
+  };
+
+  function su(name, arg) {
+    if (window.sketchup && window.sketchup[name]) {
+      arg === undefined ? window.sketchup[name]() : window.sketchup[name](arg);
+    }
+  }
+
+  function fileUrl(path) {
+    return 'file:///' + encodeURI(path.replace(/\\/g, '/'));
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  /* ── Filter helpers ─────────────────────── */
+  function filteredItems() {
+    return library.items.filter(function (it) {
+      if (activeCat && it.category !== activeCat) return false;
+      if (activeSub && it.subcategory !== activeSub) return false;
+      if (searchText && it.name.toLowerCase().indexOf(searchText) === -1) return false;
+      if (activeStyle && (it.style || []).indexOf(activeStyle) === -1) return false;
+      if (activePhong && (it.phong || []).indexOf(activePhong) === -1) return false;
+      return true;
+    });
+  }
+
+  // Items filtered by cat/sub/search only (base for counting chips)
+  function baseItems() {
+    return library.items.filter(function (it) {
+      if (activeCat && it.category !== activeCat) return false;
+      if (activeSub && it.subcategory !== activeSub) return false;
+      if (searchText && it.name.toLowerCase().indexOf(searchText) === -1) return false;
+      return true;
+    });
+  }
+
+  function countOf(cat, sub) {
+    return library.items.filter(function (it) {
+      if (cat && it.category !== cat) return false;
+      if (sub && it.subcategory !== sub) return false;
+      return true;
+    }).length;
+  }
+
+  /* ── Sidebar ─────────────────────────────── */
+  var SVG_CHEV = '<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l5 5-5 5"/></svg>';
+  var SVG_GRID = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.3"/><rect x="9" y="1" width="6" height="6" rx="1.3"/><rect x="1" y="9" width="6" height="6" rx="1.3"/><rect x="9" y="9" width="6" height="6" rx="1.3"/></svg>';
+  var SVG_FOLDER = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 4A1.5 1.5 0 0 1 3 2.5h2.6c.4 0 .79.16 1.06.44l1.1 1.1c.1.1.23.16.36.16H13A1.5 1.5 0 0 1 14.5 5.7V12A1.5 1.5 0 0 1 13 13.5H3A1.5 1.5 0 0 1 1.5 12V4z"/></svg>';
+  var SVG_FOLDER_OPEN = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 4A1.5 1.5 0 0 1 3 2.5h2.6c.4 0 .79.16 1.06.44l1.1 1.1c.1.1.23.16.36.16H12A1.5 1.5 0 0 1 13.5 5.7v.8H4.6c-.67 0-1.26.44-1.45 1.08L1.5 12.2V4z"/><path d="M4.6 7.5h9.55c.5 0 .86.48.72.96l-1.27 4.3a1.5 1.5 0 0 1-1.44 1.07H2.4c-.5 0-.86-.48-.72-.96l1.48-4.3A1.5 1.5 0 0 1 4.6 7.5z" opacity=".75"/></svg>';
+  var SVG_DOC = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><path d="M5.5 6.5h5M5.5 9.5h3"/></svg>';
+
+  function renderCategories() {
+    var nav  = document.getElementById('categories');
+    var html = navButton(null, null, SVG_GRID, 'Tất cả', library.items.length, null);
+    if (library.categories.length > 0) html += '<div class="section">Danh mục</div>';
+
+    library.categories.forEach(function (cat) {
+      var hasKids = cat.children.length > 0;
+      var isOpen  = !!expanded[cat.name];
+      var chev    = hasKids ? (isOpen ? 'open' : '') : 'none';
+      var icon    = (isOpen && hasKids) ? SVG_FOLDER_OPEN : SVG_FOLDER;
+      html += navButton(cat.name, null, icon, cat.name, countOf(cat.name, null), chev);
+      if (hasKids && isOpen) {
+        html += '<div class="subwrap">';
+        cat.children.forEach(function (sub) {
+          html += navButton(cat.name, sub, SVG_DOC, sub, countOf(cat.name, sub), null);
+        });
+        html += '</div>';
+      }
+    });
+    nav.innerHTML = html;
+
+    Array.prototype.forEach.call(nav.querySelectorAll('button'), function (btn) {
+      btn.onclick = function () {
+        var cat = btn.dataset.cat || null;
+        var sub = btn.dataset.sub || null;
+        if (cat && !sub) {
+          if (activeCat === cat && !activeSub) expanded[cat] = !expanded[cat];
+          else expanded[cat] = true;
+        }
+        activeCat = cat;
+        activeSub = sub;
+        render();
+      };
+    });
+  }
+
+  function navButton(cat, sub, icon, label, count, chevState) {
+    var isActive = (cat === activeCat) && (sub === activeSub);
+    var chev = chevState === null
+      ? ''
+      : '<span class="chev' + (chevState ? ' ' + chevState : '') + '">' + SVG_CHEV + '</span>';
+    return '<button class="' + (isActive ? 'active' : '') + '"'
+         + ' data-cat="' + (cat ? esc(cat) : '') + '"'
+         + ' data-sub="' + (sub ? esc(sub) : '') + '">'
+         + chev
+         + '<span class="icon">' + icon + '</span>'
+         + '<span class="label">' + esc(label) + '</span>'
+         + '<span class="count">' + count + '</span></button>';
+  }
+
+  /* ── Filter bar ─────────────────────────── */
+  function renderFilterBar() {
+    var bar  = document.getElementById('filter-bar');
+    var base = baseItems();
+    var styleCounts = {};
+    var phongCounts = {};
+
+    base.forEach(function (it) {
+      (it.style || []).forEach(function (s) { styleCounts[s] = (styleCounts[s] || 0) + 1; });
+      (it.phong || []).forEach(function (p) { phongCounts[p] = (phongCounts[p] || 0) + 1; });
+    });
+
+    var hasStyle = Object.keys(styleCounts).length > 0;
+    var hasPhong = Object.keys(phongCounts).length > 0;
+
+    if (!hasStyle && !hasPhong) { bar.style.display = 'none'; return; }
+    bar.style.display = 'block';
+
+    var styleRow = document.getElementById('filter-style-row');
+    var phongRow = document.getElementById('filter-phong-row');
+
+    if (hasStyle) {
+      styleRow.style.display = 'flex';
+      renderChips('filter-style', styleCounts, STYLE_LABELS, activeStyle, 'style', base.length);
+    } else {
+      styleRow.style.display = 'none';
+    }
+
+    if (hasPhong) {
+      phongRow.style.display = 'flex';
+      renderChips('filter-phong', phongCounts, PHONG_LABELS, activePhong, 'phong', base.length);
+    } else {
+      phongRow.style.display = 'none';
+    }
+  }
+
+  function renderChips(containerId, counts, labels, activeKey, dimension, total) {
+    var html = '<button class="chip' + (activeKey === null ? ' active' : '') + '" data-key="">'
+             + 'Tất cả <span class="chip-count">' + total + '</span></button>';
+
+    Object.keys(counts).sort().forEach(function (key) {
+      var label = labels[key] || key;
+      html += '<button class="chip' + (activeKey === key ? ' active' : '') + '" data-key="' + esc(key) + '">'
+            + esc(label) + ' <span class="chip-count">' + counts[key] + '</span></button>';
+    });
+
+    var container = document.getElementById(containerId);
+    container.innerHTML = html;
+
+    Array.prototype.forEach.call(container.querySelectorAll('.chip'), function (btn) {
+      btn.onclick = function () {
+        var val = btn.dataset.key || null;
+        if (dimension === 'style') activeStyle = val;
+        else activePhong = val;
+        render();
+      };
+    });
+  }
+
+  /* ── Lưới thumbnail ─────────────────────── */
+  function renderGrid() {
+    var content = document.getElementById('content');
+
+    if (!library.exists) {
+      content.innerHTML =
+        '<div class="empty"><div class="big">⚠️</div>' +
+        '<p><b>Không truy cập được thư mục thư viện.</b></p>' +
+        '<p><code>' + esc(library.root) + '</code></p>' +
+        '<p>Kiểm tra kết nối ổ mạng / Drive, hoặc chọn lại thư mục.</p>' +
+        '<p><button onclick="app.chooseFolder()">⚙ Chọn thư mục thư viện</button> ' +
+        '<button onclick="app.refresh()">⟳ Thử lại</button></p></div>';
+      return;
+    }
+
+    if (library.items.length === 0) {
+      content.innerHTML =
+        '<div class="empty"><div class="big">📭</div>' +
+        '<p><b>Thư viện đang trống.</b></p>' +
+        '<p>Hãy chép các file <code>.skp</code> vào thư mục thư viện.<br>' +
+        'Thư mục con cấp 1 là danh mục, cấp 2 là danh mục con.</p>' +
+        '<p><button onclick="app.openFolder()">📂 Mở thư mục thư viện</button></p></div>';
+      return;
+    }
+
+    var items = filteredItems();
+    if (items.length === 0) {
+      content.innerHTML = '<div class="empty"><div class="big">🔍</div>' +
+        '<p>Không tìm thấy component nào phù hợp.</p></div>';
+      return;
+    }
+
+    var html = '<div class="grid">';
+    items.forEach(function (it, idx) {
+      var thumb = it.thumb
+        ? '<img src="' + fileUrl(it.thumb) + '?v=' + (it.thumb_v || 0) + '" alt="" loading="lazy">'
+        : '<span class="noimg">◻</span>';
+      var where = it.category + (it.subcategory ? ' / ' + it.subcategory : '');
+
+      var tagHtml = '';
+      var allTags = (it.style || []).concat(it.phong || []);
+      if (allTags.length > 0) {
+        tagHtml = '<div class="tags">';
+        allTags.slice(0, 3).forEach(function (t) {
+          var label = STYLE_LABELS[t] || PHONG_LABELS[t] || t;
+          tagHtml += '<span class="tag">' + esc(label) + '</span>';
+        });
+        tagHtml += '</div>';
+      }
+
+      html += '<div class="card" data-idx="' + idx + '" title="Click để chèn: ' + esc(it.name) + '">'
+            + '<div class="thumb">' + thumb + '</div>'
+            + '<div class="name">' + esc(it.name) + '<small>' + esc(where) + '</small></div>'
+            + tagHtml
+            + '</div>';
+    });
+    html += '</div>';
+    content.innerHTML = html;
+
+    Array.prototype.forEach.call(content.querySelectorAll('.card'), function (card) {
+      card.onclick = function () {
+        var it = items[parseInt(card.dataset.idx, 10)];
+        if (it) su('insert', it.path);
+      };
+    });
+  }
+
+  function renderStatus() {
+    var status = document.getElementById('status');
+    var rootEl = document.getElementById('root-path');
+    if (library.exists) {
+      status.textContent = filteredItems().length + ' / ' + library.items.length +
+        ' component — click vào hình để chèn vào model';
+    } else {
+      status.textContent = 'Mất kết nối thư viện';
+    }
+    rootEl.textContent = library.root;
+    rootEl.title = library.root;
+  }
+
+  function render() {
+    renderCategories();
+    renderFilterBar();
+    renderGrid();
+    renderStatus();
+  }
+
+  document.getElementById('search').addEventListener('input', function (e) {
+    searchText = e.target.value.trim().toLowerCase();
+    render();
+  });
+  document.getElementById('btn-refresh').onclick = function () { su('refresh'); };
+  document.getElementById('btn-folder').onclick  = function () { su('open_folder'); };
+  document.getElementById('btn-choose').onclick  = function () { su('choose_folder'); };
+  document.getElementById('btn-save').onclick    = function () { su('save_dialog'); };
+
+  /* ── Form "Lưu vào thư viện" ─────────────── */
+  function fillCatSelect(preselect) {
+    var html = '<option value="">(Chung — gốc thư viện)</option>';
+    saveCats.forEach(function (c) {
+      html += '<option value="' + esc(c.name) + '">' + esc(c.name) + '</option>';
+    });
+    html += '<option value="' + NEW_VALUE + '">＋ Tạo danh mục mới...</option>';
+    var sel = document.getElementById('save-cat');
+    sel.innerHTML = html;
+    sel.value = preselect || '';
+    if (sel.value !== (preselect || '')) sel.value = '';
+  }
+
+  function fillSubSelect(preselect) {
+    var catVal = document.getElementById('save-cat').value;
+    var cat = null;
+    saveCats.forEach(function (c) { if (c.name === catVal) cat = c; });
+    var html = '<option value="">(Không)</option>';
+    (cat ? cat.children : []).forEach(function (s) {
+      html += '<option value="' + esc(s) + '">' + esc(s) + '</option>';
+    });
+    if (catVal && catVal !== NEW_VALUE) {
+      html += '<option value="' + NEW_VALUE + '">＋ Tạo danh mục con mới...</option>';
+    }
+    var sel = document.getElementById('save-sub');
+    sel.innerHTML = html;
+    sel.value = preselect || '';
+    if (sel.value !== (preselect || '')) sel.value = '';
+    syncNewInputs();
+  }
+
+  function syncNewInputs() {
+    var catNew = document.getElementById('save-cat').value === NEW_VALUE;
+    var subNew = document.getElementById('save-sub').value === NEW_VALUE;
+    document.getElementById('save-cat-new').style.display = catNew ? 'block' : 'none';
+    document.getElementById('save-sub-new').style.display = subNew ? 'block' : 'none';
+    if (catNew) document.getElementById('save-cat-new').focus();
+    else if (subNew) document.getElementById('save-sub-new').focus();
+  }
+
+  function resolvedValue(selId, newId) {
+    var v = document.getElementById(selId).value;
+    if (v === NEW_VALUE) v = document.getElementById(newId).value.trim();
+    return v;
+  }
+
+  function renderFormChips(containerId, items, selectedArr) {
+    var html = '';
+    items.forEach(function (item) {
+      var active = selectedArr.indexOf(item.key) !== -1;
+      html += '<button type="button" class="form-chip' + (active ? ' active' : '') + '" data-key="' + esc(item.key) + '">' + esc(item.label) + '</button>';
+    });
+    var container = document.getElementById(containerId);
+    container.innerHTML = html;
+    Array.prototype.forEach.call(container.querySelectorAll('.form-chip'), function (btn) {
+      btn.onclick = function () {
+        var key = btn.dataset.key;
+        var arr = containerId === 'save-style-chips' ? selStyles : selPhongs;
+        var idx = arr.indexOf(key);
+        if (idx === -1) arr.push(key); else arr.splice(idx, 1);
+        renderFormChips(containerId, items, arr);
+      };
+    });
+  }
+
+  function hideSaveForm() {
+    document.getElementById('save-overlay').style.display = 'none';
+  }
+
+  document.getElementById('save-cat').addEventListener('change', function () { fillSubSelect(''); });
+  document.getElementById('save-sub').addEventListener('change', syncNewInputs);
+  document.getElementById('save-cancel').onclick = hideSaveForm;
+  document.getElementById('save-overlay').addEventListener('click', function (e) {
+    if (e.target === this) hideSaveForm();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') hideSaveForm();
+  });
+
+  document.getElementById('save-ok').onclick = function () {
+    var name = document.getElementById('save-name').value.trim();
+    if (!name) { document.getElementById('save-name').focus(); return; }
+    var category    = resolvedValue('save-cat', 'save-cat-new');
+    var subcategory = category ? resolvedValue('save-sub', 'save-sub-new') : '';
+    su('save_to_library', JSON.stringify({
+      name:        name,
+      category:    category,
+      subcategory: subcategory,
+      style:       selStyles,
+      phong:       selPhongs,
+      r:           document.getElementById('save-r').value.trim(),
+      c:           document.getElementById('save-c').value.trim()
+    }));
+    hideSaveForm();
+  };
+
+  document.addEventListener('DOMContentLoaded', function () { su('ready'); });
+
+  return {
+    setLibrary: function (data) {
+      library = data || { root: '', exists: true, categories: [], items: [] };
+      var names = library.categories.map(function (c) { return c.name; });
+      if (activeCat && names.indexOf(activeCat) === -1) { activeCat = null; activeSub = null; }
+      render();
+    },
+    openFolder:   function () { su('open_folder'); },
+    chooseFolder: function () { su('choose_folder'); },
+    refresh:      function () { su('refresh'); },
+    showSaveForm: function (info) {
+      saveCats   = (info && info.categories) || [];
+      saveStyles = (info && info.styles)     || [];
+      savePhongs = (info && info.phongs)     || [];
+      selStyles  = [];
+      selPhongs  = [];
+      document.getElementById('save-name').value = (info && info.name) || '';
+      document.getElementById('save-cat-new').value = '';
+      document.getElementById('save-sub-new').value = '';
+      document.getElementById('save-r').value = '';
+      document.getElementById('save-c').value = '';
+      fillCatSelect(activeCat || '');
+      fillSubSelect(activeSub || '');
+      renderFormChips('save-style-chips', saveStyles, selStyles);
+      renderFormChips('save-phong-chips', savePhongs, selPhongs);
+      document.getElementById('save-overlay').style.display = 'flex';
+      document.getElementById('save-name').focus();
+      document.getElementById('save-name').select();
+    }
+  };
+})();
+</script>
+</body>
+</html>

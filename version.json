@@ -1,5 +1,5 @@
 {
-  "version": "1.6.1",
+  "version": "1.7.0",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -14,6 +14,11 @@
     "LeHai_Tools/dien_ten/core/namer.rb",
     "LeHai_Tools/dien_ten/ui/menu.rb",
     "LeHai_Tools/dien_ten/ui/dialog.rb",
-    "LeHai_Tools/dien_ten/ui/dialog.html"
+    "LeHai_Tools/dien_ten/ui/dialog.html",
+    "LeHai_Tools/tk_thuvien/main.rb",
+    "LeHai_Tools/tk_thuvien/core/library.rb",
+    "LeHai_Tools/tk_thuvien/ui/commands.rb",
+    "LeHai_Tools/tk_thuvien/ui/dialog.rb",
+    "LeHai_Tools/tk_thuvien/ui/html/index.html"
   ]
 }

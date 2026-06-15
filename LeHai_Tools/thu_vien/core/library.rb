@@ -46,7 +46,7 @@ module TK
         {
           root:       dir,
           exists:     true,
-          categories: build_categories(items),
+          categories: category_tree,
           items:      items.sort_by { |i| i[:name].downcase }
         }
       end

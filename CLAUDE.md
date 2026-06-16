@@ -143,6 +143,7 @@ Script tự động:
 | Hạ Nền Uốn Cong | `LeHaiDecor::HaNen` |
 | Điền Tên Nhanh | `TuDong::DienTen` |
 | Thư Viện Component | `TK::ThuVien` |
+| Gỡ DC → Group | `TK::GoGroup` |
 
 ---
 
@@ -150,6 +151,7 @@ Script tự động:
 
 | Phiên bản | Ngày       | Nội dung |
 |-----------|------------|----------|
+| 1.9.0     | 2026-06-16 | Thêm tool Gỡ DC → Group (`go_group/`, module `TK::GoGroup`): biến Component/Dynamic Component thành group lồng nhau, giữ nguyên từng tấm + tên + tag, không phải group lại tay. Dùng trước khi gắn nhãn ABF (ABF không chịu component nhưng chịu group). Cách an toàn: tạo group rỗng → add_instance bản sao → explode trong group → erase gốc (tránh add_group trên geometry vừa nổ → bugsplat) |
 | 1.0.0     | 2026-06-08 | Gộp 5 plugin thành 1 bộ LeHai's Decor Tools |
 | 1.7.4     | 2026-06-13 | AutoDánCạnh: dán toàn bộ cung khi camera thấy bất kỳ mặt nào trong cung (`group_arc_faces` + `shared_arc_edge?`) — trước đó mỗi mặt cong check riêng lẻ → dán vá víu |
 | 1.7.3     | 2026-06-13 | AutoDánCạnh: bỏ filter axis-alignment — cho phép dán toàn bộ mặt cong góc bo (trước đó chỉ dán mặt thẳng do filter AXIS_ALIGN_THRESHOLD quá nghiêm) |

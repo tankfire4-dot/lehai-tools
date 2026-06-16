@@ -1,5 +1,5 @@
 {
-  "version": "1.8.7",
+  "version": "1.9.0",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -22,6 +22,9 @@
     "LeHai_Tools/thu_vien/ui/html/index.html",
     "LeHai_Tools/thu_vien/icons/tk_thuvien_16.png",
     "LeHai_Tools/thu_vien/icons/tk_thuvien_24.png",
-    "LeHai_Tools/thu_vien/components/HUONG_DAN.txt"
+    "LeHai_Tools/thu_vien/components/HUONG_DAN.txt",
+    "LeHai_Tools/go_group/main.rb",
+    "LeHai_Tools/go_group/icons/go_group_16.png",
+    "LeHai_Tools/go_group/icons/go_group_24.png"
   ]
 }

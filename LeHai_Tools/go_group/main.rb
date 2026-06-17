@@ -1,9 +1,10 @@
 # encoding: UTF-8
 # Gỡ DC → Group: biến Component / Dynamic Component thành group lồng nhau,
-# giữ nguyên cấu trúc từng tấm. Dùng trước khi gắn nhãn bằng ABF (ABF không
-# chịu component, nhưng chịu group).
+# giữ nguyên cấu trúc từng tấm, rồi LÀM SẠCH: xóa màu/material + toàn bộ
+# thuộc tính metadata. Chỉ chừa lại group thuần + tên (+ tag). Dùng trước
+# khi gắn nhãn bằng ABF.
 #
-# Cách làm AN TOÀN (tránh bugsplat): với mỗi component
+# Cách biến component→group AN TOÀN (tránh bugsplat): với mỗi component
 #   1. tạo group rỗng trong parent
 #   2. đặt 1 bản sao instance vào group rồi nổ bản sao đó BÊN TRONG group
 #   3. xóa instance gốc
@@ -38,18 +39,21 @@ module TK
 
       UI.messagebox(
         "✓ Xong.\n\n" \
-        "Đã biến #{count} component thành group.\n\n" \
-        "Trong model giờ không còn component nào — tất cả là group lồng nhau, " \
-        "từng tấm vẫn là 1 group riêng (tên tấm được giữ lại)."
+        "Đã biến #{count} component thành group và xóa sạch màu + thuộc tính.\n\n" \
+        "Trong model giờ chỉ còn group thuần lồng nhau, từng tấm là 1 group riêng " \
+        "(giữ lại tên + tag)."
       )
     end
 
     # ── Logic ──────────────────────────────────────────────────
     def self.convert_selection(model, targets)
       @count = 0
-      model.start_operation('Bien component thanh group', true)
+      model.start_operation('Bien component thanh group + lam sach', true)
       begin
-        targets.each { |e| convert_entity(e, root_entities(model, e), 0) }
+        targets.each do |e|
+          result = convert_entity(e, root_entities(model, e), 0)
+          clean(result, 0) if result.is_a?(Sketchup::Group)
+        end
         model.commit_operation
       rescue => err
         model.abort_operation
@@ -67,15 +71,18 @@ module TK
     private_class_method :root_entities
 
     # Component → group (đệ quy). Group thì giữ nguyên, chỉ xử lý con.
+    # Trả về group kết quả (để chạy pass làm sạch lên trên).
     def self.convert_entity(entity, parent_entities, depth)
-      return if depth > MAX_DEPTH || entity.deleted?
+      return nil if depth > MAX_DEPTH || entity.deleted?
 
       if entity.is_a?(Sketchup::ComponentInstance)
         group = instance_to_group(entity, parent_entities)
         @count += 1
         convert_children(group, depth)
+        group
       elsif entity.is_a?(Sketchup::Group)
         convert_children(entity, depth)
+        entity
       end
     end
     private_class_method :convert_entity
@@ -109,13 +116,50 @@ module TK
     end
     private_class_method :convert_children
 
+    # ── Làm sạch: xóa màu + mọi thuộc tính, giữ tên + tag + geometry ──
+    def self.clean(entity, depth)
+      return if depth > MAX_DEPTH || entity.deleted?
+
+      strip_material(entity)
+      strip_attributes(entity)
+
+      return unless entity.respond_to?(:entities)
+      entity.entities.to_a.each do |e|
+        next if e.deleted?
+        if e.is_a?(Sketchup::Group)
+          clean(e, depth + 1)
+        else
+          strip_material(e)
+          strip_attributes(e)
+        end
+      end
+    end
+    private_class_method :clean
+
+    def self.strip_material(entity)
+      entity.material      = nil if entity.respond_to?(:material=)
+      entity.back_material = nil if entity.respond_to?(:back_material=)
+    rescue StandardError
+      nil
+    end
+    private_class_method :strip_material
+
+    def self.strip_attributes(entity)
+      dicts = entity.attribute_dictionaries
+      return unless dicts
+      dicts.map(&:name).each { |n| entity.delete_attribute(n) }
+    rescue StandardError
+      nil
+    end
+    private_class_method :strip_attributes
+
     # ── Command (toolbar do LeHai_Tools/main.rb quản lý chung) ──
     def self.create_cmd
       icons_path = File.join(PATH, 'icons')
       cmd = UI::Command.new('Gỡ DC → Group') { TK::GoGroup.run }
-      cmd.tooltip         = 'Biến Component/DC thành group (giữ cấu trúc) — để gắn nhãn ABF'
-      cmd.status_bar_text = 'Chọn component → bấm: nổ thành group lồng nhau, giữ nguyên ' \
-                            'từng tấm, không còn component (ABF gắn nhãn được).'
+      cmd.tooltip         = 'Biến Component/DC thành group thuần (xóa màu + thuộc tính) — để gắn nhãn ABF'
+      cmd.status_bar_text = 'Chọn component → bấm: nổ thành group lồng nhau, xóa sạch màu + ' \
+                            'thuộc tính, giữ tên + tag (ABF gắn nhãn được).'
       cmd.small_icon      = File.join(icons_path, 'go_group_16.png')
       cmd.large_icon      = File.join(icons_path, 'go_group_24.png')
       cmd

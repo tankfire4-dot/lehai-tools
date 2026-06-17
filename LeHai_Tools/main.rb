@@ -13,7 +13,8 @@ module LeHai
         File.join(path, 'ha_nen',        'main'),
         File.join(path, 'dien_ten',      'main'),
         File.join(path, 'thu_vien',      'main'),
-        File.join(path, 'go_group',      'main')
+        File.join(path, 'go_group',      'main'),
+        File.join(path, 'kiem_tra_do_day', 'main')
       ].each do |f|
         begin
           require f
@@ -31,41 +32,39 @@ module LeHai
       puts "[LeHai_Tools] Defined? TuDong::DienTen        = #{defined?(::TuDong::DienTen).inspect}"
       puts "[LeHai_Tools] Defined? TK::ThuVien            = #{defined?(::TK::ThuVien).inspect}"
       puts "[LeHai_Tools] Defined? TK::GoGroup            = #{defined?(::TK::GoGroup).inspect}"
+      puts "[LeHai_Tools] Defined? TK::ThickCheck         = #{defined?(::TK::ThickCheck).inspect}"
 
-      # Build toolbar — chỉ add những tool đã load thành công
+      # Build toolbar — sắp theo CỤM (cụm DC để cuối). SketchUp không hỗ trợ
+      # vạch ngăn trong 1 toolbar nên gom theo thứ tự là cách nhóm khả dĩ.
       toolbar = UI::Toolbar.new("LeHai's Decor Tools")
       loaded_count = 0
 
-      if defined?(::MyStudio::AutoEdgeBand)
-        toolbar.add_item(::MyStudio::AutoEdgeBand.create_cmd)
-        loaded_count += 1
-      end
-      if defined?(::CanhCNC)
-        toolbar.add_item(::CanhCNC.create_cmd)
-        loaded_count += 1
-      end
-      if defined?(::Lehai::TamGoGen)
-        toolbar.add_item(::Lehai::TamGoGen.create_cmd)
-        loaded_count += 1
-      end
-      if defined?(::LeHaiDecor::HaNen)
-        toolbar.add_item(::LeHaiDecor::HaNen.create_cmd)
-        loaded_count += 1
-      end
-      if defined?(::TuDong::DienTen)
-        toolbar.add_item(::TuDong::DienTen.create_cmd)
-        loaded_count += 1
-      end
-      if defined?(::TK::ThuVien) && ::TK::ThuVien.respond_to?(:create_cmd)
-        toolbar.add_item(::TK::ThuVien.create_cmd)
-        loaded_count += 1
-      end
-      if defined?(::TK::GoGroup) && ::TK::GoGroup.respond_to?(:create_cmd)
-        toolbar.add_item(::TK::GoGroup.create_cmd)
+      # Mỗi phần tử: [điều kiện đã load?, lambda trả về create_cmd]
+      groups = [
+        # ── Cụm 1: Dựng hình ──
+        [defined?(::Lehai::TamGoGen),       -> { ::Lehai::TamGoGen.create_cmd }],
+        [defined?(::CanhCNC),               -> { ::CanhCNC.create_cmd }],
+        [defined?(::LeHaiDecor::HaNen),     -> { ::LeHaiDecor::HaNen.create_cmd }],
+        # ── Cụm 2: Gia công & nhãn ──
+        [defined?(::MyStudio::AutoEdgeBand),-> { ::MyStudio::AutoEdgeBand.create_cmd }],
+        [defined?(::TuDong::DienTen),       -> { ::TuDong::DienTen.create_cmd }],
+        # ── Cụm 3: Thư viện ──
+        [defined?(::TK::ThuVien) && ::TK::ThuVien.respond_to?(:create_cmd),
+         -> { ::TK::ThuVien.create_cmd }],
+        # ── Cụm 4 (cuối): DC / chuẩn bị xuất CNC ──
+        [defined?(::TK::GoGroup) && ::TK::GoGroup.respond_to?(:create_cmd),
+         -> { ::TK::GoGroup.create_cmd }],
+        [defined?(::TK::ThickCheck) && ::TK::ThickCheck.respond_to?(:create_cmd),
+         -> { ::TK::ThickCheck.create_cmd }]
+      ]
+
+      groups.each do |loaded, builder|
+        next unless loaded
+        toolbar.add_item(builder.call)
         loaded_count += 1
       end
 
-      puts "[LeHai_Tools] Toolbar da load #{loaded_count}/7 tools"
+      puts "[LeHai_Tools] Toolbar da load #{loaded_count}/8 tools"
 
       if toolbar.get_last_state == TB_NEVER_SHOWN
         toolbar.show

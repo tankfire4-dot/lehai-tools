@@ -144,6 +144,7 @@ Script tự động:
 | Điền Tên Nhanh | `TuDong::DienTen` |
 | Thư Viện Component | `TK::ThuVien` |
 | Gỡ DC → Group | `TK::GoGroup` |
+| Kiểm Tra Độ Dày | `TK::ThickCheck` |
 
 ---
 
@@ -151,6 +152,7 @@ Script tự động:
 
 | Phiên bản | Ngày       | Nội dung |
 |-----------|------------|----------|
+| 1.9.4     | 2026-06-17 | Thêm tool Kiểm Tra Độ Dày (`kiem_tra_do_day/`, module `TK::ThickCheck`): quét mọi tấm, đo độ dày từ mặt phẳng riêng (bỏ qua con lồng/rãnh phay ABF), biểu đồ cột (xanh=chuẩn 9/10/17.5/18, đỏ=sai), bấm cột → cô lập (ẩn tấm khác)+zoom. Lọc bỏ <1mm. + Sắp lại toolbar theo cụm: Dựng hình → Gia công&nhãn → Thư viện → Cụm DC (GoGroup, ThickCheck) ở cuối |
 | 1.9.3     | 2026-06-17 | Gỡ DC → Group: mở rộng quét — xóa MỌI object ABF (nhãn, phay rãnh, giao cắt...) theo prefix chung: instance name bắt đầu `_ABF` HOẶC tag bắt đầu `ABF_` |
 | 1.9.2     | 2026-06-17 | Gỡ DC → Group: quét toàn model xóa hết nhãn ABF (group có instance name bắt đầu `_ABF_Label` hoặc tag `ABF_Label`). Nhãn ABF là group riêng nằm cạnh tấm gỗ |
 | 1.9.1     | 2026-06-17 | Gỡ DC → Group: thêm pass làm sạch — xóa material/màu (cả back_material) + toàn bộ attribute dictionaries trên mọi entity, giữ lại group + tên + tag. Mục tiêu: group thuần để xuất CNC/gắn nhãn |

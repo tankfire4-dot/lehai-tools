@@ -20,8 +20,10 @@ module TK
     PATH      = File.dirname(__FILE__).freeze
     MAX_DEPTH = 12
 
-    ABF_LABEL_NAME = '_ABF_Label'.freeze
-    ABF_LABEL_TAG  = 'ABF_Label'.freeze
+    # ABF đặt tên mọi object phụ (nhãn, phay rãnh, giao cắt...) theo quy luật:
+    #   instance name bắt đầu '_ABF'  /  tag bắt đầu 'ABF_'
+    ABF_NAME_PREFIX = '_ABF'.freeze
+    ABF_TAG_PREFIX  = 'ABF_'.freeze
 
     # ── Entry point ────────────────────────────────────────────
     def self.run
@@ -42,11 +44,11 @@ module TK
       result = convert_selection(model, targets)
       return if result.nil?
 
-      comps, labels = result
+      comps, abf = result
       UI.messagebox(
         "✓ Xong.\n\n" \
-        "Đã biến #{comps} component thành group, xóa #{labels} nhãn ABF, " \
-        "và làm sạch màu + thuộc tính.\n\n" \
+        "Đã biến #{comps} component thành group, xóa #{abf} object ABF " \
+        "(nhãn + phay rãnh + giao cắt...), và làm sạch màu + thuộc tính.\n\n" \
         "Trong model giờ chỉ còn group thuần lồng nhau, từng tấm là 1 group riêng " \
         "(giữ lại tên + tag)."
       )
@@ -61,9 +63,9 @@ module TK
           result = convert_entity(e, root_entities(model, e), 0)
           clean(result, 0) if result.is_a?(Sketchup::Group)
         end
-        labels = purge_abf_labels(model.entities, 0)
+        abf = purge_abf_objects(model.entities, 0)
         model.commit_operation
-        [@count, labels]
+        [@count, abf]
       rescue => err
         model.abort_operation
         UI.messagebox("Lỗi: #{err.message}\n\n#{err.backtrace.first(3).join("\n")}")
@@ -160,37 +162,37 @@ module TK
     end
     private_class_method :strip_attributes
 
-    # ── Quét toàn model xóa hết nhãn ABF ───────────────────────
-    def self.purge_abf_labels(entities, depth)
+    # ── Quét toàn model xóa hết object ABF (nhãn, phay rãnh, giao cắt...) ──
+    def self.purge_abf_objects(entities, depth)
       return 0 if depth > MAX_DEPTH
       removed = 0
       entities.to_a.each do |e|
         next if e.deleted?
-        if abf_label?(e)
+        if abf_object?(e)
           e.erase!
           removed += 1
           next
         end
         if e.is_a?(Sketchup::Group)
-          removed += purge_abf_labels(e.entities, depth + 1)
+          removed += purge_abf_objects(e.entities, depth + 1)
         elsif e.is_a?(Sketchup::ComponentInstance)
-          removed += purge_abf_labels(e.definition.entities, depth + 1)
+          removed += purge_abf_objects(e.definition.entities, depth + 1)
         end
       end
       removed
     end
-    private_class_method :purge_abf_labels
+    private_class_method :purge_abf_objects
 
-    def self.abf_label?(entity)
+    def self.abf_object?(entity)
       return false unless entity.is_a?(Sketchup::Group) ||
                           entity.is_a?(Sketchup::ComponentInstance)
-      return true if entity.name.to_s.start_with?(ABF_LABEL_NAME)
+      return true if entity.name.to_s.start_with?(ABF_NAME_PREFIX)
       tag = entity.layer
-      tag && tag.name.to_s == ABF_LABEL_TAG
+      tag && tag.name.to_s.start_with?(ABF_TAG_PREFIX)
     rescue StandardError
       false
     end
-    private_class_method :abf_label?
+    private_class_method :abf_object?
 
     # ── Command (toolbar do LeHai_Tools/main.rb quản lý chung) ──
     def self.create_cmd

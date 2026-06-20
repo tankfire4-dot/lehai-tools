@@ -54,6 +54,7 @@ module LeHai
             next
           end
 
+          body  = body.dup.force_encoding('UTF-8').sub("﻿", '')  # lot BOM neu co
           data  = JSON.parse(body)
           files = data['ruby_files'] || []
           installed = File.read(version_file).strip rescue '0.0.0'

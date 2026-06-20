@@ -25,6 +25,7 @@ module LeHai
       body = _http_get(version_url)
       return unless body
 
+      body = body.dup.force_encoding('UTF-8').sub("﻿", '')  # lot BOM neu co
       data           = JSON.parse(body)
       remote_version = data['version'].to_s.strip
       return if remote_version.empty?

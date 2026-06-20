@@ -89,6 +89,11 @@ module TK
           flags = { color: opts['color'], tag: opts['tag'], attr: opts['attr'] }
           roots.each { |r| clean(r, 0, flags) if r && !r.deleted? }
         end
+
+        # Dọn rác: xóa các definition không còn instance nào dùng (sinh ra khi
+        # đổi component↔group nhiều lần) → file không phình, số đuôi #N không leo thang.
+        model.definitions.purge_unused if opts['convert'] || opts['makecomp']
+
         model.commit_operation
       rescue => err
         model.abort_operation

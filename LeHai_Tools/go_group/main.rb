@@ -15,14 +15,11 @@ module TK
 
     PATH      = File.dirname(__FILE__).freeze
     MAX_DEPTH = 12
-    PREF      = 'TK_GoGroup'.freeze
 
     ABF_NAME_PREFIX = '_ABF'.freeze
     ABF_TAG_PREFIX  = 'ABF_'.freeze
 
     OPTS = %w[convert makecomp color tag attr abf].freeze
-    DEFAULTS = { 'convert' => true, 'makecomp' => false, 'color' => true, 'tag' => false,
-                 'attr' => true, 'abf' => true }.freeze
 
     # ── Dialog ─────────────────────────────────────────────────
     def self.show
@@ -39,18 +36,9 @@ module TK
         style:           UI::HtmlDialog::STYLE_DIALOG
       )
       @dlg.set_html(html)
-      @dlg.add_action_callback('ready') { @dlg.execute_script("setOpts(#{saved_opts.to_json});") }
-      @dlg.add_action_callback('run')   { |_c, json| run(JSON.parse(json)) }
+      @dlg.add_action_callback('run') { |_c, json| run(JSON.parse(json)) }
       @dlg.show
     end
-
-    def self.saved_opts
-      OPTS.each_with_object({}) do |k, h|
-        v = Sketchup.read_default(PREF, k, DEFAULTS[k])
-        h[k] = (v == true || v == 'true')
-      end
-    end
-    private_class_method :saved_opts
 
     def self.status(msg)
       @dlg&.execute_script("setStatus(#{msg.to_json});")
@@ -59,8 +47,6 @@ module TK
 
     # ── Thực thi ───────────────────────────────────────────────
     def self.run(opts)
-      OPTS.each { |k| Sketchup.write_default(PREF, k, opts[k] ? true : false) }
-
       unless OPTS.any? { |k| opts[k] }
         status('Chưa tích thao tác nào.')
         return
@@ -306,14 +292,12 @@ module TK
         <div id="status"></div>
         <script>
           var KEYS=['convert','makecomp','color','tag','attr','abf'];
-          function setOpts(o){ KEYS.forEach(function(k){ document.getElementById(k).checked=!!o[k]; }); }
           function setStatus(m){ document.getElementById('status').textContent=m; }
           function runIt(){
             var o={}; KEYS.forEach(function(k){ o[k]=document.getElementById(k).checked; });
             setStatus('Đang xử lý...');
             sketchup.run(JSON.stringify(o));
           }
-          sketchup.ready();
         </script></body></html>
       HTML
     end

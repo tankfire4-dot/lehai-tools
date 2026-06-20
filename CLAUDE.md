@@ -14,7 +14,9 @@ Sau khi cập nhật bất kỳ file nào trong profile, chạy luôn: `cd C:\Us
 
 ## Tài liệu
 
-- **CLAUDE.md** (file này) = hiến pháp ngắn: cách làm việc + cấu trúc + luật nhà. Đọc mỗi phiên — giữ gọn.
+- **CLAUDE.md** (file này) = hiến pháp ngắn: cách làm việc + cấu trúc + con trỏ. Đọc mỗi phiên — giữ gọn.
+- **[LUAT_NHA.md](LUAT_NHA.md)** = quy ước code thống nhất. **Đọc TRƯỚC khi viết/sửa code Ruby**,
+  kèm dùng skill `sketchup-api`.
 - **[NHAT_KY.md](NHAT_KY.md)** = nhật ký phát triển: vì sao đằng sau mỗi quyết định + bài học. Mỗi
   thay đổi đáng kể → ghi 1 mục (Vấn đề → Quyết định → Vì sao → Bài học). Đọc khi cần hiểu mạch cũ.
 

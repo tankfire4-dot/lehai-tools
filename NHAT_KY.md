@@ -12,6 +12,26 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-06-20 — Chốt Luật nhà (quy ước code)
+
+**Vấn đề:** Code 9 tool bị trôi phong cách: biến dialog lúc `@dlg` lúc `@dialog` lúc local; báo lỗi
+lúc popup lúc trong bảng; `rescue` lúc nuốt im lặng lúc surface; tam_go còn dùng tiếng Việt không dấu.
+Mỗi đoạn chạy được nhưng ghép lại như nhà mỗi phòng một kiểu.
+
+**Quyết định:** Tạo [LUAT_NHA.md](LUAT_NHA.md) — vừa liệt kê thẳng các chỗ đang lệch (mục A), vừa
+chốt quy ước thống nhất (mục B): dùng `@dlg`, báo trong bảng nếu có dialog, không nuốt lỗi im lặng,
+một mẫu bọc `start_operation` duy nhất, tiếng Việt có dấu cho chuỗi hiển thị, quy trình release
+không-BOM. CLAUDE.md thêm lệnh "đọc LUAT_NHA.md trước khi code".
+
+**Vì sao:** Đây là câu trả lời trực tiếp cho nỗi lo "code Claude không nhất quán" + "sợ phụ thuộc".
+Nhật ký ghi *vì sao*; Luật nhà ép *cách làm* đồng nhất về sau. Code nhất quán = ai cũng tiếp quản
+được = thoát khóa vào một người.
+
+**Bài học:** Không refactor hàng loạt code cũ (rủi ro cao). Luật nhà áp cho code mới + dọn dần khi
+đụng file. Nợ kỹ thuật (mục A) gỡ từ từ, không vội.
+
+---
+
 ## 2026-06-20 — Lập "luật nhà" + cuốn nhật ký này
 
 **Vấn đề:** Khoa nhận ra hai điều: (1) code Claude viết đôi khi không nhất quán — đoạn sau khác

@@ -51,20 +51,42 @@ module TK
       targets = picked
       return unless targets
 
+      dcs   = targets.select { |e| dynamic?(e) }
+      plain = targets - dcs
+
+      # Toàn bộ là DC còn sống → Reset không ăn (engine DC kéo trục về chỗ cũ).
+      if plain.empty?
+        status("⚠ #{dcs.size} đối tượng là Dynamic Component — Reset KHÔNG ăn " \
+               "trên DC. Hãy bấm \"Dọn Component → Biến component→group\" để gỡ DC " \
+               "trước, rồi Reset lại.")
+        return
+      end
+
       model = Sketchup.active_model
       n = 0
       model.start_operation('Reset truc ve global', true)
       begin
-        targets.each { |e| n += 1 if reset_one(e) }
+        plain.each { |e| n += 1 if reset_one(e) }
         model.commit_operation
       rescue => err
         model.abort_operation
         status("Lỗi: #{err.message}")
         return
       end
-      status("✓ Đã reset trục #{n} đối tượng về global (gốc về góc hình).")
+
+      msg = "✓ Đã reset trục #{n} đối tượng về global (gốc về góc hình)."
+      msg += " ⚠ Bỏ qua #{dcs.size} DC — gỡ DC trước rồi reset." unless dcs.empty?
+      status(msg)
     end
     private_class_method :reset_axes
+
+    # DC còn sống = có dictionary 'dynamic_attributes'
+    def self.dynamic?(entity)
+      !entity.attribute_dictionary('dynamic_attributes').nil?
+    rescue StandardError
+      false
+    end
+    private_class_method :dynamic?
 
     def self.reset_one(entity)
       entity.make_unique

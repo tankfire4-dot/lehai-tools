@@ -145,6 +145,7 @@ Script tự động:
 | Thư Viện Component | `TK::ThuVien` |
 | Gỡ DC → Group | `TK::GoGroup` |
 | Kiểm Tra Độ Dày | `TK::ThickCheck` |
+| Trục Tọa Độ | `TK::AxisFix` |
 
 ---
 
@@ -152,6 +153,10 @@ Script tự động:
 
 | Phiên bản | Ngày       | Nội dung |
 |-----------|------------|----------|
+| 1.9.9     | 2026-06-20 | Thêm tool Trục Tọa Độ (`truc_toa_do/`, module `TK::AxisFix`): 1 icon mở bảng nhỏ — nút Reset trục về global (+ gốc về góc hình, khử -0) và 3 nút X/Y/Z xoay vật thể 90° quanh trục. Kết quả báo ngay trong bảng (không popup). Ở cụm DC, cuối toolbar |
+| 1.9.8     | 2026-06-20 | Dọn Component: tự `purge_unused` sau khi đổi component↔group → tránh rác definition phình file + số đuôi #N leo thang khi đổi qua lại nhiều lần |
+| 1.9.7     | 2026-06-20 | Dọn Component: mặc định bỏ tick hết checkbox (an toàn, tránh bấm nhầm thao tác xóa); bỏ phần nhớ lựa chọn cũ |
+| 1.9.6     | 2026-06-20 | Dọn Component: thêm chức năng "Biến group → component" (ngược với component→group, dùng khi copy sản phẩm sẵn có dạng group). HOTFIX: bỏ BOM khỏi version.json (BOM làm Ruby JSON.parse hỏng → auto-update im lặng thất bại); thêm lột BOM phòng hộ trong updater |
 | 1.9.5     | 2026-06-17 | Gỡ DC → đổi thành "Dọn Component": bấm icon hiện bảng checkbox chọn thao tác (biến component→group / xóa màu / xóa tag / xóa thuộc tính / xóa object ABF), tích cái nào làm cái đó. Nhớ lựa chọn lần trước qua write_default |
 | 1.9.4     | 2026-06-17 | Thêm tool Kiểm Tra Độ Dày (`kiem_tra_do_day/`, module `TK::ThickCheck`): quét mọi tấm, đo độ dày từ mặt phẳng riêng (bỏ qua con lồng/rãnh phay ABF), biểu đồ cột (xanh=chuẩn 9/10/17.5/18, đỏ=sai), bấm cột → cô lập (ẩn tấm khác)+zoom. Lọc bỏ <1mm. + Sắp lại toolbar theo cụm: Dựng hình → Gia công&nhãn → Thư viện → Cụm DC (GoGroup, ThickCheck) ở cuối |
 | 1.9.3     | 2026-06-17 | Gỡ DC → Group: mở rộng quét — xóa MỌI object ABF (nhãn, phay rãnh, giao cắt...) theo prefix chung: instance name bắt đầu `_ABF` HOẶC tag bắt đầu `ABF_` |

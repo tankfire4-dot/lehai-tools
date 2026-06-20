@@ -1,5 +1,5 @@
 {
-  "version": "1.9.8",
+  "version": "1.9.9",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -28,6 +28,9 @@
     "LeHai_Tools/go_group/icons/go_group_24.png",
     "LeHai_Tools/kiem_tra_do_day/main.rb",
     "LeHai_Tools/kiem_tra_do_day/icons/check_16.png",
-    "LeHai_Tools/kiem_tra_do_day/icons/check_24.png"
+    "LeHai_Tools/kiem_tra_do_day/icons/check_24.png",
+    "LeHai_Tools/truc_toa_do/main.rb",
+    "LeHai_Tools/truc_toa_do/icons/reset_16.png",
+    "LeHai_Tools/truc_toa_do/icons/reset_24.png"
   ]
 }

@@ -14,7 +14,8 @@ module LeHai
         File.join(path, 'dien_ten',      'main'),
         File.join(path, 'thu_vien',      'main'),
         File.join(path, 'go_group',      'main'),
-        File.join(path, 'kiem_tra_do_day', 'main')
+        File.join(path, 'kiem_tra_do_day', 'main'),
+        File.join(path, 'truc_toa_do',   'main')
       ].each do |f|
         begin
           require f
@@ -33,6 +34,7 @@ module LeHai
       puts "[LeHai_Tools] Defined? TK::ThuVien            = #{defined?(::TK::ThuVien).inspect}"
       puts "[LeHai_Tools] Defined? TK::GoGroup            = #{defined?(::TK::GoGroup).inspect}"
       puts "[LeHai_Tools] Defined? TK::ThickCheck         = #{defined?(::TK::ThickCheck).inspect}"
+      puts "[LeHai_Tools] Defined? TK::AxisFix            = #{defined?(::TK::AxisFix).inspect}"
 
       # Build toolbar — sắp theo CỤM (cụm DC để cuối). SketchUp không hỗ trợ
       # vạch ngăn trong 1 toolbar nên gom theo thứ tự là cách nhóm khả dĩ.
@@ -55,7 +57,9 @@ module LeHai
         [defined?(::TK::GoGroup) && ::TK::GoGroup.respond_to?(:create_cmd),
          -> { ::TK::GoGroup.create_cmd }],
         [defined?(::TK::ThickCheck) && ::TK::ThickCheck.respond_to?(:create_cmd),
-         -> { ::TK::ThickCheck.create_cmd }]
+         -> { ::TK::ThickCheck.create_cmd }],
+        [defined?(::TK::AxisFix) && ::TK::AxisFix.respond_to?(:create_cmd),
+         -> { ::TK::AxisFix.create_cmd }]
       ]
 
       groups.each do |loaded, builder|
@@ -64,7 +68,7 @@ module LeHai
         loaded_count += 1
       end
 
-      puts "[LeHai_Tools] Toolbar da load #{loaded_count}/8 tools"
+      puts "[LeHai_Tools] Toolbar da load #{loaded_count}/9 tools"
 
       if toolbar.get_last_state == TB_NEVER_SHOWN
         toolbar.show

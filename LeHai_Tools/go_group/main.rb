@@ -20,8 +20,8 @@ module TK
     ABF_NAME_PREFIX = '_ABF'.freeze
     ABF_TAG_PREFIX  = 'ABF_'.freeze
 
-    OPTS = %w[convert color tag attr abf].freeze
-    DEFAULTS = { 'convert' => true, 'color' => true, 'tag' => false,
+    OPTS = %w[convert makecomp color tag attr abf].freeze
+    DEFAULTS = { 'convert' => true, 'makecomp' => false, 'color' => true, 'tag' => false,
                  'attr' => true, 'abf' => true }.freeze
 
     # ── Dialog ─────────────────────────────────────────────────
@@ -77,10 +77,24 @@ module TK
 
       model.start_operation('Don component', true)
       begin
-        @count = 0
-        roots  = targets
+        @count      = 0
+        @comp_count = 0
+        roots = targets
+
         if opts['convert']
           roots = targets.map { |e| convert_entity(e, root_entities(model, e), 0) }.compact
+        end
+
+        if opts['makecomp']
+          roots = roots.map do |e|
+            next nil if e.deleted?
+            if e.is_a?(Sketchup::Group)
+              @comp_count += 1
+              group_to_component(e)
+            else
+              e
+            end
+          end.compact
         end
 
         abf = opts['abf'] ? purge_abf_objects(model.entities, 0) : 0
@@ -96,13 +110,14 @@ module TK
         return
       end
 
-      status(summary(opts, @count, abf))
+      status(summary(opts, @count, @comp_count, abf))
     end
     private_class_method :run
 
-    def self.summary(opts, conv, abf)
+    def self.summary(opts, conv, comp, abf)
       parts = []
       parts << "biến #{conv} component→group" if opts['convert']
+      parts << "biến #{comp} group→component" if opts['makecomp']
       parts << "xóa #{abf} object ABF"        if opts['abf']
       done = []
       done << 'màu'        if opts['color']
@@ -151,6 +166,20 @@ module TK
       group
     end
     private_class_method :instance_to_group
+
+    # ── Group → component ──────────────────────────────────────
+    def self.group_to_component(group)
+      name     = group.name.to_s
+      instance = group.to_component
+      unless name.empty?
+        instance.name = name
+        instance.definition.name = name rescue nil
+      end
+      instance
+    rescue StandardError
+      nil
+    end
+    private_class_method :group_to_component
 
     def self.convert_children(group, depth)
       group.entities.to_a.each do |child|
@@ -268,6 +297,7 @@ module TK
         <h3>Dọn Component</h3>
         <div class="sub">Tích thao tác cần làm trên đối tượng đang chọn.</div>
         <label><input type="checkbox" id="convert"> Biến component → group</label>
+        <label><input type="checkbox" id="makecomp"> Biến group → component</label>
         <label><input type="checkbox" id="color"> Xóa màu</label>
         <label><input type="checkbox" id="tag"> Xóa tag</label>
         <label><input type="checkbox" id="attr"> Xóa thuộc tính</label>
@@ -275,7 +305,7 @@ module TK
         <button class="run" onclick="runIt()">Thực hiện</button>
         <div id="status"></div>
         <script>
-          var KEYS=['convert','color','tag','attr','abf'];
+          var KEYS=['convert','makecomp','color','tag','attr','abf'];
           function setOpts(o){ KEYS.forEach(function(k){ document.getElementById(k).checked=!!o[k]; }); }
           function setStatus(m){ document.getElementById('status').textContent=m; }
           function runIt(){

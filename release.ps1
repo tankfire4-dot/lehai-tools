@@ -1,10 +1,18 @@
-# release.ps1 — Đóng gói và phát hành LeHai Tools
-# Cách dùng: .\release.ps1 -Version "1.1.0"
+# release.ps1 — [LỖI THỜI, KHÔNG DÙNG] — xem CLAUDE.md mục "Phát hành version mới"
+#
+# Script này đã hỏng 3 tầng và bị thay bằng quy trình tay (LUAT_NHA.md mục 7):
+#   1. Trỏ $src = Desktop\lehai_tools — thư mục KHÔNG tồn tại (repo thật ở claude_work\lehai-tools)
+#   2. Cập nhật plugins.json / congty_loader — KHÔNG tồn tại (update thật qua version.json)
+#   3. Ghi file bằng Set-Content -Encoding UTF8 — chèn BOM → làm hỏng auto-update (xem NHAT_KY.md)
+# Giữ lại để tham khảo. Nếu cần tự động hóa lại thì viết script mới sạch.
 
 param(
     [Parameter(Mandatory=$true)]
     [string]$Version
 )
+
+Write-Host "release.ps1 da LOI THOI, khong dung. Phat hanh bang tay theo LUAT_NHA.md muc 7." -ForegroundColor Yellow
+exit 1
 
 $src      = "C:\Users\tankf\Desktop\lehai_tools"
 $manifest = "C:\Users\tankf\Desktop\congty_loader\plugins.json"

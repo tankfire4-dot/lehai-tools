@@ -105,19 +105,21 @@ toolbar.restore
 
 ---
 
+## Nguồn / vị trí (source of truth)
+
+- **GitHub `tankfire4-dot/lehai-tools` = nguồn chính dài hạn.** Mất file trên máy vẫn còn GitHub.
+- **`C:\Users\tankf\Desktop\claude_work\lehai-tools`** = bản làm việc trên máy (git repo). Sửa ở đây → **push** lên GitHub.
+- **`%AppData%\SketchUp\SketchUp 2025\SketchUp\Plugins\LeHai_Tools`** = bản đang chạy (auto-update tải về).
+
 ## Phát hành version mới
 
-```powershell
-cd C:\Users\tankf\Desktop\lehai_tools
-.\release.ps1 -Version "1.1.0"
-```
+Làm **bằng tay** theo quy trình ở **[LUAT_NHA.md](LUAT_NHA.md) mục 7** (tóm: bump version bằng Edit
+tool ở cả `LeHai_Tools.rb` + `version.json` → thêm file mới vào `version.json` → build `.rbz` →
+kiểm không BOM → commit + push). Máy thợ tự cập nhật qua `version.json`.
 
-Script tự động:
-1. Xóa `.rbz` cũ
-2. Cập nhật `ext.version` trong `LeHai_Tools.rb`
-3. Tái tạo `LeHai_Tools-1.1.0.rbz`
-4. Cập nhật `plugins.json` trong `sketchup-plugins` repo (URL + version)
-5. Commit + push cả 2 repo
+> ⚠️ `release.ps1` đã **lỗi thời, KHÔNG dùng**: trỏ đường dẫn `Desktop\lehai_tools` (không tồn tại),
+> cập nhật `plugins.json`/`congty_loader` (không tồn tại), và ghi file bằng PowerShell → chèn BOM
+> (đúng cái làm hỏng auto-update). Cơ chế update thật bây giờ là `version.json`, bump tay.
 
 ---
 
@@ -137,7 +139,7 @@ Script tự động:
    # ...
    [... , TenModule].each { |mod| toolbar.add_item(mod.create_cmd) }
    ```
-4. Chạy `release.ps1 -Version "x.x.x"`
+4. Phát hành theo quy trình tay ở [LUAT_NHA.md](LUAT_NHA.md) mục 7 (bump version + thêm file vào `version.json` + build + push)
 
 ---
 

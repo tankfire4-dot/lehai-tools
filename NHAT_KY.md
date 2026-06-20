@@ -12,6 +12,24 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-06-20 — Tài liệu trỏ sai đường dẫn nguồn (release.ps1 lỗi thời)
+
+**Vấn đề:** Khoa phát hiện CLAUDE.md + `release.ps1` ghi đường phát hành là `Desktop\lehai_tools` —
+thư mục KHÔNG tồn tại. Repo thật ở `claude_work\lehai-tools`. Đó là lý do mọi lần release đều làm tay.
+
+**Quyết định:** Chốt **GitHub `tankfire4-dot/lehai-tools` = nguồn chính dài hạn**; máy chỉ là bản làm
+việc. Sửa CLAUDE.md (thêm mục "Nguồn / vị trí", trỏ đúng claude_work, chỉ sang LUAT_NHA.md mục 7).
+Đánh dấu `release.ps1` lỗi thời + chặn chạy (exit 1) để không đạp lại lỗi BOM.
+
+**Vì sao:** GitHub là chỗ xây dài hạn — mất file trên máy vẫn còn (dự phòng 1-trong-2). `release.ps1`
+hỏng 3 tầng: sai đường dẫn, cập nhật plugins.json/congty_loader (không tồn tại), ghi file bằng
+PowerShell Set-Content → chèn BOM (chính lỗi đã trị). Quy trình tay hiện tại mới đúng + an toàn.
+
+**Bài học:** Tài liệu trôi khỏi thực tế cũng nguy như code trôi — script "tự động" trỏ sai còn tệ hơn
+không có, vì tạo ảo giác an toàn. Khi dời thư mục/đổi cơ chế, phải rà lại mọi đường dẫn cứng trong docs.
+
+---
+
 ## 2026-06-20 — Chốt Luật nhà (quy ước code)
 
 **Vấn đề:** Code 9 tool bị trôi phong cách: biến dialog lúc `@dlg` lúc `@dialog` lúc local; báo lỗi

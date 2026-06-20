@@ -12,6 +12,12 @@ Sau khi cập nhật bất kỳ file nào trong profile, chạy luôn: `cd C:\Us
 - Giải thích như báo cáo cho sếp không chuyên IT — tránh jargon kỹ thuật
 - Đưa khuyến nghị rõ ràng, không liệt kê options trung lập
 
+## Tài liệu
+
+- **CLAUDE.md** (file này) = hiến pháp ngắn: cách làm việc + cấu trúc + luật nhà. Đọc mỗi phiên — giữ gọn.
+- **[NHAT_KY.md](NHAT_KY.md)** = nhật ký phát triển: vì sao đằng sau mỗi quyết định + bài học. Mỗi
+  thay đổi đáng kể → ghi 1 mục (Vấn đề → Quyết định → Vì sao → Bài học). Đọc khi cần hiểu mạch cũ.
+
 ## Mục đích
 
 Gộp tất cả plugin SketchUp của Le Hai Studio vào **1 file `.rbz` duy nhất**, 1 toolbar duy nhất.

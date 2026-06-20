@@ -157,21 +157,4 @@ Script tự động:
 
 ## Lịch sử thay đổi
 
-| Phiên bản | Ngày       | Nội dung |
-|-----------|------------|----------|
-| 1.9.10    | 2026-06-20 | Trục Tọa Độ: Reset phát hiện Dynamic Component (có dict `dynamic_attributes`) → bỏ qua + cảnh báo "gỡ DC trước" thay vì lặng lẽ không ăn (engine DC giữ Position kéo trục về chỗ cũ). Lý do: reset đổi transformation nhưng DC áp lại x/y/z stored → trục không bám góc tấm. Phải Dọn Component (DC→group) trước rồi mới reset |
-| 1.9.9     | 2026-06-20 | Thêm tool Trục Tọa Độ (`truc_toa_do/`, module `TK::AxisFix`): 1 icon mở bảng nhỏ — nút Reset trục về global (+ gốc về góc hình, khử -0) và 3 nút X/Y/Z xoay vật thể 90° quanh trục. Kết quả báo ngay trong bảng (không popup). Ở cụm DC, cuối toolbar |
-| 1.9.8     | 2026-06-20 | Dọn Component: tự `purge_unused` sau khi đổi component↔group → tránh rác definition phình file + số đuôi #N leo thang khi đổi qua lại nhiều lần |
-| 1.9.7     | 2026-06-20 | Dọn Component: mặc định bỏ tick hết checkbox (an toàn, tránh bấm nhầm thao tác xóa); bỏ phần nhớ lựa chọn cũ |
-| 1.9.6     | 2026-06-20 | Dọn Component: thêm chức năng "Biến group → component" (ngược với component→group, dùng khi copy sản phẩm sẵn có dạng group). HOTFIX: bỏ BOM khỏi version.json (BOM làm Ruby JSON.parse hỏng → auto-update im lặng thất bại); thêm lột BOM phòng hộ trong updater |
-| 1.9.5     | 2026-06-17 | Gỡ DC → đổi thành "Dọn Component": bấm icon hiện bảng checkbox chọn thao tác (biến component→group / xóa màu / xóa tag / xóa thuộc tính / xóa object ABF), tích cái nào làm cái đó. Nhớ lựa chọn lần trước qua write_default |
-| 1.9.4     | 2026-06-17 | Thêm tool Kiểm Tra Độ Dày (`kiem_tra_do_day/`, module `TK::ThickCheck`): quét mọi tấm, đo độ dày từ mặt phẳng riêng (bỏ qua con lồng/rãnh phay ABF), biểu đồ cột (xanh=chuẩn 9/10/17.5/18, đỏ=sai), bấm cột → cô lập (ẩn tấm khác)+zoom. Lọc bỏ <1mm. + Sắp lại toolbar theo cụm: Dựng hình → Gia công&nhãn → Thư viện → Cụm DC (GoGroup, ThickCheck) ở cuối |
-| 1.9.3     | 2026-06-17 | Gỡ DC → Group: mở rộng quét — xóa MỌI object ABF (nhãn, phay rãnh, giao cắt...) theo prefix chung: instance name bắt đầu `_ABF` HOẶC tag bắt đầu `ABF_` |
-| 1.9.2     | 2026-06-17 | Gỡ DC → Group: quét toàn model xóa hết nhãn ABF (group có instance name bắt đầu `_ABF_Label` hoặc tag `ABF_Label`). Nhãn ABF là group riêng nằm cạnh tấm gỗ |
-| 1.9.1     | 2026-06-17 | Gỡ DC → Group: thêm pass làm sạch — xóa material/màu (cả back_material) + toàn bộ attribute dictionaries trên mọi entity, giữ lại group + tên + tag. Mục tiêu: group thuần để xuất CNC/gắn nhãn |
-| 1.9.0     | 2026-06-16 | Thêm tool Gỡ DC → Group (`go_group/`, module `TK::GoGroup`): biến Component/Dynamic Component thành group lồng nhau, giữ nguyên từng tấm + tên + tag, không phải group lại tay. Dùng trước khi gắn nhãn ABF (ABF không chịu component nhưng chịu group). Cách an toàn: tạo group rỗng → add_instance bản sao → explode trong group → erase gốc (tránh add_group trên geometry vừa nổ → bugsplat) |
-| 1.0.0     | 2026-06-08 | Gộp 5 plugin thành 1 bộ LeHai's Decor Tools |
-| 1.7.4     | 2026-06-13 | AutoDánCạnh: dán toàn bộ cung khi camera thấy bất kỳ mặt nào trong cung (`group_arc_faces` + `shared_arc_edge?`) — trước đó mỗi mặt cong check riêng lẻ → dán vá víu |
-| 1.7.3     | 2026-06-13 | AutoDánCạnh: bỏ filter axis-alignment — cho phép dán toàn bộ mặt cong góc bo (trước đó chỉ dán mặt thẳng do filter AXIS_ALIGN_THRESHOLD quá nghiêm) |
-| 1.7.1     | 2026-06-13 | CanhCNC: preview 3D cánh ma khi chọn điểm 2 (đúng số cánh/khe hở/độ dày, khung đỏ khi hở vượt khoang); tách công thức `door_layout` dùng chung cho preview + dựng thật |
-| 1.7.0     | 2026-06-12 | Thêm tool Thư Viện Component (`thu_vien/`, module `TK::ThuVien`): trình duyệt thư viện .skp dùng chung — thumbnail, danh mục 2 cấp, tìm kiếm, chèn component, lưu component từ model vào thư viện (save_as → thumbnail iso chuẩn), chọn thư mục thư viện trên ổ mạng/Drive |
+→ Đã dời sang **[NHAT_KY.md](NHAT_KY.md)** (mục "Bảng phiên bản" + các mục "vì sao" chi tiết). CLAUDE.md giữ gọn, không chứa lịch sử.

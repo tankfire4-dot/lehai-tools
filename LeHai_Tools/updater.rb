@@ -7,6 +7,33 @@ begin; require 'openssl'; rescue LoadError; end
 module LeHai
   module Tools
 
+    STATS_PING_URL = 'https://lehai-stats.tankfire4.workers.dev/ping'
+
+    # Gửi 1 ping ẩn danh (mã máy ngẫu nhiên + version) để đếm số máy đang dùng.
+    # Bắn-rồi-quên: lỗi/offline đều IM LẶNG, không được phép ảnh hưởng plugin.
+    def self.ping_stats
+      UI.start_timer(6, false) do
+        begin
+          mid = Sketchup.read_default('TK_LeHai', 'machine_id', '').to_s
+          if mid.empty?
+            begin
+              require 'securerandom'
+              mid = SecureRandom.uuid
+            rescue StandardError
+              mid = "m#{Time.now.to_i}-#{rand(1_000_000)}"
+            end
+            Sketchup.write_default('TK_LeHai', 'machine_id', mid)
+          end
+          ver_file = File.join(File.dirname(__FILE__), '_installed_version')
+          ver = (File.read(ver_file).strip rescue '')
+          ver = 'unknown' if ver.empty?
+          _http_get("#{STATS_PING_URL}?id=#{mid}&v=#{ver}")
+        rescue StandardError
+          # telemetry không được phép làm phiền người dùng — nuốt mọi lỗi
+        end
+      end
+    end
+
     def self.check_update
       UI.start_timer(5, false) do
         begin

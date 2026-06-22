@@ -12,6 +12,32 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-06-22 — Máy đếm cài đặt (Nhịp 1: telemetry, chưa private)
+
+**Vấn đề:** Khoa không biết bao nhiêu máy đang dùng plugin, và lo bị tuồn ra ngoài. Phát hiện repo
+đang PUBLIC (toàn bộ source phơi trên GitHub) — rủi ro lớn hơn cả .rbz.
+
+**Quyết định:** Làm theo 2 nhịp. **Nhịp 1 (đã làm):** dựng máy đếm trên Cloudflare Worker
+(`lehai-stats`, KV `INSTALLS`). Plugin gửi ping ẩn danh (mã máy ngẫu nhiên UUID lưu trong
+`write_default('TK_LeHai','machine_id')` + version) mỗi lần mở SketchUp, qua `ping_stats` trong
+updater.rb (timer 6s, bắn-rồi-quên). Admin xem ở `/stats?key=...`. **Nhịp 2 (sau):** private repo +
+cổng update — chính Worker này sẽ mở rộng thành cổng.
+
+**Vì sao:** Tách 2 nhịp để không ôm rủi ro một lúc — Nhịp 1 KHÔNG đụng cơ chế update, gần như 0 rủi
+ro, trả lời ngay "bao nhiêu máy". Telemetry nuốt mọi lỗi (offline/lỗi không được làm phiền plugin).
+Token Cloudflare CHỈ dùng tạm ngoài repo, không commit; ADMIN_KEY là secret trên Cloudflare.
+
+**Bài học (kỹ thuật):** (1) Token account-scoped không qua được `/user/tokens/verify` nhưng vẫn dùng
+được cho account — test thẳng quyền thật (KV/Workers list) mới đúng. (2) curl mingw (Git Bash) cần
+đường dẫn file kiểu `C:/...` cho `@`/`<`, dùng `/c/...` thì câm (cờ `-s` nuốt luôn lỗi mở file).
+(3) Upload Worker = multipart: part `metadata` (JSON khai binding+secret) + part `worker.js` module.
+
+**Sự thật cần nhớ:** Nhịp 1 KHÔNG bảo vệ source (repo vẫn public). Chỉ trả lời "bao nhiêu máy".
+Bảo vệ chống tuồn ra ngoài là việc của Nhịp 2 (private + cổng) — và kể cả vậy cũng chỉ nâng rào,
+không khóa tuyệt đối (xem bàn luận: chỉ license gắn máy mới khóa thật).
+
+---
+
 ## 2026-06-20 — Thư Viện: thêm "Lưu ý khi dùng" cho component
 
 **Vấn đề:** Mỗi component có những "bẫy" riêng (vd là DC phải gỡ trước khi xuất CNC, nhớ kiểm độ dày

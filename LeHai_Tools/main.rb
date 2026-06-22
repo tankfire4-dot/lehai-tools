@@ -77,6 +77,7 @@ module LeHai
       end
 
       LeHai::Tools.check_update if LeHai::Tools.respond_to?(:check_update)
+      LeHai::Tools.ping_stats   if LeHai::Tools.respond_to?(:ping_stats)
 
       file_loaded(__FILE__)
     end

@@ -12,6 +12,26 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-06-22 — Thư Viện: bỏ hẳn Phong cách + Phòng
+
+**Vấn đề:** Khoa quyết thư viện không cần tag/lọc theo Phòng lẫn Phong cách — chỉ cần danh mục + tên
++ kích thước + lưu ý + người lưu. (Đầu tiên định bỏ mỗi Phòng, sau nghĩ lại bỏ luôn Phong cách.)
+
+**Quyết định:** Gỡ style+phong khỏi **giao diện** (index.html): thanh filter, ô chọn trong form
+lưu/sửa, nhãn trên thẻ, và mọi hàm/biến JS liên quan (renderFilterBar, renderChips, renderFormChips,
+activeStyle/Phong, STYLE/PHONG_LABELS...). Đã grep xác nhận không còn tham chiếu mồ côi.
+
+**Vì sao:** Khoa muốn thư viện gọn, nhất quán. Dữ liệu style/phong cũ trong catalog.json KHÔNG xóa
+(chỉ ẩn) → đổi ý vẫn khôi phục được.
+
+**Bài học / nợ kỹ thuật:** Cố ý KHÔNG gỡ phần Ruby (STYLES/PHONGS, style/phong trong save/edit/
+item_for của library.rb) và vài rule CSS chết (`#filter-bar`, `.chip`, `.tag`, `.form-chip`) — vì
+gỡ chúng rủi ro thấp nhưng churn nhiều, dễ sót làm hỏng luồng lưu. Để dọn sau khi đụng lại file
+(đúng nguyên tắc "dọn dần"). Hành vi hiện tại đúng: lưu mới không có style/phong; sửa item cũ sẽ
+strip style/phong (hợp ý vì đang bỏ chúng).
+
+---
+
 ## 2026-06-22 — Máy đếm cài đặt (Nhịp 1: telemetry, chưa private)
 
 **Vấn đề:** Khoa không biết bao nhiêu máy đang dùng plugin, và lo bị tuồn ra ngoài. Phát hiện repo

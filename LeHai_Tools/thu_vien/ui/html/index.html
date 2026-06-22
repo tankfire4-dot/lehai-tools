@@ -365,7 +365,7 @@
 
     <label class="form-label">Tên file (không cần .skp)</label>
     <input type="text" id="save-name" class="form-input" style="margin-bottom:4px;" placeholder="vd: TuBep_2canh hoặc BanAn_4chan">
-    <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">Tên + đặc điểm nổi bật. Kích thước & phong cách điền ở dưới, không cần ghi vào tên.</div>
+    <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">Tên + đặc điểm nổi bật. Kích thước điền ở dưới, không cần ghi vào tên.</div>
 
     <div id="save-by-section">
       <label class="form-label">Người lưu</label>
@@ -381,12 +381,6 @@
       <select id="save-sub" class="form-input" style="margin-bottom:6px;"></select>
       <input type="text" id="save-sub-new" class="form-input" style="display:none; margin-bottom:6px; border-color:var(--accent);" placeholder="Gõ tên danh mục con mới...">
     </div>
-
-    <label class="form-label" style="margin-top:8px;">Phong cách (tùy chọn)</label>
-    <div id="save-style-chips" class="form-chips"></div>
-
-    <label class="form-label">Phòng (tùy chọn)</label>
-    <div id="save-phong-chips" class="form-chips"></div>
 
     <div style="display:flex; gap:8px; margin-bottom:12px;">
       <div style="flex:1;">
@@ -453,12 +447,6 @@
 <main>
   <nav id="categories"></nav>
   <section>
-    <div id="filter-bar" style="display:none;">
-      <div class="filter-row" id="filter-style-row">
-        <span class="filter-label">Phong cách</span>
-        <div id="filter-style" class="filter-chips"></div>
-      </div>
-    </div>
     <div id="content"></div>
   </section>
 </main>
@@ -475,14 +463,8 @@ var app = (function () {
   var activeSub   = null;
   var expanded    = {};
   var searchText  = '';
-  var activeStyle = null;
-  var activePhong = null;
 
   var saveCats     = [];
-  var saveStyles   = [];
-  var savePhongs   = [];
-  var selStyles    = [];
-  var selPhongs    = [];
   var NEW_VALUE    = '__new__';
   var isEditMode   = false;
   var editItemPath = null;
@@ -490,15 +472,6 @@ var app = (function () {
   var savedReporter = '';
   var reportTarget  = { name: null, path: null };
   var allReports    = null;
-
-  var STYLE_LABELS = {
-    hien_dai:'Hiện đại', toi_gian:'Tối giản', tan_co_dien:'Tân cổ điển',
-    scandinavian:'Scandinavian', japandi:'Japandi', industrial:'Industrial'
-  };
-  var PHONG_LABELS = {
-    bep:'Bếp', khach:'Khách', ngu:'Ngủ', an:'Ăn',
-    lam_viec:'Làm việc', wc:'WC', hanh_lang:'Hành lang'
-  };
 
   function su(name, arg) {
     if (window.sketchup && window.sketchup[name]) {
@@ -518,17 +491,6 @@ var app = (function () {
 
   /* ── Filter helpers ─────────────────────── */
   function filteredItems() {
-    return library.items.filter(function (it) {
-      if (activeCat && it.category !== activeCat) return false;
-      if (activeSub && it.subcategory !== activeSub) return false;
-      if (searchText && it.name.toLowerCase().indexOf(searchText) === -1) return false;
-      if (activeStyle && (it.style || []).indexOf(activeStyle) === -1) return false;
-      if (activePhong && (it.phong || []).indexOf(activePhong) === -1) return false;
-      return true;
-    });
-  }
-
-  function baseItems() {
     return library.items.filter(function (it) {
       if (activeCat && it.category !== activeCat) return false;
       if (activeSub && it.subcategory !== activeSub) return false;
@@ -602,45 +564,6 @@ var app = (function () {
          + '<span class="count">' + count + '</span></button>';
   }
 
-  /* ── Filter bar ─────────────────────────── */
-  function renderFilterBar() {
-    var bar  = document.getElementById('filter-bar');
-    var base = baseItems();
-    var styleCounts = {};
-
-    base.forEach(function (it) {
-      (it.style || []).forEach(function (s) { styleCounts[s] = (styleCounts[s] || 0) + 1; });
-    });
-
-    if (Object.keys(styleCounts).length === 0) { bar.style.display = 'none'; return; }
-    bar.style.display = 'block';
-    document.getElementById('filter-style-row').style.display = 'flex';
-    renderChips('filter-style', styleCounts, STYLE_LABELS, activeStyle, 'style', base.length);
-  }
-
-  function renderChips(containerId, counts, labels, activeKey, dimension, total) {
-    var html = '<button class="chip' + (activeKey === null ? ' active' : '') + '" data-key="">'
-             + 'Tất cả <span class="chip-count">' + total + '</span></button>';
-
-    Object.keys(counts).sort().forEach(function (key) {
-      var label = labels[key] || key;
-      html += '<button class="chip' + (activeKey === key ? ' active' : '') + '" data-key="' + esc(key) + '">'
-            + esc(label) + ' <span class="chip-count">' + counts[key] + '</span></button>';
-    });
-
-    var container = document.getElementById(containerId);
-    container.innerHTML = html;
-
-    Array.prototype.forEach.call(container.querySelectorAll('.chip'), function (btn) {
-      btn.onclick = function () {
-        var val = btn.dataset.key || null;
-        if (dimension === 'style') activeStyle = val;
-        else activePhong = val;
-        render();
-      };
-    });
-  }
-
   /* ── Bảng lưu ý khi hover ───────────────── */
   function showNoteTip(card, note) {
     var tip = document.getElementById('note-tip');
@@ -706,17 +629,6 @@ var app = (function () {
         ? '<div class="dim">' + esc(dimParts.join(' × ')) + '</div>'
         : '';
 
-      var tagHtml = '';
-      var allTags = (it.style || []).concat(it.phong || []);
-      if (allTags.length > 0) {
-        tagHtml = '<div class="tags">';
-        allTags.slice(0, 3).forEach(function (t) {
-          var label = STYLE_LABELS[t] || PHONG_LABELS[t] || t;
-          tagHtml += '<span class="tag">' + esc(label) + '</span>';
-        });
-        tagHtml += '</div>';
-      }
-
       var saverParts = [];
       if (it.saved_by) saverParts.push(it.saved_by);
       if (it.saved_at) saverParts.push(it.saved_at);
@@ -735,7 +647,6 @@ var app = (function () {
             + '<div class="card-btn bug-btn" data-name="' + esc(it.name) + '" data-path="' + esc(it.path) + '" title="Báo cáo lỗi">🐛</div>'
             + '<div class="name">' + esc(it.name) + '<small>' + esc(where) + '</small></div>'
             + dimHtml
-            + tagHtml
             + saverHtml
             + '</div>';
     });
@@ -784,7 +695,6 @@ var app = (function () {
 
   function render() {
     renderCategories();
-    renderFilterBar();
     renderGrid();
     renderStatus();
   }
@@ -919,25 +829,6 @@ var app = (function () {
     return v;
   }
 
-  function renderFormChips(containerId, items, selectedArr) {
-    var html = '';
-    items.forEach(function (item) {
-      var active = selectedArr.indexOf(item.key) !== -1;
-      html += '<button type="button" class="form-chip' + (active ? ' active' : '') + '" data-key="' + esc(item.key) + '">' + esc(item.label) + '</button>';
-    });
-    var container = document.getElementById(containerId);
-    container.innerHTML = html;
-    Array.prototype.forEach.call(container.querySelectorAll('.form-chip'), function (btn) {
-      btn.onclick = function () {
-        var key = btn.dataset.key;
-        var arr = containerId === 'save-style-chips' ? selStyles : selPhongs;
-        var idx = arr.indexOf(key);
-        if (idx === -1) arr.push(key); else arr.splice(idx, 1);
-        renderFormChips(containerId, items, arr);
-      };
-    });
-  }
-
   function hideSaveForm() {
     document.getElementById('save-overlay').style.display = 'none';
     isEditMode   = false;
@@ -973,8 +864,6 @@ var app = (function () {
       su('edit_item', JSON.stringify({
         path:  editItemPath,
         name:  name,
-        style: selStyles,
-        phong: selPhongs,
         r:     r,
         s:     s,
         c:     c,
@@ -989,8 +878,6 @@ var app = (function () {
       name:        name,
       category:    category,
       subcategory: subcategory,
-      style:       selStyles,
-      phong:       selPhongs,
       r:           r,
       s:           s,
       c:           c,
@@ -1052,10 +939,6 @@ var app = (function () {
     refresh:      function () { su('refresh'); },
     showSaveForm: function (info) {
       saveCats   = (info && info.categories) || [];
-      saveStyles = (info && info.styles)     || [];
-      savePhongs = (info && info.phongs)     || [];
-      selStyles  = [];
-      selPhongs  = [];
       document.getElementById('save-name').value = (info && info.name) || '';
       document.getElementById('save-saved-by').value = (info && info.saved_by) || savedReporter;
       document.getElementById('save-cat-new').value = '';
@@ -1066,8 +949,6 @@ var app = (function () {
       document.getElementById('save-note').value = '';
       fillCatSelect(activeCat || '');
       fillSubSelect(activeSub || '');
-      renderFormChips('save-style-chips', saveStyles, selStyles);
-      renderFormChips('save-phong-chips', savePhongs, selPhongs);
       document.getElementById('save-overlay').style.display = 'flex';
       document.getElementById('save-name').focus();
       document.getElementById('save-name').select();
@@ -1075,10 +956,6 @@ var app = (function () {
     showEditForm: function (info) {
       isEditMode   = true;
       editItemPath = info.path;
-      saveStyles   = info.styles || [];
-      savePhongs   = info.phongs || [];
-      selStyles    = info.style  || [];
-      selPhongs    = info.phong  || [];
       document.getElementById('save-form-title').textContent = '✏ Sửa thông tin';
       document.getElementById('save-ok').textContent = 'Lưu thay đổi';
       document.getElementById('save-name').value = info.name || '';
@@ -1088,8 +965,6 @@ var app = (function () {
       document.getElementById('save-note').value = info.note || '';
       document.getElementById('save-cat-section').style.display = 'none';
       document.getElementById('save-by-section').style.display = 'none';
-      renderFormChips('save-style-chips', saveStyles, selStyles);
-      renderFormChips('save-phong-chips', savePhongs, selPhongs);
       document.getElementById('save-overlay').style.display = 'flex';
       document.getElementById('save-name').focus();
       document.getElementById('save-name').select();

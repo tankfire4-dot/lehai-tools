@@ -458,10 +458,6 @@
         <span class="filter-label">Phong cách</span>
         <div id="filter-style" class="filter-chips"></div>
       </div>
-      <div class="filter-row" id="filter-phong-row">
-        <span class="filter-label">Phòng</span>
-        <div id="filter-phong" class="filter-chips"></div>
-      </div>
     </div>
     <div id="content"></div>
   </section>
@@ -611,35 +607,15 @@ var app = (function () {
     var bar  = document.getElementById('filter-bar');
     var base = baseItems();
     var styleCounts = {};
-    var phongCounts = {};
 
     base.forEach(function (it) {
       (it.style || []).forEach(function (s) { styleCounts[s] = (styleCounts[s] || 0) + 1; });
-      (it.phong || []).forEach(function (p) { phongCounts[p] = (phongCounts[p] || 0) + 1; });
     });
 
-    var hasStyle = Object.keys(styleCounts).length > 0;
-    var hasPhong = Object.keys(phongCounts).length > 0;
-
-    if (!hasStyle && !hasPhong) { bar.style.display = 'none'; return; }
+    if (Object.keys(styleCounts).length === 0) { bar.style.display = 'none'; return; }
     bar.style.display = 'block';
-
-    var styleRow = document.getElementById('filter-style-row');
-    var phongRow = document.getElementById('filter-phong-row');
-
-    if (hasStyle) {
-      styleRow.style.display = 'flex';
-      renderChips('filter-style', styleCounts, STYLE_LABELS, activeStyle, 'style', base.length);
-    } else {
-      styleRow.style.display = 'none';
-    }
-
-    if (hasPhong) {
-      phongRow.style.display = 'flex';
-      renderChips('filter-phong', phongCounts, PHONG_LABELS, activePhong, 'phong', base.length);
-    } else {
-      phongRow.style.display = 'none';
-    }
+    document.getElementById('filter-style-row').style.display = 'flex';
+    renderChips('filter-style', styleCounts, STYLE_LABELS, activeStyle, 'style', base.length);
   }
 
   function renderChips(containerId, counts, labels, activeKey, dimension, total) {

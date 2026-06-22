@@ -144,6 +144,7 @@ module TK
           r:      meta['r'],
           s:      meta['s'],
           c:      meta['c'],
+          note:   meta['note'],
           styles: STYLES,
           phongs: PHONGS
         }
@@ -184,11 +185,14 @@ module TK
         s     = params['s'].to_s.strip
         c     = params['c'].to_s.strip
 
+        note  = params['note'].to_s.strip
+
         if style.empty? then entry.delete('style') else entry['style'] = style end
         if phong.empty? then entry.delete('phong') else entry['phong'] = phong end
         if r.empty?     then entry.delete('r')     else entry['r']     = r.to_i end
         if s.empty?     then entry.delete('s')     else entry['s']     = s.to_i end
         if c.empty?     then entry.delete('c')     else entry['c']     = c.to_i end
+        if note.empty?  then entry.delete('note')  else entry['note']  = note   end
 
         catalog[new_rel] = entry unless entry.empty?
         write_catalog(catalog)
@@ -292,6 +296,7 @@ module TK
           r:           meta['r'],
           s:           meta['s'],
           c:           meta['c'],
+          note:        meta['note'],
           saved_by:    meta['saved_by'],
           saved_at:    meta['saved_at']
         }
@@ -406,6 +411,7 @@ module TK
         r        = params['r'].to_s.strip
         s        = params['s'].to_s.strip
         c        = params['c'].to_s.strip
+        note     = params['note'].to_s.strip
         saved_by = params['saved_by'].to_s.strip
 
         catalog = read_catalog
@@ -416,6 +422,7 @@ module TK
         entry['r']        = r.to_i       unless r.empty?
         entry['s']        = s.to_i       unless s.empty?
         entry['c']        = c.to_i       unless c.empty?
+        entry['note']     = note         unless note.empty?
         entry['saved_by'] = saved_by     unless saved_by.empty?
         entry['saved_at'] = Time.now.strftime('%Y-%m-%d')
         catalog[rel]      = entry

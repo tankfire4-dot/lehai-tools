@@ -12,6 +12,25 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-06-20 — Thư Viện: thêm "Lưu ý khi dùng" cho component
+
+**Vấn đề:** Mỗi component có những "bẫy" riêng (vd là DC phải gỡ trước khi xuất CNC, nhớ kiểm độ dày
+sau scale) nhưng kiến thức đó nằm trong đầu người tạo, người khác chèn về dễ sập bẫy.
+
+**Quyết định:** Thêm trường `note` vào `catalog.json` (cạnh style/phong/kích thước). Form lưu + form
+sửa có ô "📌 Lưu ý khi dùng". Trong lưới: component có lưu ý hiện **badge 📌**, **rê chuột → bảng
+lưu ý nổi lên** trước khi bấm chèn.
+
+**Vì sao:** Đúng tinh thần "kiến thức đi theo vật" — gotcha của component travel cùng nó trong thư
+viện dùng chung, không phải truyền miệng. Lưu trong catalog.json (không nhúng vào .skp) để sửa được
+mà không phải mở file.
+
+**Bài học (kỹ thuật):** Bảng hover dùng 1 element `#note-tip` nổi (position:fixed) định vị bằng JS
+theo `getBoundingClientRect`, không nhét trong card — vì card có `overflow:hidden` và lưới cuộn sẽ
+cắt mất popover. Badge để `pointer-events:none` để không chặn click chèn.
+
+---
+
 ## 2026-06-20 — Tài liệu trỏ sai đường dẫn nguồn (release.ps1 lỗi thời)
 
 **Vấn đề:** Khoa phát hiện CLAUDE.md + `release.ps1` ghi đường phát hành là `Desktop\lehai_tools` —

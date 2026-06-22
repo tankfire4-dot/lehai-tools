@@ -232,6 +232,48 @@
   .card .edit-btn  { right: 5px; }
   .card .bug-btn   { right: 33px; font-size: 12px; }
 
+  /* ── Lưu ý khi dùng (badge + bảng hover) ──── */
+  .card .note-badge {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    width: 22px;
+    height: 22px;
+    background: #fff8e1;
+    border: 1px solid #f0d480;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1;
+    z-index: 2;
+    pointer-events: none;
+  }
+  #note-tip {
+    position: fixed;
+    z-index: 50;
+    max-width: 250px;
+    background: #fff8e1;
+    border: 1px solid #f0d480;
+    color: #5b4a1f;
+    font-size: 12px;
+    line-height: 1.45;
+    padding: 8px 11px;
+    border-radius: 7px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    pointer-events: none;
+    display: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #note-tip .nt-title {
+    font-weight: 600;
+    font-size: 11px;
+    margin-bottom: 3px;
+    opacity: .85;
+  }
+
   /* ── Trạng thái rỗng / lỗi ────────────────── */
   .empty { text-align: center; color: var(--muted); padding: 60px 24px; line-height: 1.7; }
   .empty .big { font-size: 40px; }
@@ -305,6 +347,8 @@
 </head>
 <body>
 
+<div id="note-tip"></div>
+
 <header>
   <span class="brand">📚 Thư Viện</span>
   <input type="search" id="search" placeholder="Tìm kiếm component..." autocomplete="off">
@@ -358,6 +402,10 @@
         <input type="number" id="save-c" class="form-input" placeholder="vd: 850">
       </div>
     </div>
+
+    <label class="form-label">📌 Lưu ý khi dùng (tùy chọn)</label>
+    <textarea id="save-note" class="form-input" rows="3" style="margin-bottom:4px; resize:vertical;" placeholder="vd: Đây là Dynamic Component — gỡ DC trước khi xuất CNC. Nhớ kiểm tra độ dày sau khi scale."></textarea>
+    <div style="font-size:11px; color:var(--muted); margin-bottom:12px;">Hiện lên khi rê chuột vào component, trước khi người dùng chèn.</div>
 
     <div style="display:flex; gap:8px; justify-content:flex-end;">
       <button id="save-cancel" class="form-input" style="width:auto; cursor:pointer;">Hủy</button>
@@ -617,6 +665,25 @@ var app = (function () {
     });
   }
 
+  /* ── Bảng lưu ý khi hover ───────────────── */
+  function showNoteTip(card, note) {
+    var tip = document.getElementById('note-tip');
+    tip.innerHTML = '<div class="nt-title">📌 Lưu ý khi dùng</div>';
+    tip.appendChild(document.createTextNode(note));
+    tip.style.display = 'block';
+    var r  = card.getBoundingClientRect();
+    var tr = tip.getBoundingClientRect();
+    var left = r.left + r.width / 2 - tr.width / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - tr.width - 8));
+    var top = r.top - tr.height - 8;
+    if (top < 8) top = r.bottom + 8;            // không đủ chỗ trên → xuống dưới
+    tip.style.left = left + 'px';
+    tip.style.top  = top + 'px';
+  }
+  function hideNoteTip() {
+    document.getElementById('note-tip').style.display = 'none';
+  }
+
   /* ── Lưới thumbnail ─────────────────────── */
   function renderGrid() {
     var content = document.getElementById('content');
@@ -681,8 +748,13 @@ var app = (function () {
         ? '<div class="saver">' + esc(saverParts.join(' · ')) + '</div>'
         : '';
 
+      var noteBadge = it.note
+        ? '<div class="note-badge" title="Có lưu ý khi dùng">📌</div>'
+        : '';
+
       html += '<div class="card" data-idx="' + idx + '" title="Click để chèn: ' + esc(it.name) + '">'
             + '<div class="thumb">' + thumb + '</div>'
+            + noteBadge
             + '<div class="card-btn edit-btn" data-path="' + esc(it.path) + '" title="Sửa thông tin">✏</div>'
             + '<div class="card-btn bug-btn" data-name="' + esc(it.name) + '" data-path="' + esc(it.path) + '" title="Báo cáo lỗi">🐛</div>'
             + '<div class="name">' + esc(it.name) + '<small>' + esc(where) + '</small></div>'
@@ -699,6 +771,11 @@ var app = (function () {
         var it = items[parseInt(card.dataset.idx, 10)];
         if (it) su('insert', it.path);
       };
+      card.addEventListener('mouseenter', function () {
+        var it = items[parseInt(card.dataset.idx, 10)];
+        if (it && it.note) showNoteTip(card, it.note);
+      });
+      card.addEventListener('mouseleave', hideNoteTip);
     });
 
     Array.prototype.forEach.call(content.querySelectorAll('.edit-btn'), function (btn) {
@@ -915,6 +992,7 @@ var app = (function () {
     var r = document.getElementById('save-r').value.trim();
     var s = document.getElementById('save-s').value.trim();
     var c = document.getElementById('save-c').value.trim();
+    var note = document.getElementById('save-note').value.trim();
     if (isEditMode) {
       su('edit_item', JSON.stringify({
         path:  editItemPath,
@@ -923,7 +1001,8 @@ var app = (function () {
         phong: selPhongs,
         r:     r,
         s:     s,
-        c:     c
+        c:     c,
+        note:  note
       }));
       hideSaveForm();
       return;
@@ -939,6 +1018,7 @@ var app = (function () {
       r:           r,
       s:           s,
       c:           c,
+      note:        note,
       saved_by:    document.getElementById('save-saved-by').value.trim()
     }));
     hideSaveForm();
@@ -1007,6 +1087,7 @@ var app = (function () {
       document.getElementById('save-r').value = '';
       document.getElementById('save-s').value = '';
       document.getElementById('save-c').value = '';
+      document.getElementById('save-note').value = '';
       fillCatSelect(activeCat || '');
       fillSubSelect(activeSub || '');
       renderFormChips('save-style-chips', saveStyles, selStyles);
@@ -1028,6 +1109,7 @@ var app = (function () {
       document.getElementById('save-r').value = info.r || '';
       document.getElementById('save-s').value = info.s || '';
       document.getElementById('save-c').value = info.c || '';
+      document.getElementById('save-note').value = info.note || '';
       document.getElementById('save-cat-section').style.display = 'none';
       document.getElementById('save-by-section').style.display = 'none';
       renderFormChips('save-style-chips', saveStyles, selStyles);

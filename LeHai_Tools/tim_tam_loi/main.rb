@@ -62,19 +62,21 @@ module TK
       (0..7).map { |i| accum_t * bb.corner(i) }
     end
 
-    # ── Tim theo danh sach board-index ──
-    def self.find(numbers)
+    # ── Loc board theo danh sach so → tra ve [hits, wanted, missing] ──
+    def self.resolve(numbers)
       wanted = numbers.map(&:to_i).uniq
-      all = collect_boards
-      hits = all.select { |m| wanted.include?(m.board_index) }
+      hits   = collect_boards.select { |m| wanted.include?(m.board_index) }
+      missing = wanted - hits.map(&:board_index).uniq
+      [hits, wanted, missing]
+    end
 
+    # ── Tim theo danh sach board-index (mo tool moi) ──
+    def self.find(numbers)
+      hits, wanted, missing = resolve(numbers)
       if hits.empty?
         UI.messagebox("Không tìm thấy tấm nào có board-index: #{wanted.join(', ')}")
         return
       end
-
-      found = hits.map(&:board_index).uniq.sort
-      missing = wanted - found
       Sketchup.active_model.select_tool(HighlightTool.new(hits, wanted, missing))
     end
 
@@ -151,13 +153,41 @@ module TK
         false
       end
 
+      # Cho phep go so vao o do (VCB) goc duoi-phai de doi tam ngay
+      def enableVCB?
+        true
+      end
+
+      # Go so + Enter -> doi sang tam khac ma khong can Esc
+      def onUserText(text, view)
+        nums = text.to_s.scan(/\d+/)
+        return if nums.empty?
+        retarget(nums, view)
+      end
+
       def getStatusText
-        msg = "Sáng tấm: #{@wanted.join(', ')}  (ESC để thoát)"
+        msg = "Sáng tấm: #{@wanted.join(', ')}  —  gõ số khác để đổi · ESC để thoát"
         msg += "  |  KHÔNG thấy: #{@missing.join(', ')}" unless @missing.empty?
         msg
       end
 
       private
+
+      # Doi muc tieu sang board-index khac, cap nhat tool tai cho
+      def retarget(numbers, view)
+        hits, wanted, missing = TK::ABFFinder.resolve(numbers)
+        if hits.empty?
+          UI.messagebox("Không tìm thấy tấm nào có board-index: #{wanted.join(', ')}")
+          return
+        end
+        @matches = hits
+        @wanted  = wanted
+        @missing = missing
+        @bounds  = combined_bounds(zoom_matches)
+        zoom_to_target
+        update_status
+        view.invalidate
+      end
 
       def quit(view)
         view.model.select_tool(nil)
@@ -166,6 +196,7 @@ module TK
 
       def update_status
         Sketchup.set_status_text(getStatusText, SB_PROMPT)
+        Sketchup.set_status_text('Số tấm', SB_VCB_LABEL) # nhan o nhap VCB
       end
 
       def draw_box(view, match)
@@ -234,8 +265,8 @@ module TK
       # ---- Bang nhac noi goc tren-trai man hinh ----
       def draw_banner(view)
         line1 = "Đang sáng tấm: #{@wanted.join(', ')}"
-        line2 = @missing.empty? ? 'Nhấn ESC để thoát' :
-                "KHÔNG thấy: #{@missing.join(', ')}   |   Nhấn ESC để thoát"
+        line2 = @missing.empty? ? 'Gõ số khác để đổi tấm  ·  ESC để thoát' :
+                "KHÔNG thấy: #{@missing.join(', ')}  ·  Gõ số / ESC"
         x = 18
         y = 18
         w = 26 + [line1.length, line2.length].max * 9

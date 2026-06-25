@@ -31,6 +31,10 @@ group lồng khác ngữ cảnh, SketchUp không select chéo được; dấu 2D
 trúc dữ liệu ABF đã reverse-engineer: nesting `__ABF_Nesting` > tấm ván `__..mm-sheet-N` > chi tiết
 (dict `ABF`: board-index, is-board); chi tiết tủ 3D cũng mang cùng board-index + cùng tên → khớp 1-1.
 
+**v1.9.16 (cùng ngày):** đang sáng tấm, gõ số khác vào ô đo (VCB) + Enter → đổi tấm tại chỗ, khỏi
+Esc rồi mở lại. Dùng `enableVCB?` + `onUserText`; tách `resolve(numbers)` để `find` (mở tool) và
+`retarget` (đổi trong tool) dùng chung logic lọc.
+
 ---
 
 ## 2026-06-22 — Thư Viện: bỏ hẳn Phong cách + Phòng

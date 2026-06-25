@@ -155,6 +155,7 @@ kiểm không BOM → commit + push). Máy thợ tự cập nhật qua `version.
 | Thư Viện Component | `TK::ThuVien` |
 | Gỡ DC → Group | `TK::GoGroup` |
 | Kiểm Tra Độ Dày | `TK::ThickCheck` |
+| Tìm Tấm Lỗi | `TK::ABFFinder` |
 | Trục Tọa Độ | `TK::AxisFix` |
 
 ---

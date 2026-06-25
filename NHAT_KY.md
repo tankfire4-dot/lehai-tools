@@ -12,6 +12,27 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-06-25 — Thêm tool "Tìm Tấm Lỗi" (v1.9.15)
+
+**Vấn đề:** Máy CNC báo một tấm lỗi theo **board-index** (số thứ tự cắt), nhưng thợ phải dò mắt trên
+nesting + trong tủ 3D để tìm đúng tấm đó — mất thời gian, hay nhầm. Plugin ABF có tính năng tương tự
+nhưng phải click vào hình, không gõ số được, và tấm hay bị tấm khác che.
+
+**Quyết định:** Tool mới `TK::ABFFinder` (thư mục `tim_tam_loi/`): gõ board-index → tô sáng tấm trên
+cả nesting (đỏ) lẫn tủ 3D (xanh), zoom thẳng vào mặt tấm tủ 3D. Khớp bằng **thuộc tính ẩn ABF**
+(`is-board` + `board-index`), KHÔNG đọc tên. Đặt nút cạnh "Kiểm Tra Độ Dày" (cùng kính lúp soi tấm).
+
+**Vì sao:** (1) Khớp bằng attribute thay vì tên → miễn nhiễm tên có dấu/khoảng trắng, chắc 100%.
+(2) Vẽ overlay (3D + dấu 2D chiếu lên màn hình LUÔN nổi trên cùng) thay vì `select` — vì 2 tấm nằm 2
+group lồng khác ngữ cảnh, SketchUp không select chéo được; dấu 2D giải quyết cảnh tấm bị che. (3) Chỉ
+đọc, không sửa model → 0 rủi ro hỏng file. (4) Bỏ ý tưởng "ẩn tấm khác" (đã thử) vì Khoa thấy quá tay.
+
+**Bài học / Rủi ro:** `view.zoom` KHÔNG nhận BoundingBox → phải đặt camera tay (tính theo fov). Cấu
+trúc dữ liệu ABF đã reverse-engineer: nesting `__ABF_Nesting` > tấm ván `__..mm-sheet-N` > chi tiết
+(dict `ABF`: board-index, is-board); chi tiết tủ 3D cũng mang cùng board-index + cùng tên → khớp 1-1.
+
+---
+
 ## 2026-06-22 — Thư Viện: bỏ hẳn Phong cách + Phòng
 
 **Vấn đề:** Khoa quyết thư viện không cần tag/lọc theo Phòng lẫn Phong cách — chỉ cần danh mục + tên

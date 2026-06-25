@@ -15,6 +15,7 @@ module LeHai
         File.join(path, 'thu_vien',      'main'),
         File.join(path, 'go_group',      'main'),
         File.join(path, 'kiem_tra_do_day', 'main'),
+        File.join(path, 'tim_tam_loi',   'main'),
         File.join(path, 'truc_toa_do',   'main')
       ].each do |f|
         begin
@@ -34,6 +35,7 @@ module LeHai
       puts "[LeHai_Tools] Defined? TK::ThuVien            = #{defined?(::TK::ThuVien).inspect}"
       puts "[LeHai_Tools] Defined? TK::GoGroup            = #{defined?(::TK::GoGroup).inspect}"
       puts "[LeHai_Tools] Defined? TK::ThickCheck         = #{defined?(::TK::ThickCheck).inspect}"
+      puts "[LeHai_Tools] Defined? TK::ABFFinder          = #{defined?(::TK::ABFFinder).inspect}"
       puts "[LeHai_Tools] Defined? TK::AxisFix            = #{defined?(::TK::AxisFix).inspect}"
 
       # Build toolbar — sắp theo CỤM (cụm DC để cuối). SketchUp không hỗ trợ
@@ -58,6 +60,9 @@ module LeHai
          -> { ::TK::GoGroup.create_cmd }],
         [defined?(::TK::ThickCheck) && ::TK::ThickCheck.respond_to?(:create_cmd),
          -> { ::TK::ThickCheck.create_cmd }],
+        # Tìm Tấm Lỗi — đặt cạnh Kiểm Tra Độ Dày (cùng là kính lúp soi tấm)
+        [defined?(::TK::ABFFinder) && ::TK::ABFFinder.respond_to?(:create_cmd),
+         -> { ::TK::ABFFinder.create_cmd }],
         [defined?(::TK::AxisFix) && ::TK::AxisFix.respond_to?(:create_cmd),
          -> { ::TK::AxisFix.create_cmd }]
       ]
@@ -68,7 +73,7 @@ module LeHai
         loaded_count += 1
       end
 
-      puts "[LeHai_Tools] Toolbar da load #{loaded_count}/9 tools"
+      puts "[LeHai_Tools] Toolbar da load #{loaded_count}/#{groups.size} tools"
 
       if toolbar.get_last_state == TB_NEVER_SHOWN
         toolbar.show

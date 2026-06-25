@@ -129,6 +129,32 @@ kiểm không BOM → commit + push). Máy thợ tự cập nhật qua `version.
 
 ---
 
+## Test nhanh khi đang phát triển (KHÔNG qua Extension Manager)
+
+> 💡 **Nhắc Khoa dùng cách này** thay cho vòng lặp chậm uninstall → cài lại → test → gỡ.
+
+Mở **Window → Ruby Console**, nạp thẳng file đang sửa từ bản repo và gọi luôn:
+
+```ruby
+load 'C:/Users/tankf/Desktop/claude_work/lehai-tools/LeHai_Tools/<ten_tool>/main.rb'
+TK::ABFFinder.prompt   # ← gọi method của tool để chạy thử ngay
+```
+
+- `load` chạy lại file → **định nghĩa lại code mới nhất ngay lập tức**, không cần khởi động lại.
+- Tool theo luật nhà **không tự tạo toolbar** → nạp kiểu này **không để lại rác toolbar**.
+- Tool **chỉ-đọc** (vd Tìm Tấm Lỗi) **không ghi gì vào file .skp** → không rác trong model.
+- (Tiện: `claude_work/abf_finder.rb` là shortcut dev — `load` nó sẽ tự nạp Tìm Tấm Lỗi + mở hộp nhập.)
+
+**Giới hạn — việc nào vẫn phải cài rbz / restart:**
+- Nút + icon trên toolbar, thứ tự nút → do `LeHai_Tools/main.rb` dựng lúc khởi động.
+- Cơ chế auto-update (`version.json`) → phải cài + push mới kiểm được.
+- Tool **sửa model**: nếu lỗi giữa chừng có thể để lại thuộc tính/định mức trong `.skp` — test trên **file nháp** hoặc Ctrl+Z sau mỗi lần.
+
+**Rác cosmetic cần biết:** tool nào tự `UI::Toolbar.new('X')` (vi phạm luật nhà) sẽ để lại 1 thanh
+toolbar rỗng tên `X` mà SketchUp nhớ — gỡ ở **View → Toolbars → bỏ tick**. Tool đúng luật nhà không bị.
+
+---
+
 ## Thêm tool mới vào bộ gộp
 
 1. Tạo thư mục `LeHai_Tools/{ten_tool}/`

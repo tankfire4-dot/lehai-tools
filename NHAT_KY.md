@@ -12,6 +12,24 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-06-26 — Kiểm Tra Khoảng Cách: tăng tốc quét (v1.9.18)
+
+**Vấn đề:** Quét 42 tấm ván hơi lag (đứng hình vài giây) vì `min_dist` đo seg-seg MỌI cặp cạnh giữa
+2 tấm gần nhau, kể cả cặp cạnh ở xa tít — phần lớn là việc thừa.
+
+**Quyết định:** Thêm lọc thô cấp-cạnh trong `min_dist`: tính AABB mỗi cạnh, bỏ qua cặp cạnh có AABB
+cách nhau > GAP (không thể là min < 7mm) → chỉ chạy seg-seg cho cặp cạnh thật sự gần.
+
+**Vì sao:** Kết quả KHÔNG đổi (nếu min thật < GAP thì cặp cạnh đó AABB chắc chắn < GAP nên không bị
+bỏ) — chỉ cắt việc thừa. Cùng tư duy "lọc thô → tính kỹ" đã dùng ở cấp tấm (`aabb_far?`), nay thêm
+một tầng ở cấp cạnh. Lọc 2 tầng → nhanh hẳn.
+
+**Bài học:** Trước phép tính đắt, chèn một phép kiểm rẻ để loại 99% ca không thể đúng — broad-phase
+trước narrow-phase. Đã thử nhánh "tự sửa" (xô 1 tấm / cascade dồn khối) nhưng Khoa chọn bỏ: đó là
+bài xếp lại nesting (việc của ABF), không nên nhồi vào máy soi. Tool giữ đúng vai CHỈ ĐỌC.
+
+---
+
 ## 2026-06-25 — Thêm tool "Kiểm Tra Khoảng Cách" (v1.9.17)
 
 **Vấn đề:** Sau khi nesting bằng ABF, cần biết các tấm chi tiết có cách nhau (và cách mép tấm ván)

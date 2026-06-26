@@ -182,16 +182,36 @@ module TK
     end
 
     # khoang cach nho nhat giua 2 tap doan thang -> [dist, ca, cb] (inch)
+    # Toi uu: bo qua cap canh co AABB cach xa hon GAP (khong the la min < 7mm)
+    # -> chi tinh seg_seg cho cac cap canh THUC SU gan -> nhanh hon nhieu.
     def self.min_dist(segs_a, segs_b)
       best = nil; bca = nil; bcb = nil
+      g2 = GAP_INCH * GAP_INCH
+      baabb = segs_b.map { |b1, b2| edge_aabb(b1, b2) }
       segs_a.each do |a1, a2|
-        segs_b.each do |b1, b2|
+        aab = edge_aabb(a1, a2)
+        segs_b.each_with_index do |(b1, b2), k|
+          next if edge_far?(aab, baabb[k], g2)
           d, ca, cb = seg_seg(a1, a2, b1, b2)
           next if best && d >= best
           best = d; bca = ca; bcb = cb
         end
       end
       [best, bca, bcb]
+    end
+
+    # AABB cua 1 doan thang -> [minx,miny,minz, maxx,maxy,maxz]
+    def self.edge_aabb(p, q)
+      [p[0] < q[0] ? p[0] : q[0], p[1] < q[1] ? p[1] : q[1], p[2] < q[2] ? p[2] : q[2],
+       p[0] > q[0] ? p[0] : q[0], p[1] > q[1] ? p[1] : q[1], p[2] > q[2] ? p[2] : q[2]]
+    end
+
+    # 2 AABB canh cach xa hon GAP? (so binh phuong cho nhanh)
+    def self.edge_far?(ea, eb, gap2)
+      dx = axis_gap(ea[0], ea[3], eb[0], eb[3])
+      dy = axis_gap(ea[1], ea[4], eb[1], eb[4])
+      dz = axis_gap(ea[2], ea[5], eb[2], eb[5])
+      (dx * dx + dy * dy + dz * dz) > gap2
     end
 
     # khoang cach 2 doan thang 3D (Ericson) -> [dist, closestA, closestB]

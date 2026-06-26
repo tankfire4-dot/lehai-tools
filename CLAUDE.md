@@ -31,9 +31,9 @@ Gộp tất cả plugin SketchUp của Le Hai Studio vào **1 file `.rbz` duy nh
 ```
 lehai_tools/
 ├── CLAUDE.md
-├── release.ps1                      ← script phát hành version mới
+├── release.ps1                      ← ⚠️ LỖI THỜI, KHÔNG dùng (xem mục "Phát hành version mới")
 ├── LeHai_Tools.rb                   ← extension registrar
-├── LeHai_Tools-1.x.x.rbz           ← file cài đặt (tái tạo bằng release.ps1)
+├── LeHai_Tools-1.x.x.rbz           ← file cài đặt (build tay theo LUAT_NHA mục 7)
 └── LeHai_Tools/
     ├── main.rb                      ← unified loader: require tất cả tool + tạo toolbar
     ├── auto_dan_canh/
@@ -68,7 +68,7 @@ lehai_tools/
     │   └── icons/
     │       ├── icon_16.png
     │       └── icon_24.png
-    └── thu_vien/
+    ├── thu_vien/
         ├── main.rb                  ← Module TK::ThuVien
         ├── core/
         │   └── library.rb           ← quét .skp, thumbnail cache, chèn/lưu component
@@ -82,6 +82,12 @@ lehai_tools/
         └── icons/
             ├── tk_thuvien_16.png
             └── tk_thuvien_24.png
+    ├── go_group/        ← Module TK::GoGroup    (Gỡ DC → Group) — main.rb + icons/
+    ├── kiem_tra_do_day/ ← Module TK::ThickCheck (Kiểm Tra Độ Dày) — main.rb + icons/
+    ├── tim_tam_loi/     ← Module TK::ABFFinder  (Tìm Tấm Lỗi — ABF) — main.rb + icons/
+    ├── truc_toa_do/     ← Module TK::AxisFix    (Trục Tọa Độ) — main.rb + icons/
+    ├── shared/          ← code dùng chung (vd laser_snap.rb)
+    └── updater.rb       ← client auto-update qua version.json
 ```
 
 ---
@@ -94,14 +100,21 @@ Mỗi sub-tool **không** tự tạo toolbar hay menu. Thay vào đó, mỗi mod
 def self.create_cmd   # → trả về UI::Command đã config đầy đủ
 ```
 
-`LeHai_Tools/main.rb` gom tất cả lại:
+`LeHai_Tools/main.rb` gom tất cả lại — **require từng tool có `rescue` riêng** (1 tool lỗi không làm
+sập cả bộ), rồi dựng 1 toolbar từ `create_cmd` của **cả 10 module**, mỗi tool có guard `defined?`:
 
 ```ruby
 toolbar = UI::Toolbar.new("LeHai's Decor Tools")
-[MyStudio::AutoEdgeBand, CanhCNC, Lehai::TamGoGen, LeHaiDecor::HaNen, TuDong::DienTen, TK::ThuVien]
-  .each { |mod| toolbar.add_item(mod.create_cmd) }
-toolbar.restore
+[ Lehai::TamGoGen, CanhCNC, LeHaiDecor::HaNen,             # cụm Dựng hình
+  MyStudio::AutoEdgeBand, TuDong::DienTen,                 # cụm Gia công & nhãn
+  TK::ThuVien,                                             # cụm Thư viện
+  TK::GoGroup, TK::ThickCheck, TK::ABFFinder, TK::AxisFix  # cụm DC / xuất CNC (đặt cuối)
+].each { |mod| toolbar.add_item(mod.create_cmd) if defined?(mod) }
+toolbar.get_last_state == TB_NEVER_SHOWN ? toolbar.show : toolbar.restore
 ```
+
+> Thứ tự = nhóm theo cụm (SketchUp không cho vạch ngăn trong 1 toolbar). Bản thật trong `main.rb`
+> còn in diagnostic `defined?` từng module ra Ruby Console để debug khi 1 tool không load.
 
 ---
 

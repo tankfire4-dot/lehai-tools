@@ -1,5 +1,5 @@
 {
-  "version": "1.9.16",
+  "version": "1.9.17",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -32,6 +32,9 @@
     "LeHai_Tools/tim_tam_loi/main.rb",
     "LeHai_Tools/tim_tam_loi/icons/tim_tam_loi_16.png",
     "LeHai_Tools/tim_tam_loi/icons/tim_tam_loi_24.png",
+    "LeHai_Tools/kiem_tra_khoang_cach/main.rb",
+    "LeHai_Tools/kiem_tra_khoang_cach/icons/spacing_16.png",
+    "LeHai_Tools/kiem_tra_khoang_cach/icons/spacing_24.png",
     "LeHai_Tools/truc_toa_do/main.rb",
     "LeHai_Tools/truc_toa_do/icons/reset_16.png",
     "LeHai_Tools/truc_toa_do/icons/reset_24.png"

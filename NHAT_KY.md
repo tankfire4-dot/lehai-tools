@@ -12,6 +12,26 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-06-25 — Thêm tool "Kiểm Tra Khoảng Cách" (v1.9.17)
+
+**Vấn đề:** Sau khi nesting bằng ABF, cần biết các tấm chi tiết có cách nhau (và cách mép tấm ván)
+đủ 7mm không — dao CNC không lọt thì phạm sang tấm bên / cắt lụt ra ngoài phôi. Trước phải soi mắt.
+
+**Quyết định:** Tool mới `TK::SpacingCheck` (thư mục `kiem_tra_khoang_cach/`): quét mọi tấm ván, đo
+khoảng hở **tấm↔tấm** (cùng sheet) và **tấm↔mép tấm ván**; cặp < 7mm → tô đỏ 2 tấm + vạch hồng cánh
+sen ghi số mm tại chỗ hở, sắp theo hở nhỏ nhất trước, ← → / gõ số để lướt từng cặp. Chỉ đọc.
+
+**Vì sao:** (1) Tấm nesting **chỉ có edges, phẳng tuyệt đối** (dò ra) → đo khoảng cách 2 tập đoạn
+thẳng (seg-seg 3D), KHÔNG dùng bounding box (sai với góc bo cong). (2) Gồm cả nét trong vẫn đúng vì
+hở nhỏ nhất luôn ở viền ngoài. (3) Lọc thô bằng AABB trước (job 42 sheet) cho nhanh. (4) Màu vàng
+ban đầu chìm trên nền xám → đổi hồng cánh sen + số mm trên chip tối + vạch 2 đầu kiểu thước đo.
+
+**Bài học / Rủi ro:** Khớp/đo bằng hình học thật thay vì hộp bao là chìa khóa đúng. Hiệu năng: brute
+seg-seg có AABB prefilter đủ nhanh cho 42 sheet; nếu sau này job lớn hơn chậm thì thêm lưới không
+gian. Đã test qua console (`spacing_check.rb`) trước khi wire vào toolbar — đúng quy trình Luật Nhà.
+
+---
+
 ## 2026-06-25 — Thêm tool "Tìm Tấm Lỗi" (v1.9.15)
 
 **Vấn đề:** Máy CNC báo một tấm lỗi theo **board-index** (số thứ tự cắt), nhưng thợ phải dò mắt trên

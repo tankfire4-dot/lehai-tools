@@ -16,6 +16,7 @@ module LeHai
         File.join(path, 'go_group',      'main'),
         File.join(path, 'kiem_tra_do_day', 'main'),
         File.join(path, 'tim_tam_loi',   'main'),
+        File.join(path, 'kiem_tra_khoang_cach', 'main'),
         File.join(path, 'truc_toa_do',   'main')
       ].each do |f|
         begin
@@ -36,6 +37,7 @@ module LeHai
       puts "[LeHai_Tools] Defined? TK::GoGroup            = #{defined?(::TK::GoGroup).inspect}"
       puts "[LeHai_Tools] Defined? TK::ThickCheck         = #{defined?(::TK::ThickCheck).inspect}"
       puts "[LeHai_Tools] Defined? TK::ABFFinder          = #{defined?(::TK::ABFFinder).inspect}"
+      puts "[LeHai_Tools] Defined? TK::SpacingCheck       = #{defined?(::TK::SpacingCheck).inspect}"
       puts "[LeHai_Tools] Defined? TK::AxisFix            = #{defined?(::TK::AxisFix).inspect}"
 
       # Build toolbar — sắp theo CỤM (cụm DC để cuối). SketchUp không hỗ trợ
@@ -63,6 +65,9 @@ module LeHai
         # Tìm Tấm Lỗi — đặt cạnh Kiểm Tra Độ Dày (cùng là kính lúp soi tấm)
         [defined?(::TK::ABFFinder) && ::TK::ABFFinder.respond_to?(:create_cmd),
          -> { ::TK::ABFFinder.create_cmd }],
+        # Kiểm Tra Khoảng Cách — QC sau nesting, cùng cụm kiểm tra
+        [defined?(::TK::SpacingCheck) && ::TK::SpacingCheck.respond_to?(:create_cmd),
+         -> { ::TK::SpacingCheck.create_cmd }],
         [defined?(::TK::AxisFix) && ::TK::AxisFix.respond_to?(:create_cmd),
          -> { ::TK::AxisFix.create_cmd }]
       ]

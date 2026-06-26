@@ -195,6 +195,7 @@ toolbar rỗng tên `X` mà SketchUp nhớ — gỡ ở **View → Toolbars → 
 | Gỡ DC → Group | `TK::GoGroup` |
 | Kiểm Tra Độ Dày | `TK::ThickCheck` |
 | Tìm Tấm Lỗi | `TK::ABFFinder` |
+| Kiểm Tra Khoảng Cách | `TK::SpacingCheck` |
 | Trục Tọa Độ | `TK::AxisFix` |
 
 ---

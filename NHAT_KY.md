@@ -12,6 +12,27 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-06-26 — Thay toàn bộ icon toolbar (v1.9.19)
+
+**Vấn đề:** Khoa thiết kế lại bộ icon trên Claude Design (claude.ai/design) cho thống nhất —
+11 icon outline nét walnut #7c2d12, stroke 1.5px, bo tròn, mảng tô nâu nhạt, nền trong suốt.
+
+**Quyết định:** Lấy bundle handoff (`SketchUp plugin icon redesign-handoff.zip`), đọc thiết kế gốc là
+SVG trong `LeHai Tools Icons.dc.html`. Vì máy chỉ có PIL (không cairosvg/inkscape), viết
+`render_icons.py` mô phỏng các nét SVG (rect bo, line, circle, polyline, polygon, quadratic bezier),
+render supersample ×16 rồi thu nhỏ LANCZOS → PNG 16/24 (thu_vien thêm 48 cho @2x). Thay đúng 23 file
+icon theo tên cũ từng tool. Bổ sung MỌI icon vào `version.json` (trước đây thiếu icon của tam_go,
+canh_cnc, ha_nen, auto_dan_canh, dien_ten → auto-update không tải) để máy thợ nhận đủ.
+
+**Vì sao:** Không kéo được file qua DesignSync MCP (cần /design-login tương tác, phiên nền không có) →
+Khoa tải bundle về `claude_work` rồi đọc trực tiếp. Tự render bằng PIL cho chủ động + chắc kết quả
+(màu/nền/stroke kiểm soát được), thay vì lệ thuộc lib SVG có thể không cài được trên Windows.
+
+**Bài học:** Icon SVG đơn giản hoàn toàn render được bằng PIL (supersample + LANCZOS cho anti-alias).
+Khi thêm icon mới phải nhớ khai vào `version.json` — nay đã đưa hết icon vào để khỏi sót lần sau.
+
+---
+
 ## 2026-06-26 — Kiểm Tra Khoảng Cách: tăng tốc quét (v1.9.18)
 
 **Vấn đề:** Quét 42 tấm ván hơi lag (đứng hình vài giây) vì `min_dist` đo seg-seg MỌI cặp cạnh giữa

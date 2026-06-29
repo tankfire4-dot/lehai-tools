@@ -12,6 +12,24 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-06-26 — Updater: thử lại file hụt (v1.9.21)
+
+**Vấn đề:** Sau khi thêm icon, version.json lên 52 file. Auto-update tải dồn dập → raw github
+timeout/chặn 1 file (`spacing_24.png`) → báo "cập nhật một phần", không ghi installed_version →
+lần sau lại tải cả mớ, dễ hụt nữa.
+
+**Quyết định:** Thêm `_http_get_retry` (thử 3 lần, lùi nhẹ 0.5–2s) cho cả version.json lẫn từng file
+trong `_do_update_check`. File hụt do blip mạng sẽ tự tải lại.
+
+**Vì sao:** File càng nhiều, xác suất 1 request lỗi càng cao; retry là cách rẻ + bền nhất (không cần
+đổi cơ chế). Trước mắt máy đang kẹt thì cài tay .rbz là đủ. Updater bền chỉ có tác dụng từ bản này
+trở đi (máy phải có bản updater mới — cài 1.9.21 .rbz tay 1 lần).
+
+**Bài học:** Mọi vòng lặp tải file qua mạng phải có retry. (Emergency updater trong LeHai_Tools.rb
+cũng nên thêm sau, nhưng nó chỉ chạy khi crash nên để dịp khác.)
+
+---
+
 ## 2026-06-26 — Tool mới "Dim Nhanh" + khung giao diện chung (v1.9.20)
 
 **Vấn đề:** Dim tay từng cạnh (cho bản vẽ báo giá) quá cực. Cần tool dim như Dimension mặc định

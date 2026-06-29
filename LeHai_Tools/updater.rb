@@ -49,7 +49,7 @@ module LeHai
       base_raw_url = 'https://raw.githubusercontent.com/tankfire4-dot/lehai-tools/master/'
       version_file = File.join(File.dirname(__FILE__), '_installed_version')
 
-      body = _http_get(version_url)
+      body = _http_get_retry(version_url)
       return unless body
 
       body = body.dup.force_encoding('UTF-8').sub("﻿", '')  # lot BOM neu co
@@ -67,7 +67,7 @@ module LeHai
 
       failed = []
       files.each do |rel_path|
-        content = _http_get(base_raw_url + rel_path)
+        content = _http_get_retry(base_raw_url + rel_path)
         if content
           dest = File.join(plugins_dir, rel_path)
           FileUtils.mkdir_p(File.dirname(dest))
@@ -94,6 +94,16 @@ module LeHai
 
     def self._ver_cmp(a, b)
       a.split('.').map(&:to_i) <=> b.split('.').map(&:to_i)
+    end
+
+    # Tai co THU LAI — raw github thinh thoang timeout/chan 1 file khi tai don dap.
+    def self._http_get_retry(url_str, tries = 3)
+      tries.times do |i|
+        body = _http_get(url_str)
+        return body if body
+        sleep([0.5 * (i + 1), 2.0].min) if i < tries - 1 # lui nhe roi thu lai
+      end
+      nil
     end
 
     def self._http_get(url_str)

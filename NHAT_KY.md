@@ -12,6 +12,19 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-06-26 — Dim Nhanh: phân biệt vòng tròn liền (D) vs cung bo (R) (v1.9.23)
+
+**Vấn đề:** Vòng tròn liền (logo) bị tính lỗi (điểm đầu trùng cuối) và ghi R vô nghĩa — tròn liền
+thì phải đo đường kính D.
+
+**Quyết định:** (1) Fit circumradius bằng 3 điểm cách đều (0, n/3, 2n/3) thay vì đầu/giữa/cuối → vòng
+kín không lỗi. (2) `full_circle?`: ArcCurve sweep ≈ 2π, hoặc curve khép kín (đầu≈cuối) → vòng liền →
+ghi **D{đường kính}**; còn lại cung hở → **R{bán kính}**. Theo Khoa, ký hiệu dùng chữ **D** (không Ø).
+
+**Bài học:** Closed-curve fit phải tránh đỉnh đầu==cuối; chọn điểm cách đều ổn định hơn.
+
+---
+
 ## 2026-06-26 — Dim Nhanh: 2 chế độ + tự ghi R + dọn dim (v1.9.22)
 
 **Vấn đề:** Dim xong để báo giá thì đống dim thành rác. Vòng bo phải bật Text gõ "R50" tay. Và R

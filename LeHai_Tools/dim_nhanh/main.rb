@@ -33,6 +33,8 @@ module TK
         @hover_arc = nil    # neu canh re toi thuoc 1 CUNG TRON (ArcCurve)
         @is_arc = false     # dang dat nhan R (cung) hay dim thuong
         @arc = nil; @arc_tr = nil; @radius_mm = 0
+        @is_circle = false  # vong tron lien (-> Ø) hay cung ho (-> R)
+        @dim_text = nil     # chu se ghi: "R…" hoac "Ø…"
         @anchor = nil       # diem leader bam vao cung
         @leader = nil       # diem chu (theo con tro)
         @edge = nil         # canh da chon
@@ -137,6 +139,8 @@ module TK
           @is_arc = true
           @arc = @hover_arc; @arc_tr = @hover_tr
           @radius_mm = radius_of(@arc, @arc_tr)
+          @is_circle = full_circle?(@arc)
+          @dim_text = @is_circle ? "D#{TK::QuickDim.fmt(@radius_mm * 2)}" : "R#{TK::QuickDim.fmt(@radius_mm)}"
           @anchor = arc_anchor
           @leader = @anchor
         else
@@ -156,13 +160,24 @@ module TK
         @arc_tr * vs[vs.size / 2].position
       end
 
-      # ban kinh (mm): cung that thi lay .radius; cong tay thi fit vong tron qua 3 diem
+      # ban kinh (mm): cung that thi lay .radius; cong tay thi fit vong tron qua 3 diem cach deu
       def radius_of(curve, tr)
         return curve.radius.to_mm if curve.is_a?(Sketchup::ArcCurve)
         vs = curve.vertices
-        return 0 if vs.size < 3
-        r = circumradius(tr * vs.first.position, tr * vs[vs.size / 2].position, tr * vs.last.position)
-        r ? r * 25.4 : 0 # r tinh bang inch -> mm
+        n = vs.size
+        return 0 if n < 3
+        # 3 diem cach deu (0, n/3, 2n/3) — tranh dau==cuoi o vong kin
+        r = circumradius(tr * vs[0].position, tr * vs[n / 3].position, tr * vs[2 * n / 3].position)
+        r ? r * 25.4 : 0
+      end
+
+      # vong tron LIEN (full) hay cung HO?
+      def full_circle?(curve)
+        if curve.is_a?(Sketchup::ArcCurve)
+          return (curve.end_angle - curve.start_angle).abs >= (2 * Math::PI - 0.05)
+        end
+        vs = curve.vertices
+        vs.size > 2 && vs.first.position.distance(vs.last.position) < 1e-4 # khep kin
       end
 
       # ban kinh vong tron ngoai tiep tam giac ABC (inch)
@@ -178,7 +193,7 @@ module TK
         model.start_operation('Dim', true)
         begin
           if @is_arc
-            t = model.active_entities.add_text("R#{TK::QuickDim.fmt(@radius_mm)}", @anchor, @leader - @anchor)
+            t = model.active_entities.add_text(@dim_text, @anchor, @leader - @anchor)
             @dims << t if t
           else
             d = model.active_entities.add_dimension_linear(@a, @b, @ov)
@@ -258,7 +273,7 @@ module TK
         view.drawing_color = WALNUT
         view.draw(GL_LINES, [@anchor, @leader])
         s = view.screen_coords(@leader)
-        txt_chip(view, s.x, s.y, "R#{TK::QuickDim.fmt(@radius_mm)}")
+        txt_chip(view, s.x, s.y, @dim_text)
       end
 
       def draw_preview(view)

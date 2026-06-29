@@ -30,12 +30,20 @@ module TK
         @state = :pick      # :pick (re chon canh) | :place (dat vi tri dim)
         @hover = nil        # canh dang re toi
         @hover_tr = nil     # phep bien doi -> toa do that cua canh do
+        @hover_arc = nil    # neu canh re toi thuoc 1 CUNG TRON (ArcCurve)
+        @is_arc = false     # dang dat nhan R (cung) hay dim thuong
+        @arc = nil; @arc_tr = nil; @radius_mm = 0
+        @anchor = nil       # diem leader bam vao cung
+        @leader = nil       # diem chu (theo con tro)
         @edge = nil         # canh da chon
         @a = @b = nil       # 2 dau canh
         @mid = nil
         @pn = nil           # phap tuyen mat phang dat dim
         @ov = nil           # vector offset hien tai
-        @done = []          # chieu dai cac canh da dim (Length)
+        @mode = :sum        # :sum = Bao gia (cong don) | :note = Ghi chu (dim + R)
+        @blocked = false    # dang re vao cung o che do Bao gia (khong dim duoc)
+        @done = []          # chieu dai cac canh da dim (Length) — chi che do :sum
+        @dims = []          # cac entity dim/text da tao (de don)
       end
 
       def activate
@@ -51,7 +59,13 @@ module TK
       def getExtents
         bb = Geom::BoundingBox.new
         bb.add(hp(@hover.start), hp(@hover.end)) if @hover && @hover_tr
-        bb.add(@a, @b, off(@a), off(@b)) if @state == :place && @ov
+        if @state == :place
+          if @is_arc && @anchor && @leader
+            bb.add(@anchor, @leader)
+          elsif @ov
+            bb.add(@a, @b, off(@a), off(@b))
+          end
+        end
         bb.add(Sketchup.active_model.bounds) if bb.empty?
         bb
       end
@@ -60,9 +74,14 @@ module TK
       def onMouseMove(_flags, x, y, view)
         if @state == :pick
           @hover, @hover_tr = pick_edge(view, x, y)
+          curve = (@hover && @hover.curve.is_a?(Sketchup::Curve)) ? @hover.curve : nil
+          @hover_arc = (@mode == :note) ? curve : nil    # R chi o che do Ghi chu (moi loai cong)
+          @blocked   = (@mode == :sum && !curve.nil?)     # che do Bao gia khong dim cung
+        elsif @is_arc
+          cur = Geom.intersect_line_plane(view.pickray(x, y), [@anchor, @pn])
+          @leader = cur if cur
         else
-          ray = view.pickray(x, y)
-          cur = Geom.intersect_line_plane(ray, [@mid, @pn])
+          cur = Geom.intersect_line_plane(view.pickray(x, y), [@mid, @pn])
           @ov = cur ? axis_offset(cur) : @ov
         end
         view.invalidate
@@ -83,7 +102,7 @@ module TK
 
       def onLButtonDown(_flags, _x, _y, view)
         if @state == :pick
-          start_place if @hover && !@hover.deleted?
+          start_place if @hover && !@hover.deleted? && !@blocked
         else
           place(view)
         end
@@ -91,12 +110,19 @@ module TK
       end
 
       def onKeyDown(key, _r, _f, view)
+        if key == 9 && @state == :pick   # Tab -> doi che do
+          @mode = (@mode == :sum ? :note : :sum)
+          @hover_arc = nil; @blocked = false
+          update_status
+          view.invalidate
+          return false
+        end
         return false unless key == 27 # Esc
         if @state == :place
           @state = :pick                 # huy dat, quay ve chon canh
           update_status
         else
-          finish(view)                   # thoat tool + bang ke
+          finish(view)                   # thoat tool (+ bang ke neu che do Bao gia)
         end
         view.invalidate
         false
@@ -106,22 +132,59 @@ module TK
 
       # ── logic ──
       def start_place
-        @edge = @hover
-        @a = hp(@edge.start)   # toa do that (qua phep bien doi cua khoi)
-        @b = hp(@edge.end)
-        @mid = Geom::Point3d.linear_combination(0.5, @a, 0.5, @b)
         @pn = Sketchup.active_model.active_view.camera.direction # mat phang huong ve camera
-        @ov = Geom::Vector3d.new(0, 0, 0)
+        if @hover_arc
+          @is_arc = true
+          @arc = @hover_arc; @arc_tr = @hover_tr
+          @radius_mm = radius_of(@arc, @arc_tr)
+          @anchor = arc_anchor
+          @leader = @anchor
+        else
+          @is_arc = false
+          @edge = @hover
+          @a = hp(@edge.start); @b = hp(@edge.end)
+          @mid = Geom::Point3d.linear_combination(0.5, @a, 0.5, @b)
+          @ov = Geom::Vector3d.new(0, 0, 0)
+        end
         @state = :place
         update_status
       end
 
+      # diem giua cung (toa do that) de leader bam vao
+      def arc_anchor
+        vs = @arc.vertices
+        @arc_tr * vs[vs.size / 2].position
+      end
+
+      # ban kinh (mm): cung that thi lay .radius; cong tay thi fit vong tron qua 3 diem
+      def radius_of(curve, tr)
+        return curve.radius.to_mm if curve.is_a?(Sketchup::ArcCurve)
+        vs = curve.vertices
+        return 0 if vs.size < 3
+        r = circumradius(tr * vs.first.position, tr * vs[vs.size / 2].position, tr * vs.last.position)
+        r ? r * 25.4 : 0 # r tinh bang inch -> mm
+      end
+
+      # ban kinh vong tron ngoai tiep tam giac ABC (inch)
+      def circumradius(a, b, c)
+        ab = a.distance(b); bc = b.distance(c); ca = c.distance(a)
+        area2 = (b - a).cross(c - a).length # = 2 * dien tich
+        return nil if area2 < 1e-9
+        (ab * bc * ca) / (2.0 * area2)
+      end
+
       def place(view)
         model = view.model
-        model.start_operation('Dim canh', true)
+        model.start_operation('Dim', true)
         begin
-          model.active_entities.add_dimension_linear(@a, @b, @ov)
-          @done << @a.distance(@b)
+          if @is_arc
+            t = model.active_entities.add_text("R#{TK::QuickDim.fmt(@radius_mm)}", @anchor, @leader - @anchor)
+            @dims << t if t
+          else
+            d = model.active_entities.add_dimension_linear(@a, @b, @ov)
+            @dims << d if d
+            @done << @a.distance(@b) if @mode == :sum # chi che do Bao gia moi cong don
+          end
           model.commit_operation
         rescue => e
           model.abort_operation
@@ -135,7 +198,9 @@ module TK
       def finish(view)
         view.model.select_tool(nil)
         Sketchup.set_status_text('', SB_PROMPT)
-        TK::QuickDim.show_summary(@done) unless @done.empty?
+        # Bang ke + nut Don dim chi o che do Bao gia (dim tam de lay so).
+        # Che do Ghi chu: dim/R la chu thich -> giu lai, khong bang ke.
+        TK::QuickDim.show_summary(@done, @dims) if @mode == :sum && !@done.empty?
       end
 
       # offset KHOA THEO TRUC X/Y/Z (nhu Dimension xin) -> dim ngay ngan.
@@ -162,17 +227,38 @@ module TK
       # ── ve ──
       def draw(view)
         draw_hover(view) if @state == :pick && @hover && !@hover.deleted?
-        draw_preview(view) if @state == :place && @ov
+        if @state == :place
+          @is_arc ? draw_arc_preview(view) : (draw_preview(view) if @ov)
+        end
         draw_hud(view)
       end
 
       def draw_hover(view)
         return unless @hover_tr
+        if @blocked # cung o che do Bao gia -> to xam, bao khong dim duoc
+          view.line_width = 3
+          view.drawing_color = Sketchup::Color.new(150, 150, 150)
+          (@hover.curve ? @hover.curve.edges : [@hover]).each { |e| draw_world_edge(view, e) }
+          return
+        end
         view.line_width = 4
         view.drawing_color = AMBER
-        a = hp(@hover.start); b = hp(@hover.end)
+        (@hover_arc ? @hover_arc.edges : [@hover]).each { |e| draw_world_edge(view, e) }
+      end
+
+      def draw_world_edge(view, e)
+        a = @hover_tr * e.start.position; b = @hover_tr * e.end.position
         view.draw(GL_LINES, [a, b])
         view.draw2d(GL_LINES, [view.screen_coords(a), view.screen_coords(b)])
+      end
+
+      # preview nhan ban kinh: duong leader + chu "R…"
+      def draw_arc_preview(view)
+        view.line_width = 2
+        view.drawing_color = WALNUT
+        view.draw(GL_LINES, [@anchor, @leader])
+        s = view.screen_coords(@leader)
+        txt_chip(view, s.x, s.y, "R#{TK::QuickDim.fmt(@radius_mm)}")
       end
 
       def draw_preview(view)
@@ -187,15 +273,34 @@ module TK
       end
 
       def draw_hud(view)
-        line1 = @state == :pick ? 'Rê vào cạnh → sáng lên → click để dim' :
-                                  'Rê đặt vị trí dim → click để đặt'
-        line2 = @done.empty? ? 'ESC để thoát' :
-                "Đã dim #{@done.size} cạnh · tổng #{TK::QuickDim.fmt(@done.sum(&:to_mm))} mm · ESC = xong + bảng kê"
-        w = 26 + [line1.length, line2.length].max * 8
-        box2d(view, 18, 18, w, 56, Sketchup::Color.new(18, 22, 30, 215))
-        box2d(view, 18, 18, 6, 56, AMBER)
-        txt(view, 34, 26, line1, Sketchup::Color.new(255, 255, 255), 13, true)
-        txt(view, 34, 47, line2, Sketchup::Color.new(255, 210, 60), 11, false)
+        mode = @mode == :sum ? 'BÁO GIÁ (cộng dồn)' : 'GHI CHÚ (dim + R)'
+        line0 = "● Chế độ: #{mode}    [Tab] đổi"
+        line1 = hud_action
+        line2 = if @mode == :sum
+                  @done.empty? ? 'ESC để thoát' :
+                    "Đã dim #{@done.size} cạnh · tổng #{TK::QuickDim.fmt(@done.sum(&:to_mm))} mm · ESC = bảng kê"
+                else
+                  'ESC để thoát (dim/R giữ lại trên bản vẽ)'
+                end
+        w = 26 + [line0.length, line1.length, line2.length].max * 8
+        accent = @mode == :sum ? AMBER : Sketchup::Color.new(110, 200, 150)
+        box2d(view, 18, 18, w, 78, Sketchup::Color.new(18, 22, 30, 222))
+        box2d(view, 18, 18, 6, 78, accent)
+        txt(view, 34, 25, line0, accent, 12, true)
+        txt(view, 34, 45, line1, Sketchup::Color.new(255, 255, 255), 12, false)
+        txt(view, 34, 64, line2, Sketchup::Color.new(200, 200, 205), 11, false)
+      end
+
+      def hud_action
+        if @state == :place
+          @is_arc ? 'Rê đặt nhãn R → click đặt · ESC huỷ' : 'Rê đặt vị trí dim → click đặt · ESC huỷ'
+        elsif @blocked
+          'Cung tròn — bấm [Tab] sang Ghi chú để ghi R'
+        elsif @hover_arc
+          'Cung tròn → click để TỰ GHI R'
+        else
+          'Rê vào cạnh → click để dim'
+        end
       end
 
       def txt_chip(view, cx, cy, s)
@@ -215,9 +320,10 @@ module TK
       end
 
       def update_status
+        m = @mode == :sum ? 'Báo giá' : 'Ghi chú'
         Sketchup.set_status_text(
-          @state == :pick ? 'Dim Nhanh: rê vào cạnh để chọn, click để dim, ESC thoát'
-                          : 'Dim Nhanh: rê đặt vị trí, click để đặt, ESC huỷ', SB_PROMPT
+          @state == :pick ? "Dim Nhanh [#{m}]: rê cạnh→click dim · Tab=đổi chế độ · ESC thoát"
+                          : "Dim Nhanh [#{m}]: rê đặt vị trí, click đặt, ESC huỷ", SB_PROMPT
         )
       end
     end
@@ -225,16 +331,33 @@ module TK
     # =========================================================
     #  BANG KE (giao dien LeHai)
     # =========================================================
-    def self.show_summary(lengths)
+    def self.show_summary(lengths, dims = [])
+      @last_dims = dims
       mm    = lengths.map { |l| l.to_mm }
       total = mm.sum
       @dlg  = UI::HtmlDialog.new(
         dialog_title: 'Dim Nhanh — Bảng kê', preferences_key: 'tk.quickdim',
-        width: 320, height: 460, min_width: 260, min_height: 300,
+        width: 320, height: 480, min_width: 260, min_height: 320,
         resizable: true, style: UI::HtmlDialog::STYLE_DIALOG
       )
+      @dlg.add_action_callback('clean_dims') do |_ctx|
+        n = clean_dims
+        @dlg.execute_script("cleaned(#{n})")
+      end
       @dlg.set_html(html(mm, total))
       @dlg.show
+    end
+
+    # xoa cac dim vua tao trong phien (dim tay nguoi dung KHONG dung toi)
+    def self.clean_dims
+      dims = (@last_dims || []).reject { |d| d.nil? || d.deleted? }
+      return 0 if dims.empty?
+      model = Sketchup.active_model
+      model.start_operation('Don dim nhanh', true)
+      dims.each(&:erase!)
+      model.commit_operation
+      @last_dims = []
+      dims.size
     end
 
     def self.fmt(v)
@@ -279,6 +402,10 @@ module TK
             </span>
           </div>
           <textarea id="lh-data" class="lh-hidden">#{fmt(total)}</textarea>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
+            <button id="lh-clean" class="lh-btn lh-btn--ghost lh-copybtn" onclick="sketchup.clean_dims()">🧹 Dọn dim</button>
+            <span class="lh-hint" style="margin:0">Xoá các dim vừa tạo (dim tay giữ nguyên)</span>
+          </div>
           <div class="lh-foot"><span>LeHai Tools</span><span>Dim Nhanh</span></div>
         </div>
         <script>
@@ -289,6 +416,11 @@ module TK
             if(!ok && navigator.clipboard){ navigator.clipboard.writeText(t.value); }
             var b=document.getElementById('lh-copy'), o=b.innerHTML;
             b.innerHTML='✓ Đã copy'; setTimeout(function(){ b.innerHTML=o; }, 1200);
+          }
+          function cleaned(n){
+            var b=document.getElementById('lh-clean');
+            b.innerHTML = n>0 ? ('✓ Đã dọn '+n+' dim') : 'Không còn dim';
+            b.disabled=true; b.style.opacity=.55; b.style.cursor='default';
           }
         </script>
         </body></html>

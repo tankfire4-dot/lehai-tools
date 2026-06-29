@@ -12,6 +12,27 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-06-26 — Dim Nhanh: 2 chế độ + tự ghi R + dọn dim (v1.9.22)
+
+**Vấn đề:** Dim xong để báo giá thì đống dim thành rác. Vòng bo phải bật Text gõ "R50" tay. Và R
+không cộng được vào tổng nên không thể lẫn chung với chế độ đo cộng dồn.
+
+**Quyết định:** Nâng `TK::QuickDim`:
+- **2 chế độ (Tab đổi):** *Báo giá* (cộng dồn cạnh thẳng → bảng kê tổng + Copy + Dọn dim; cung bị
+  chặn vì không cộng được) và *Ghi chú* (dim + tự ghi R, không cộng, ESC thoát giữ lại annotation).
+- **Tự ghi R:** rê vào đường cong → tính bán kính bằng **vòng tròn ngoại tiếp 3 điểm** (đầu/giữa/cuối)
+  → chính xác cho cung thật, áp được cả cong tay. Nhận MỌI `Sketchup::Curve` (không chỉ ArcCurve).
+- **Nút Dọn dim** trong bảng kê: xoá đúng các dim/text vừa tạo trong phiên (lưu entity), dim tay giữ.
+- **Copy** trong bảng kê: copy con số TỔNG (dán Excel/báo giá).
+
+**Vì sao:** Cạnh trong group → `transformation_at` ra world-coords (đã làm). Khóa offset theo trục
+X/Y/Z cho dim ngay ngắn. R tách hẳn sang Ghi chú vì không cộng được. Tất cả dùng theme chung.
+
+**Bài học:** 3 điểm xác định 1 vòng tròn → circumradius `(abc)/(4·diện tích)` cho R chính xác, không
+cần đối tượng Arc. Tách chế độ giúp ngữ nghĩa rõ (đo-để-tính vs ghi-chú-giữ-lại).
+
+---
+
 ## 2026-06-26 — Updater: thử lại file hụt (v1.9.21)
 
 **Vấn đề:** Sau khi thêm icon, version.json lên 52 file. Auto-update tải dồn dập → raw github

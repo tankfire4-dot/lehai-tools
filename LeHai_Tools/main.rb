@@ -17,7 +17,8 @@ module LeHai
         File.join(path, 'kiem_tra_do_day', 'main'),
         File.join(path, 'tim_tam_loi',   'main'),
         File.join(path, 'kiem_tra_khoang_cach', 'main'),
-        File.join(path, 'truc_toa_do',   'main')
+        File.join(path, 'truc_toa_do',   'main'),
+        File.join(path, 'dim_nhanh',     'main')
       ].each do |f|
         begin
           require f
@@ -39,6 +40,7 @@ module LeHai
       puts "[LeHai_Tools] Defined? TK::ABFFinder          = #{defined?(::TK::ABFFinder).inspect}"
       puts "[LeHai_Tools] Defined? TK::SpacingCheck       = #{defined?(::TK::SpacingCheck).inspect}"
       puts "[LeHai_Tools] Defined? TK::AxisFix            = #{defined?(::TK::AxisFix).inspect}"
+      puts "[LeHai_Tools] Defined? TK::QuickDim           = #{defined?(::TK::QuickDim).inspect}"
 
       # Build toolbar — sắp theo CỤM (cụm DC để cuối). SketchUp không hỗ trợ
       # vạch ngăn trong 1 toolbar nên gom theo thứ tự là cách nhóm khả dĩ.
@@ -69,7 +71,10 @@ module LeHai
         [defined?(::TK::SpacingCheck) && ::TK::SpacingCheck.respond_to?(:create_cmd),
          -> { ::TK::SpacingCheck.create_cmd }],
         [defined?(::TK::AxisFix) && ::TK::AxisFix.respond_to?(:create_cmd),
-         -> { ::TK::AxisFix.create_cmd }]
+         -> { ::TK::AxisFix.create_cmd }],
+        # Dim Nhanh — đo/ghi kích thước nhanh (drafting)
+        [defined?(::TK::QuickDim) && ::TK::QuickDim.respond_to?(:create_cmd),
+         -> { ::TK::QuickDim.create_cmd }]
       ]
 
       groups.each do |loaded, builder|

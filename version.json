@@ -1,10 +1,11 @@
 {
-  "version": "1.9.19",
+  "version": "1.9.20",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
     "LeHai_Tools/updater.rb",
     "LeHai_Tools/shared/laser_snap.rb",
+    "LeHai_Tools/shared/lehai_theme.css",
     "LeHai_Tools/auto_dan_canh/main.rb",
     "LeHai_Tools/auto_dan_canh/icons/edge_band_16.png",
     "LeHai_Tools/auto_dan_canh/icons/edge_band_24.png",
@@ -48,6 +49,9 @@
     "LeHai_Tools/kiem_tra_khoang_cach/icons/spacing_24.png",
     "LeHai_Tools/truc_toa_do/main.rb",
     "LeHai_Tools/truc_toa_do/icons/reset_16.png",
-    "LeHai_Tools/truc_toa_do/icons/reset_24.png"
+    "LeHai_Tools/truc_toa_do/icons/reset_24.png",
+    "LeHai_Tools/dim_nhanh/main.rb",
+    "LeHai_Tools/dim_nhanh/icons/dim_16.png",
+    "LeHai_Tools/dim_nhanh/icons/dim_24.png"
   ]
 }

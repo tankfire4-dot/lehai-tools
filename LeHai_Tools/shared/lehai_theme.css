@@ -1,0 +1,143 @@
+/* ============================================================
+   LeHai Tools — Khung giao diện chung (design language)
+   Tông: kem + walnut + amber, font DM Sans, bo tròn, nét outline.
+   Đồng bộ với bộ icon toolbar (walnut #7c2d12).
+   Dùng cho HtmlDialog: <link rel="stylesheet" href="../shared/lehai_theme.css">
+   hoặc copy khối :root + class cần dùng vào <style> của dialog.
+   ============================================================ */
+
+:root {
+  /* màu nền / mực */
+  --lh-bg:        #f5f0e8;   /* nền kem */
+  --lh-surface:   #ffffff;   /* thẻ / ô */
+  --lh-ink:       #1c0a00;   /* chữ chính (walnut rất đậm) */
+  --lh-ink-soft:  #6b4226;   /* chữ phụ */
+  --lh-muted:     #a08060;   /* chú thích mờ */
+
+  /* màu thương hiệu */
+  --lh-walnut:    #7c2d12;   /* nét chính / viền */
+  --lh-amber:     #b45309;   /* nhấn / tiêu đề cụm */
+  --lh-amber-2:   #92400e;   /* amber đậm */
+  --lh-chip:      #fef3c7;   /* nền chip amber nhạt */
+
+  /* mảng tô cùng tông (như icon) */
+  --lh-fill:      rgba(124,45,18,0.08);
+  --lh-fill-2:    rgba(124,45,18,0.22);
+  --lh-line:      rgba(124,45,18,0.18);  /* viền nhạt */
+  --lh-line-2:    rgba(124,45,18,0.10);
+
+  --lh-radius:    11px;
+  --lh-radius-sm: 8px;
+  --lh-shadow:    0 1px 3px rgba(28,10,0,0.08), 0 0 0 1px rgba(28,10,0,0.05);
+  --lh-font:      'DM Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* ── nền + chữ ── */
+body.lh, .lh-dialog {
+  margin: 0;
+  background: var(--lh-bg);
+  color: var(--lh-ink);
+  font-family: var(--lh-font);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+.lh-dialog { padding: 18px 18px 20px; }
+
+/* ── tiêu đề ── */
+.lh-eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--lh-amber); margin-bottom: 6px;
+}
+.lh-title {
+  font-size: 17px; font-weight: 700; color: var(--lh-ink);
+  margin: 0 0 16px; letter-spacing: -0.01em;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* ── nhãn + ô nhập ── */
+.lh-label {
+  display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--lh-ink-soft); margin: 0 0 6px;
+}
+.lh-input, .lh-select {
+  width: 100%; box-sizing: border-box;
+  background: var(--lh-surface);
+  border: 1.5px solid var(--lh-line);
+  border-radius: var(--lh-radius-sm);
+  padding: 10px 12px; font: inherit; color: var(--lh-ink);
+  outline: none; transition: border-color .12s, box-shadow .12s;
+}
+.lh-input:focus, .lh-select:focus {
+  border-color: var(--lh-amber);
+  box-shadow: 0 0 0 3px rgba(180,83,9,0.15);
+}
+.lh-field { margin-bottom: 14px; }
+.lh-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ── chip preset (vd 9mm / 17.5mm) ── */
+.lh-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.lh-chip {
+  border: 1.5px solid var(--lh-line); background: var(--lh-surface);
+  color: var(--lh-ink-soft); border-radius: 999px;
+  padding: 6px 13px; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: .12s;
+}
+.lh-chip:hover { border-color: var(--lh-amber); color: var(--lh-amber); }
+.lh-chip.is-active {
+  background: var(--lh-chip); border-color: var(--lh-amber); color: var(--lh-amber-2);
+}
+
+/* ── nút ── */
+.lh-btn {
+  appearance: none; border: 0; cursor: pointer; font: inherit; font-weight: 700;
+  border-radius: var(--lh-radius); padding: 12px 16px; width: 100%;
+  transition: filter .12s, transform .02s;
+}
+.lh-btn:active { transform: translateY(1px); }
+.lh-btn--primary { background: var(--lh-amber); color: #fff; }
+.lh-btn--primary:hover { filter: brightness(1.06); }
+.lh-btn--walnut { background: var(--lh-walnut); color: #fff; }
+.lh-btn--walnut:hover { filter: brightness(1.1); }
+.lh-btn--ghost {
+  background: var(--lh-surface); color: var(--lh-walnut);
+  border: 1.5px solid var(--lh-line);
+}
+.lh-btn--ghost:hover { border-color: var(--lh-amber); color: var(--lh-amber); }
+
+/* nút chọn 2 phương án (toggle) — vd Nằm ngang / Đứng thẳng */
+.lh-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.lh-toggle .lh-opt {
+  text-align: center; padding: 14px 10px; border-radius: var(--lh-radius);
+  border: 1.5px solid var(--lh-line); background: var(--lh-surface);
+  color: var(--lh-ink-soft); font-weight: 600; cursor: pointer; transition: .12s;
+}
+.lh-toggle .lh-opt:hover { border-color: var(--lh-amber); }
+.lh-toggle .lh-opt.is-active {
+  background: var(--lh-chip); border-color: var(--lh-amber); color: var(--lh-amber-2);
+}
+
+/* ── thẻ / khu vực ── */
+.lh-card {
+  background: var(--lh-surface); border-radius: var(--lh-radius);
+  box-shadow: var(--lh-shadow); padding: 16px;
+}
+.lh-preview {
+  background: var(--lh-fill); border: 1.5px solid var(--lh-line-2);
+  border-radius: var(--lh-radius); padding: 18px; text-align: center;
+  color: var(--lh-ink-soft);
+}
+.lh-divider { height: 1px; background: var(--lh-line-2); margin: 16px 0; border: 0; }
+
+/* ── chú thích / kết quả ── */
+.lh-hint { font-size: 11px; color: var(--lh-muted); line-height: 1.5; margin-top: 10px; }
+.lh-status { font-size: 12px; font-weight: 600; margin-top: 10px; }
+.lh-status--ok  { color: #15803d; }
+.lh-status--bad { color: #b91c1c; }
+
+/* ── chân ── */
+.lh-foot {
+  margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--lh-line-2);
+  font-size: 10px; color: var(--lh-muted);
+  display: flex; justify-content: space-between; align-items: center;
+}

@@ -12,6 +12,28 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-06-26 — Tool mới "Dim Nhanh" + khung giao diện chung (v1.9.20)
+
+**Vấn đề:** Dim tay từng cạnh (cho bản vẽ báo giá) quá cực. Cần tool dim như Dimension mặc định
+nhưng tiện hơn, kèm bảng kê chiều dài cho báo giá.
+
+**Quyết định:** Tool `TK::QuickDim` (folder `dim_nhanh`) — Tool TƯƠNG TÁC: rê chuột vào cạnh →
+sáng amber; click → đặt dim, rê khóa theo trục X/Y/Z (như Dimension xịn) cho ngay ngắn; click đặt;
+tự quay lại cho cạnh tiếp. ESC → hiện BẢNG KÊ (chiều dài từng cạnh + tổng + nút Copy tổng). Dim là
+entity thật → kéo dời được. Đây là **dialog đầu tiên dùng khung giao diện chung mới**
+`shared/lehai_theme.css` (kem + walnut + amber + DM Sans, đồng bộ bộ icon).
+
+**Vì sao:** (1) Tool tương tác thay vì "chọn trước rồi chạy" — đúng thói quen Dimension. (2) Cạnh
+nằm trong group/component → phải lấy kèm `transformation_at` đổi sang TỌA ĐỘ THẬT, nếu không dim/nét
+sáng nhảy lung tung. (3) Khóa trục: bắt offset về X/Y/Z gần nhất, bỏ trục trùng hướng cạnh. (4) Lập
+`lehai_theme.css` dùng chung để thay dần giao diện các tool cũ (dọn dần, không đập loạt).
+
+**Bài học:** PickHelper trả entity + `transformation_at(i)` để ra world-coords — bắt buộc khi làm
+việc với hình trong group. Khung CSS chung = nền để đồng bộ UI dần. Nhớ khai `lehai_theme.css` vào
+version.json (dialog đọc file này lúc chạy).
+
+---
+
 ## 2026-06-26 — Thay toàn bộ icon toolbar (v1.9.19)
 
 **Vấn đề:** Khoa thiết kế lại bộ icon trên Claude Design (claude.ai/design) cho thống nhất —

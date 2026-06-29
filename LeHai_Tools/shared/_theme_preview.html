@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LeHai Tools — Khung giao diện chuẩn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./lehai_theme.css">
+<style>
+  /* chỉ dùng cho trang xem thử này, không phải của khung */
+  body.lh { padding: 32px; display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+  .demo-dialog { width: 360px; }
+  .demo-gallery { width: 360px; }
+  .swatch-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .sw { width: 46px; height: 46px; border-radius: 9px; box-shadow: var(--lh-shadow); display:flex; align-items:flex-end; justify-content:center; font-size:8px; font-weight:700; color:#fff; padding-bottom:3px; }
+  h3.demo-h { font-size: 11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color: var(--lh-amber); margin: 18px 0 10px; }
+</style>
+</head>
+<body class="lh">
+
+  <!-- ════ DIALOG MẪU (kiểu "Tạo Tấm Gỗ") ════ -->
+  <div class="lh-dialog lh-card demo-dialog">
+    <div class="lh-eyebrow">LeHai Decor Tools</div>
+    <h1 class="lh-title">🪵 Tạo Tấm Gỗ Nhanh</h1>
+
+    <div class="lh-toggle" style="margin-bottom:16px">
+      <div class="lh-opt is-active">↘ Nhập kích thước</div>
+      <div class="lh-opt">✎ Vẽ trực tiếp</div>
+    </div>
+
+    <div class="lh-field">
+      <label class="lh-label">Tên tấm gỗ (tên group)</label>
+      <input class="lh-input" value="Tấm gỗ">
+    </div>
+
+    <div class="lh-row lh-field">
+      <div>
+        <label class="lh-label">Chiều dài (mm)</label>
+        <input class="lh-input" value="2400">
+      </div>
+      <div>
+        <label class="lh-label">Chiều rộng (mm)</label>
+        <input class="lh-input" value="600">
+      </div>
+    </div>
+
+    <div class="lh-field">
+      <label class="lh-label">Độ dày (mm)</label>
+      <input class="lh-input" value="17.5" style="margin-bottom:9px">
+      <div class="lh-chips">
+        <button class="lh-chip">9mm</button>
+        <button class="lh-chip is-active">17,5mm</button>
+        <button class="lh-chip">10mm AC</button>
+        <button class="lh-chip">18mm AC</button>
+      </div>
+    </div>
+
+    <div class="lh-field">
+      <label class="lh-label">Hướng đặt tấm</label>
+      <div class="lh-toggle">
+        <div class="lh-opt is-active">— Nằm ngang</div>
+        <div class="lh-opt">| Đứng thẳng</div>
+      </div>
+    </div>
+
+    <button class="lh-btn lh-btn--primary">🪵 Tạo &amp; Đặt Tấm Gỗ</button>
+    <div class="lh-hint">Tấm gỗ bám theo con trỏ — click để đặt, ESC để huỷ.</div>
+
+    <div class="lh-foot">
+      <span>LeHai Tools v1.9</span>
+      <span>Walnut · DM Sans</span>
+    </div>
+  </div>
+
+  <!-- ════ BẢNG THÀNH PHẦN (để copy) ════ -->
+  <div class="demo-gallery">
+    <h3 class="demo-h">Màu</h3>
+    <div class="swatch-row">
+      <div class="sw" style="background:#7c2d12">walnut</div>
+      <div class="sw" style="background:#b45309">amber</div>
+      <div class="sw" style="background:#92400e">amber2</div>
+      <div class="sw" style="background:#fef3c7;color:#92400e">chip</div>
+      <div class="sw" style="background:#f5f0e8;color:#6b4226;box-shadow:0 0 0 1px var(--lh-line)">kem</div>
+    </div>
+
+    <h3 class="demo-h">Nút</h3>
+    <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:6px">
+      <button class="lh-btn lh-btn--primary">Nút chính (amber)</button>
+      <button class="lh-btn lh-btn--walnut">Nút walnut</button>
+      <button class="lh-btn lh-btn--ghost">Nút phụ (ghost)</button>
+    </div>
+
+    <h3 class="demo-h">Chip chọn</h3>
+    <div class="lh-chips" style="margin-bottom:6px">
+      <button class="lh-chip is-active">Đang chọn</button>
+      <button class="lh-chip">Chọn 2</button>
+      <button class="lh-chip">Chọn 3</button>
+    </div>
+
+    <h3 class="demo-h">Ô nhập + chọn</h3>
+    <div class="lh-field"><input class="lh-input" placeholder="Ô nhập…"></div>
+    <div class="lh-field">
+      <select class="lh-select"><option>17,5mm</option><option>9mm</option></select>
+    </div>
+
+    <h3 class="demo-h">Báo kết quả</h3>
+    <div class="lh-card">
+      <div class="lh-status lh-status--ok">✓ Đã tạo xong tấm gỗ.</div>
+      <div class="lh-status lh-status--bad">Lỗi: kích thước không hợp lệ.</div>
+    </div>
+  </div>
+
+</body>
+</html>

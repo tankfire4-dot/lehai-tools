@@ -17,6 +17,8 @@ module TK
     THEME   = File.join(PATH, '..', 'shared', 'lehai_theme.css').freeze
     WALNUT  = Sketchup::Color.new(124, 45, 18)
     AMBER   = Sketchup::Color.new(180, 83, 9)
+    TEAL    = Sketchup::Color.new(20, 160, 120)   # che do dien tich
+    SQIN_M2 = 0.00064516                           # 1 inch^2 -> m^2
 
     def self.run
       Sketchup.active_model.select_tool(DimTool.new)
@@ -42,10 +44,16 @@ module TK
         @mid = nil
         @pn = nil           # phap tuyen mat phang dat dim
         @ov = nil           # vector offset hien tai
-        @mode = :sum        # :sum = Bao gia (cong don) | :note = Ghi chu (dim + R)
+        @mode = :sum        # :sum Bao gia | :note Ghi chu (dim + R) | :area Dien tich
         @blocked = false    # dang re vao cung o che do Bao gia (khong dim duoc)
         @done = []          # chieu dai cac canh da dim (Length) — chi che do :sum
         @dims = []          # cac entity dim/text da tao (de don)
+        @areas = []         # m2 cac mang da click — che do :area
+        @picked = []        # cac mang da dem [{faces, tr}] — de to nen
+        @picked_ids = {}    # face entityID -> true (chong dem trung)
+        @hover_faces = nil  # cac mat cua mang dang re toi
+        @hover_face_tr = nil
+        @hover_area = 0.0   # m2 cua mang dang re
       end
 
       def activate
@@ -73,7 +81,19 @@ module TK
       end
 
       # ── chuot ──
-      def onMouseMove(_flags, x, y, view)
+      def onMouseMove(flags, x, y, view)
+        if @mode == :area
+          f, tr = pick_face(view, x, y)
+          if f
+            alt = (flags & ALT_MODIFIER_MASK) != 0  # giu Alt = chi 1 mat
+            @hover_faces = alt ? [f] : gather_region(f)
+            @hover_face_tr = tr
+            @hover_area = region_m2(@hover_faces)
+          else
+            @hover_faces = nil; @hover_area = 0.0
+          end
+          return view.invalidate
+        end
         if @state == :pick
           @hover, @hover_tr = pick_edge(view, x, y)
           curve = (@hover && @hover.curve.is_a?(Sketchup::Curve)) ? @hover.curve : nil
@@ -102,8 +122,69 @@ module TK
       # toa do THAT cua 1 dau canh dang hover
       def hp(vertex) @hover_tr * vertex.position end
 
+      # ── che do DIEN TICH ──
+      def pick_face(view, x, y)
+        ph = view.pick_helper(x, y)
+        ph.count.times do |i|
+          leaf = ph.leaf_at(i)
+          return [leaf, ph.transformation_at(i)] if leaf.is_a?(Sketchup::Face)
+        end
+        [nil, nil]
+      end
+
+      # gom 1 MANG lien tuc: noi qua canh MEM (mat cong = "surface" cua SketchUp)
+      # HOAC qua canh dong phang (mat phang bi ke chia). Dung o goc that.
+      def gather_region(start)
+        region = [start]
+        seen = { start.entityID => true }
+        queue = [start]
+        until queue.empty?
+          f = queue.shift
+          fn = f.normal
+          fp = f.vertices.first.position
+          f.edges.each do |e|
+            smooth = e.soft? || e.smooth? # cung -> cung mat cong
+            e.faces.each do |nf|
+              next if seen[nf.entityID]
+              next unless smooth || coplanar?(nf, fn, fp)
+              seen[nf.entityID] = true
+              region << nf; queue << nf
+            end
+          end
+          break if region.size > 20_000 # chan runaway
+        end
+        region
+      end
+
+      def coplanar?(face, n0, p0)
+        face.normal.parallel?(n0) && (face.vertices.first.position - p0).dot(n0).abs < 0.001
+      end
+
+      def region_m2(faces)
+        faces.inject(0.0) { |s, f| s + f.area } * SQIN_M2
+      end
+
+      def region_centroid
+        pts = @hover_faces.flat_map { |f| f.vertices.map(&:position) }
+        n = pts.size.to_f
+        @hover_face_tr * Geom::Point3d.new(pts.sum(&:x) / n, pts.sum(&:y) / n, pts.sum(&:z) / n)
+      end
+
+      def region_picked?(faces)
+        faces && !faces.empty? && @picked_ids[faces.first.entityID]
+      end
+
+      def add_region
+        return if region_picked?(@hover_faces) # da dem mang nay -> bo qua (chong trung)
+        @areas << @hover_area
+        @picked << { faces: @hover_faces, tr: @hover_face_tr }
+        @hover_faces.each { |f| @picked_ids[f.entityID] = true }
+      end
+
       def onLButtonDown(_flags, _x, _y, view)
-        if @state == :pick
+        if @mode == :area
+          add_region if @hover_faces && !@hover_faces.empty?
+        elsif @state == :pick
           start_place if @hover && !@hover.deleted? && !@blocked
         else
           place(view)
@@ -112,9 +193,9 @@ module TK
       end
 
       def onKeyDown(key, _r, _f, view)
-        if key == 9 && @state == :pick   # Tab -> doi che do
-          @mode = (@mode == :sum ? :note : :sum)
-          @hover_arc = nil; @blocked = false
+        if key == 9 && @state == :pick   # Tab -> xoay 3 che do
+          @mode = { sum: :note, note: :area, area: :sum }[@mode]
+          @hover_arc = nil; @blocked = false; @hover_faces = nil
           update_status
           view.invalidate
           return false
@@ -213,9 +294,13 @@ module TK
       def finish(view)
         view.model.select_tool(nil)
         Sketchup.set_status_text('', SB_PROMPT)
-        # Bang ke + nut Don dim chi o che do Bao gia (dim tam de lay so).
+        # Bang ke chi o che do Bao gia (chieu dai) va Dien tich (m2).
         # Che do Ghi chu: dim/R la chu thich -> giu lai, khong bang ke.
-        TK::QuickDim.show_summary(@done, @dims) if @mode == :sum && !@done.empty?
+        if @mode == :area
+          TK::QuickDim.show_area_summary(@areas) unless @areas.empty?
+        elsif @mode == :sum && !@done.empty?
+          TK::QuickDim.show_summary(@done, @dims)
+        end
       end
 
       # offset KHOA THEO TRUC X/Y/Z (nhu Dimension xin) -> dim ngay ngan.
@@ -241,11 +326,49 @@ module TK
 
       # ── ve ──
       def draw(view)
+        if @mode == :area
+          draw_picked(view)                  # mang da dem: to nen teal
+          draw_region(view) if @hover_faces   # mang dang re: vien sang
+          return draw_hud(view)
+        end
         draw_hover(view) if @state == :pick && @hover && !@hover.deleted?
         if @state == :place
           @is_arc ? draw_arc_preview(view) : (draw_preview(view) if @ov)
         end
         draw_hud(view)
+      end
+
+      def draw_region(view)
+        done = region_picked?(@hover_faces)
+        pts = []
+        @hover_faces.each do |f|
+          f.edges.each { |e| pts << (@hover_face_tr * e.start.position) << (@hover_face_tr * e.end.position) }
+        end
+        view.line_width = 3
+        view.drawing_color = done ? Sketchup::Color.new(150, 150, 150) : TEAL
+        view.draw(GL_LINES, pts)
+        view.draw2d(GL_LINES, pts.map { |p| view.screen_coords(p) }) # noi tren cung
+        s = view.screen_coords(region_centroid)
+        txt_chip(view, s.x, s.y, done ? 'đã đếm' : "#{TK::QuickDim.fmt2(@hover_area)} m²")
+      end
+
+      # to nen teal trong suot cho cac mang DA DEM
+      def draw_picked(view)
+        return if @picked.empty?
+        view.drawing_color = Sketchup::Color.new(20, 160, 120, 70)
+        @picked.each do |r|
+          r[:faces].each { |f| fill_face(view, f, r[:tr]) }
+        end
+      end
+
+      def fill_face(view, face, tr)
+        mesh = face.mesh
+        pts = []
+        mesh.polygons.each do |poly|
+          next unless poly.size == 3 # mesh da tam giac hoa
+          poly.each { |idx| pts << view.screen_coords(tr * mesh.point_at(idx.abs)) }
+        end
+        view.draw2d(GL_TRIANGLES, pts) unless pts.empty? # 2D -> luon noi tren
       end
 
       def draw_hover(view)
@@ -288,17 +411,29 @@ module TK
       end
 
       def draw_hud(view)
-        mode = @mode == :sum ? 'BÁO GIÁ (cộng dồn)' : 'GHI CHÚ (dim + R)'
+        mode = case @mode
+               when :sum then 'BÁO GIÁ (cộng dồn)'
+               when :note then 'GHI CHÚ (dim + R)'
+               else 'DIỆN TÍCH (m²)'
+               end
         line0 = "● Chế độ: #{mode}    [Tab] đổi"
         line1 = hud_action
-        line2 = if @mode == :sum
+        line2 = case @mode
+                when :sum
                   @done.empty? ? 'ESC để thoát' :
                     "Đã dim #{@done.size} cạnh · tổng #{TK::QuickDim.fmt(@done.sum(&:to_mm))} mm · ESC = bảng kê"
+                when :area
+                  @areas.empty? ? 'ESC để thoát' :
+                    "Đã đo #{@areas.size} mảng · tổng #{TK::QuickDim.fmt2(@areas.sum)} m² · ESC = bảng kê"
                 else
                   'ESC để thoát (dim/R giữ lại trên bản vẽ)'
                 end
         w = 26 + [line0.length, line1.length, line2.length].max * 8
-        accent = @mode == :sum ? AMBER : Sketchup::Color.new(110, 200, 150)
+        accent = case @mode
+                 when :sum then AMBER
+                 when :area then TEAL
+                 else Sketchup::Color.new(110, 200, 150)
+                 end
         box2d(view, 18, 18, w, 78, Sketchup::Color.new(18, 22, 30, 222))
         box2d(view, 18, 18, 6, 78, accent)
         txt(view, 34, 25, line0, accent, 12, true)
@@ -307,6 +442,7 @@ module TK
       end
 
       def hud_action
+        return 'Rê mảng → click cộng · giữ Alt = chỉ 1 mặt' if @mode == :area
         if @state == :place
           @is_arc ? 'Rê đặt nhãn R → click đặt · ESC huỷ' : 'Rê đặt vị trí dim → click đặt · ESC huỷ'
         elsif @blocked
@@ -335,11 +471,14 @@ module TK
       end
 
       def update_status
-        m = @mode == :sum ? 'Báo giá' : 'Ghi chú'
-        Sketchup.set_status_text(
-          @state == :pick ? "Dim Nhanh [#{m}]: rê cạnh→click dim · Tab=đổi chế độ · ESC thoát"
-                          : "Dim Nhanh [#{m}]: rê đặt vị trí, click đặt, ESC huỷ", SB_PROMPT
-        )
+        msg = if @mode == :area
+                'Dim Nhanh [Diện tích]: rê mảng→click cộng m² · Tab=đổi · ESC=bảng kê'
+              else
+                m = @mode == :sum ? 'Báo giá' : 'Ghi chú'
+                @state == :pick ? "Dim Nhanh [#{m}]: rê cạnh→click dim · Tab=đổi chế độ · ESC thoát"
+                                : "Dim Nhanh [#{m}]: rê đặt vị trí, click đặt, ESC huỷ"
+              end
+        Sketchup.set_status_text(msg, SB_PROMPT)
       end
     end
 
@@ -348,9 +487,19 @@ module TK
     # =========================================================
     def self.show_summary(lengths, dims = [])
       @last_dims = dims
-      mm    = lengths.map { |l| l.to_mm }
-      total = mm.sum
-      @dlg  = UI::HtmlDialog.new(
+      mm = lengths.map { |l| l.to_mm }
+      open_dialog('📐 Bảng kê chiều dài', 'Dài (mm)', mm.map { |v| fmt(v) },
+                  "#{mm.size} cạnh", "#{fmt(mm.sum)} mm", fmt(mm.sum), true)
+    end
+
+    def self.show_area_summary(areas)
+      total = areas.sum
+      open_dialog('▦ Bảng kê diện tích', 'Diện tích (m²)', areas.map { |v| fmt2(v) },
+                  "#{areas.size} mảng", "#{fmt2(total)} m²", fmt2(total), false)
+    end
+
+    def self.open_dialog(title, col, rows, count_label, total_str, copy_val, show_clean)
+      @dlg = UI::HtmlDialog.new(
         dialog_title: 'Dim Nhanh — Bảng kê', preferences_key: 'tk.quickdim',
         width: 320, height: 480, min_width: 260, min_height: 320,
         resizable: true, style: UI::HtmlDialog::STYLE_DIALOG
@@ -359,7 +508,7 @@ module TK
         n = clean_dims
         @dlg.execute_script("cleaned(#{n})")
       end
-      @dlg.set_html(html(mm, total))
+      @dlg.set_html(build_html(title, col, rows, count_label, total_str, copy_val, show_clean))
       @dlg.show
     end
 
@@ -380,10 +529,19 @@ module TK
       (r == r.to_i ? r.to_i : r).to_s
     end
 
-    def self.html(mm, total)
-      rows = mm.each_with_index.map do |v, i|
-        "<tr><td class='n'>#{i + 1}</td><td class='v'>#{fmt(v)}</td></tr>"
+    def self.fmt2(v) format('%.2f', v) end # m2: 2 chu so thap phan
+
+    def self.build_html(title, col, rows_vals, count_label, total_str, copy_val, show_clean)
+      rows = rows_vals.each_with_index.map do |v, i|
+        "<tr><td class='n'>#{i + 1}</td><td class='v'>#{v}</td></tr>"
       end.join
+      clean = ''
+      if show_clean
+        clean = '<div style="margin-top:10px;display:flex;align-items:center;gap:10px">' \
+                '<button id="lh-clean" class="lh-btn lh-btn--ghost lh-copybtn" ' \
+                'onclick="sketchup.clean_dims()">🧹 Dọn dim</button>' \
+                '<span class="lh-hint" style="margin:0">Xoá các dim vừa tạo (dim tay giữ nguyên)</span></div>'
+      end
       theme = File.exist?(THEME) ? File.read(THEME, encoding: 'UTF-8') : ''
       <<~HTML
         <!DOCTYPE html><html><head><meta charset="utf-8">
@@ -404,23 +562,20 @@ module TK
         </style></head>
         <body class="lh"><div class="lh-dialog">
           <div class="lh-eyebrow">LeHai Decor Tools</div>
-          <h1 class="lh-title">📐 Bảng kê chiều dài</h1>
+          <h1 class="lh-title">#{title}</h1>
           <div class="lh-card" style="padding:6px 8px 8px">
-            <table><thead><tr><th>#</th><th style="text-align:right">Dài (mm)</th></tr></thead>
+            <table><thead><tr><th>#</th><th style="text-align:right">#{col}</th></tr></thead>
             <tbody>#{rows}</tbody></table>
           </div>
           <div class="tot">
-            <span class="lh-label" style="margin:0">Tổng · #{mm.size} cạnh</span>
+            <span class="lh-label" style="margin:0">Tổng · #{count_label}</span>
             <span class="tot-right">
-              <b>#{fmt(total)} mm</b>
+              <b>#{total_str}</b>
               <button id="lh-copy" class="lh-btn lh-btn--ghost lh-copybtn" onclick="lhCopy()">⧉ Copy</button>
             </span>
           </div>
-          <textarea id="lh-data" class="lh-hidden">#{fmt(total)}</textarea>
-          <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
-            <button id="lh-clean" class="lh-btn lh-btn--ghost lh-copybtn" onclick="sketchup.clean_dims()">🧹 Dọn dim</button>
-            <span class="lh-hint" style="margin:0">Xoá các dim vừa tạo (dim tay giữ nguyên)</span>
-          </div>
+          <textarea id="lh-data" class="lh-hidden">#{copy_val}</textarea>
+          #{clean}
           <div class="lh-foot"><span>LeHai Tools</span><span>Dim Nhanh</span></div>
         </div>
         <script>

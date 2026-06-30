@@ -12,6 +12,28 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-06-30 — Dim Nhanh: chế độ Diện tích (m²) (v1.9.24)
+
+**Vấn đề:** Cần đọc m² của mảng (tường/sàn) để báo giá ốp lát/sơn. Mảng hay bị kẻ chia nhiều mặt, và
+mặt cong là "Surface" (nhiều mảnh nối bằng cạnh mềm) — không phải 1 mặt phẳng.
+
+**Quyết định:** Thêm chế độ thứ 3 `:area` vào `TK::QuickDim` (Tab xoay 3 chế độ):
+- Rê mảng → **gom mặt liền tục**: nối qua cạnh MỀM (soft/smooth = mặt cong "surface") HOẶC đồng phẳng
+  (mặt phẳng bị kẻ chia) → ra cả mảng + m². Click → cộng dồn; ESC → bảng kê m² + tổng + Copy.
+- **Tô nền** mảng đã đếm (mesh tam giác, draw2d translucent) để biết đã click cái nào; chống đếm trùng.
+- **Giữ Alt** = chỉ lấy 1 mặt (khi muốn tách mảng đồng phẳng/đồng surface).
+- Tổng quát hóa bảng kê dùng chung cho mm (chiều dài) và m² (diện tích).
+
+**Vì sao:** Face.area có sẵn → không cần "đoán hình qua camera". Gom theo soft-edge = đúng khái niệm
+Surface của SketchUp (mặt cong). Coplanar-merge thêm để gộp mặt phẳng bị kẻ vụn. m² = tổng area các
+mảnh = diện tích thật (kể cả mặt cong, đã trừ lỗ cửa nếu mặt đã khoét).
+
+**Bài học / Rủi ro:** Mặt cong = nhiều mảnh nối soft-edge, KHÔNG coplanar — phải gom theo soft/smooth.
+Diện tích chưa tính scale của component (hiếm gặp ở model kiến trúc). Mặt cong rất lớn có thể vẽ
+highlight hơi rậm/chậm — để tối ưu (vẽ viền ngoài) khi cần.
+
+---
+
 ## 2026-06-26 — Dim Nhanh: phân biệt vòng tròn liền (D) vs cung bo (R) (v1.9.23)
 
 **Vấn đề:** Vòng tròn liền (logo) bị tính lỗi (điểm đầu trùng cuối) và ghi R vô nghĩa — tròn liền

@@ -25,7 +25,8 @@ module TK
     DRAWER_RE   = /h[oôộ]c\s*k[eé]o/i.freeze     # "hộc kéo" — miễn bản lề
     HINGE_RE    = /hingecup/i.freeze             # dau hieu da khoet cop ban le
     MIN_HINGES  = 2
-    COLOR_BAD   = Sketchup::Color.new(255, 140, 0)   # cam — rieng cho ho "thieu lien ket"
+    COLOR_BAD   = Sketchup::Color.new(255, 140, 0)   # cam — canh THIEU ban le
+    COLOR_OK    = Sketchup::Color.new(0, 170, 80)    # xanh la — canh DA lam ban le (dat)
 
     CORNERS = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0],
                [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]].freeze
@@ -38,27 +39,29 @@ module TK
     #  QUÉT
     # =========================================================
     def self.run
-      vios, total = scan
+      vios, oks = scan
+      total = vios.size + oks.size
       return UI.messagebox('Không tìm thấy cánh nào trong mô hình (tên chứa "cánh").') if total.zero?
 
-      if vios.empty?
-        UI.messagebox("✓ Tất cả #{total} cánh đã đủ bản lề (≥#{MIN_HINGES}).")
-        return
+      # Có lỗi → lướt cánh THIẾU (cam). Không lỗi → lướt cánh ĐÃ LÀM (xanh) để kiểm chứng.
+      if !vios.empty?
+        Sketchup.active_model.select_tool(ReviewTool.new(vios, :loi))
+      else
+        Sketchup.active_model.select_tool(ReviewTool.new(oks, :ok))
       end
-      Sketchup.active_model.select_tool(ReviewTool.new(vios))
     end
 
-    # trả về [vios, tổng số cánh đã soi]
+    # trả về [vios (thiếu), oks (đã làm)]
     def self.scan
-      vios  = []
-      total = 0
-      walk(Sketchup.active_model.entities, Geom::Transformation.new, 0, vios) { total += 1 }
-      [vios, total]
+      vios = []; oks = []
+      walk(Sketchup.active_model.entities, Geom::Transformation.new, 0, vios, oks)
+      [vios, oks]
     end
 
-    # ── Adapter cho bộ "Soát Trước Xuất" (TK::PreExportCheck) ───
+    # ── Adapter cho bộ "Check Chốt Sản Xuất" (TK::PreExportCheck) ───
     def self.audit
-      vios, total = scan
+      vios, oks = scan
+      total = vios.size + oks.size
       return { status: :na, count: 0, message: 'Không tìm thấy cánh nào (tên chứa "cánh") để kiểm tra.' } if total.zero?
       return { status: :pass, count: 0, message: "Tất cả #{total} cánh đã đủ bản lề (≥#{MIN_HINGES})." } if vios.empty?
       { status: :fail, count: vios.size, message: "#{vios.size}/#{total} cánh thiếu bản lề (cần ≥#{MIN_HINGES})." }
@@ -71,7 +74,7 @@ module TK
     # =========================================================
     #  DUYỆT MÔ HÌNH
     # =========================================================
-    def self.walk(entities, t, depth, vios, &on_canh)
+    def self.walk(entities, t, depth, vios, oks)
       return if depth > 40
       entities.each do |e|
         next if e.deleted?
@@ -79,21 +82,18 @@ module TK
         next if e.name.to_s.include?(NEST_HINT)   # bỏ qua toàn nhánh nesting — chỉ soi 3D
         te   = t * e.transformation
         name = e.name.to_s
-        if name =~ NAME_RE && name !~ DRAWER_RE   # là cánh, KHÔNG phải "hộc kéo"
-          on_canh.call
-          check_canh(e, te, vios)
-        end
+        check_canh(e, te, vios, oks) if name =~ NAME_RE && name !~ DRAWER_RE  # cánh, không "hộc kéo"
         ents = ents_of(e)
-        walk(ents, te, depth + 1, vios, &on_canh) if ents
+        walk(ents, te, depth + 1, vios, oks) if ents
       end
     end
 
-    def self.check_canh(e, te, vios)
+    def self.check_canh(e, te, vios, oks)
       ents = ents_of(e)
       return unless ents
       count = count_hinges(ents, 0)
-      return if count >= MIN_HINGES
-      vios << Violation.new(label(e), count, MIN_HINGES, panel_box_segs(ents, te))
+      rec = Violation.new(label(e), count, MIN_HINGES, panel_box_segs(ents, te))
+      (count >= MIN_HINGES ? oks : vios) << rec
     end
 
     def self.count_hinges(entities, depth)
@@ -144,9 +144,12 @@ module TK
     #  TOOL XEM TỪNG CÁNH THIẾU BẢN LỀ
     # =========================================================
     class ReviewTool
-      def initialize(vios)
-        @vios = vios
-        @idx  = 0
+      # mode = :loi (thiếu bản lề, cam) / :ok (đã làm bản lề, xanh)
+      def initialize(vios, mode = :loi)
+        @vios  = vios
+        @mode  = mode
+        @color = mode == :ok ? COLOR_OK : COLOR_BAD
+        @idx   = 0
       end
 
       def activate
@@ -185,7 +188,7 @@ module TK
         n = text.to_s.scan(/\d+/).first
         return unless n
         i = n.to_i - 1
-        return UI.messagebox("Chỉ có #{@vios.size} cánh lỗi (1–#{@vios.size}).") if i < 0 || i >= @vios.size
+        return UI.messagebox("Chỉ có #{@vios.size} cánh (1–#{@vios.size}).") if i < 0 || i >= @vios.size
         focus(i)
         view.invalidate
       end
@@ -225,23 +228,32 @@ module TK
       def draw_outline(view, pts)
         return if pts.empty?
         view.line_width = 3
-        view.drawing_color = COLOR_BAD
+        view.drawing_color = @color
         view.draw(GL_LINES, pts)
         view.draw2d(GL_LINES, pts.map { |p| view.screen_coords(p) })
       end
 
       def draw_banner(view)
         v = @vios[@idx]
-        l1 = "Thiếu bản lề   (cánh #{@idx + 1}/#{@vios.size})"
+        if @mode == :ok
+          l1 = "Đã làm bản lề   (cánh #{@idx + 1}/#{@vios.size})"
+          l3 = "Có #{v.found} bản lề — đạt (≥ #{v.need})"
+          title_col = Sketchup::Color.new(120, 240, 160)
+          info_col  = Sketchup::Color.new(150, 255, 190)
+        else
+          l1 = "Thiếu bản lề   (cánh #{@idx + 1}/#{@vios.size})"
+          l3 = "Đã có #{v.found} bản lề — cần ≥ #{v.need}"
+          title_col = Sketchup::Color.new(255, 180, 90)
+          info_col  = Sketchup::Color.new(255, 210, 60)
+        end
         l2 = v.name
-        l3 = "Đã có #{v.found} bản lề — cần ≥ #{v.need}"
         l4 = '← → đổi cánh  ·  gõ số để nhảy  ·  ESC thoát'
         bg_w = 26 + [l1.length, l2.length, l3.length, l4.length].max * 8
         draw_box2d(view, 18, 18, bg_w, 100, Sketchup::Color.new(18, 22, 30, 215))
-        draw_box2d(view, 18, 18, 6, 100, COLOR_BAD)
-        txt(view, 34, 26, l1, Sketchup::Color.new(255, 180, 90), 14, true)
+        draw_box2d(view, 18, 18, 6, 100, @color)
+        txt(view, 34, 26, l1, title_col, 14, true)
         txt(view, 34, 48, l2, Sketchup::Color.new(255, 255, 255), 12, false)
-        txt(view, 34, 68, l3, Sketchup::Color.new(255, 210, 60), 12, false)
+        txt(view, 34, 68, l3, info_col, 12, false)
         txt(view, 34, 90, l4, Sketchup::Color.new(200, 200, 200), 11, false)
       end
 
@@ -277,7 +289,8 @@ module TK
       end
 
       def update_status
-        Sketchup.set_status_text("Thiếu bản lề — cánh #{@idx + 1}/#{@vios.size} (← → đổi, ESC thoát)", SB_PROMPT)
+        lbl = @mode == :ok ? 'Đã làm bản lề' : 'Thiếu bản lề'
+        Sketchup.set_status_text("#{lbl} — cánh #{@idx + 1}/#{@vios.size} (← → đổi, ESC thoát)", SB_PROMPT)
         Sketchup.set_status_text('Số cánh', SB_VCB_LABEL)
       end
     end

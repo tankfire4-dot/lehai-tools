@@ -35,15 +35,18 @@ module TK
     MID_MAX_MM = 250.0    # chiều GIỮA của khối giao ≤ mức này = liên kết cục bộ
     NEAR_MM    = 25.0     # nới vùng giao khi dò điểm Intersect
 
-    COLOR_BAD  = Sketchup::Color.new(255, 140, 0)    # cam — họ "thiếu liên kết"
-    COLOR_GAP  = Sketchup::Color.new(255, 60, 0)     # đỏ-cam — vùng giao
+    COLOR_BAD  = Sketchup::Color.new(255, 140, 0)    # cam — mối THIẾU liên kết
+    COLOR_GAP  = Sketchup::Color.new(255, 60, 0)     # đỏ-cam — vùng giao (thiếu)
+    COLOR_OK   = Sketchup::Color.new(0, 170, 80)     # xanh lá — mối ĐÃ làm liên kết
+    COLOR_OKGAP= Sketchup::Color.new(0, 210, 110)    # xanh sáng — vùng giao (đã làm)
 
     CORNERS = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0],
                [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]].freeze
     EDGES12 = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4],
                [0, 4], [1, 5], [2, 6], [3, 7]].freeze
 
-    Vio = Struct.new(:kind, :name_a, :name_b, :pen, :segs_a, :segs_b, :gap_segs)
+    # made = true nếu mối ĐÃ có liên kết ABF (để xem lại chỗ làm đúng)
+    Vio = Struct.new(:kind, :name_a, :name_b, :pen, :segs_a, :segs_b, :gap_segs, :made)
 
     # =========================================================
     #  QUÉT
@@ -52,21 +55,28 @@ module TK
     def self.run(kind = nil)
       Sketchup.set_status_text('Đang quét liên kết...', SB_PROMPT)
       planks, inters = collect_all
-      vios = find_missing(planks, inters)
-      vios = vios.select { |v| v.kind == kind } if kind
+      joints = find_joints(planks, inters)
+      joints = joints.select { |v| v.kind == kind } if kind
       Sketchup.set_status_text('', SB_PROMPT)
 
       return UI.messagebox('Không tìm thấy tấm ván nào để kiểm tra.') if planks.empty?
-      if vios.empty?
-        UI.messagebox("✓ Đã soi #{planks.size} tấm — không mối nào thiếu #{kind_label(kind)}.")
-        return
+      missing = joints.reject(&:made)
+      # Có lỗi → lướt mối THIẾU (cam). Không lỗi → lướt mối ĐÃ LÀM (xanh) để kiểm chứng.
+      if !missing.empty?
+        Sketchup.active_model.select_tool(ReviewTool.new(missing, :loi))
+      else
+        made = joints.select(&:made)
+        if made.empty?
+          UI.messagebox("✓ Không thấy mối #{kind_label(kind)} nào (đã soi #{planks.size} tấm).")
+        else
+          Sketchup.active_model.select_tool(ReviewTool.new(made, :ok))
+        end
       end
-      Sketchup.active_model.select_tool(ReviewTool.new(vios))
     end
 
     def self.scan
       planks, inters = collect_all
-      find_missing(planks, inters)
+      find_joints(planks, inters).reject(&:made)
     end
 
     def self.kind_label(kind)
@@ -81,10 +91,12 @@ module TK
     def self.audit(kind = nil)
       planks, inters = collect_all
       return { status: :na, count: 0, message: 'Không tìm thấy tấm ván nào để kiểm tra.' } if planks.empty?
-      vios = find_missing(planks, inters)
-      vios = vios.select { |v| v.kind == kind } if kind
-      return { status: :pass, count: 0, message: "Đã soi #{planks.size} tấm — không mối nào thiếu #{kind_label(kind)}." } if vios.empty?
-      { status: :fail, count: vios.size, message: "#{vios.size} mối thiếu #{kind_label(kind)}." }
+      joints  = find_joints(planks, inters)
+      joints  = joints.select { |v| v.kind == kind } if kind
+      missing = joints.reject(&:made)
+      made    = joints.size - missing.size
+      return { status: :pass, count: 0, message: "Đã soi #{planks.size} tấm — #{made} mối #{kind_label(kind)} đã làm, không thiếu mối nào." } if missing.empty?
+      { status: :fail, count: missing.size, message: "#{missing.size} mối thiếu #{kind_label(kind)}." }
     end
 
     def self.review(kind = nil)
@@ -92,15 +104,15 @@ module TK
     end
 
     # =========================================================
-    #  TÌM MỐI THIẾU LIÊN KẾT
+    #  TÌM MỌI MỐI LIÊN KẾT (đã làm + thiếu)
     # =========================================================
-    def self.find_missing(planks, inters)
+    def self.find_joints(planks, inters)
       rh = inters.select { |x| x[:kind] == :ranhhau }
       ng = inters.select { |x| x[:kind] == :ngam }
       planks = planks.sort_by { |p| p[:aabb][0] }   # sweep theo minX
       n = planks.size
-      vios = []
-      seen = {}                                      # khử trùng: mỗi cặp tên 1 lỗi
+      out  = []
+      seen = {}                                      # khử trùng: mỗi cặp 1 mối
       i = 0
       while i < n
         a = planks[i]; ax_hi = a[:aabb][3]
@@ -108,22 +120,23 @@ module TK
         while j < n
           b = planks[j]
           break if b[:aabb][0] > ax_hi
-          v = pair_vio(a, b, rh, ng)
+          v = pair_joint(a, b, rh, ng)
           if v
             key = [v.name_a, v.name_b].sort.join(' || ')
             unless seen[key]
               seen[key] = true
-              vios << v
+              out << v
             end
           end
           j += 1
         end
         i += 1
       end
-      vios
+      out
     end
 
-    def self.pair_vio(a, b, rh, ng)
+    # trả về Vio (kèm .made) nếu cặp là mối liên kết đặc trưng, ngược lại nil
+    def self.pair_joint(a, b, rh, ng)
       ov = overlap_box(a[:aabb], b[:aabb])
       return nil unless ov
       dims = [ov[3] - ov[0], ov[4] - ov[1], ov[5] - ov[2]].sort  # inch tăng dần
@@ -133,10 +146,10 @@ module TK
 
       kind = classify(pen_mm)
       return nil unless kind
-      return nil if has_intersect?(kind == :ranhhau ? rh : ng, ov)
+      made = has_intersect?(kind == :ranhhau ? rh : ng, ov)
 
       Vio.new(kind, a[:name], b[:name], pen_mm.round(1),
-              aabb_box_segs(a[:aabb]), aabb_box_segs(b[:aabb]), aabb_box_segs(ov))
+              aabb_box_segs(a[:aabb]), aabb_box_segs(b[:aabb]), aabb_box_segs(ov), made)
     end
 
     def self.classify(pen_mm)
@@ -255,12 +268,16 @@ module TK
     end
 
     # =========================================================
-    #  TOOL XEM TỪNG MỐI THIẾU
+    #  TOOL XEM TỪNG MỐI (thiếu = cam / đã làm = xanh)
     # =========================================================
     class ReviewTool
-      def initialize(vios)
-        @vios = vios
-        @idx  = 0
+      # mode = :loi (thiếu, cam) / :ok (đã làm, xanh)
+      def initialize(vios, mode = :loi)
+        @vios    = vios
+        @mode    = mode
+        @color   = mode == :ok ? COLOR_OK : COLOR_BAD
+        @gapcol  = mode == :ok ? COLOR_OKGAP : COLOR_GAP
+        @idx     = 0
       end
 
       def activate; focus(0); end
@@ -333,7 +350,7 @@ module TK
       def draw_outline(view, pts, w)
         return if pts.empty?
         view.line_width = w
-        view.drawing_color = COLOR_BAD
+        view.drawing_color = @color
         view.draw(GL_LINES, pts)
         view.draw2d(GL_LINES, pts.map { |p| view.screen_coords(p) })
       end
@@ -341,7 +358,7 @@ module TK
       def draw_gap(view)
         return if @draw_g.empty?
         view.line_width = 4
-        view.drawing_color = COLOR_GAP
+        view.drawing_color = @gapcol
         view.draw(GL_LINES, @draw_g)
         view.draw2d(GL_LINES, @draw_g.map { |p| view.screen_coords(p) })
       end
@@ -349,16 +366,25 @@ module TK
       def draw_banner(view)
         v = @vios[@idx]
         loai = v.kind == :ranhhau ? 'RÃNH HẬU' : 'NGÀM'
-        l1 = "Thiếu #{loai}   (mối #{@idx + 1}/#{@vios.size})"
+        if @mode == :ok
+          l1 = "Đã làm #{loai}   (mối #{@idx + 1}/#{@vios.size})"
+          l3 = "Hai tấm ăn nhau #{v.pen}mm — đã có liên kết ABF ✓"
+          title_col = Sketchup::Color.new(120, 240, 160)
+          info_col  = Sketchup::Color.new(150, 255, 190)
+        else
+          l1 = "Thiếu #{loai}   (mối #{@idx + 1}/#{@vios.size})"
+          l3 = "Hai tấm ăn nhau #{v.pen}mm — chưa thấy liên kết ABF"
+          title_col = Sketchup::Color.new(255, 180, 90)
+          info_col  = Sketchup::Color.new(255, 210, 60)
+        end
         l2 = "#{v.name_a}  ↔  #{v.name_b}"
-        l3 = "Hai tấm ăn nhau #{v.pen}mm — chưa thấy liên kết ABF"
         l4 = '← → đổi mối  ·  gõ số để nhảy  ·  ESC thoát'
         bg_w = 26 + [l1.length, l2.length, l3.length, l4.length].max * 8
         draw_box2d(view, 18, 18, bg_w, 100, Sketchup::Color.new(18, 22, 30, 215))
-        draw_box2d(view, 18, 18, 6, 100, COLOR_BAD)
-        txt(view, 34, 26, l1, Sketchup::Color.new(255, 180, 90), 14, true)
+        draw_box2d(view, 18, 18, 6, 100, @color)
+        txt(view, 34, 26, l1, title_col, 14, true)
         txt(view, 34, 48, l2, Sketchup::Color.new(255, 255, 255), 12, false)
-        txt(view, 34, 68, l3, Sketchup::Color.new(255, 210, 60), 12, false)
+        txt(view, 34, 68, l3, info_col, 12, false)
         txt(view, 34, 90, l4, Sketchup::Color.new(200, 200, 200), 11, false)
       end
 
@@ -396,7 +422,8 @@ module TK
       def update_status
         v = @vios[@idx]
         loai = v.kind == :ranhhau ? 'rãnh hậu' : 'ngàm'
-        Sketchup.set_status_text("Thiếu #{loai} — mối #{@idx + 1}/#{@vios.size} (← → đổi, ESC thoát)", SB_PROMPT)
+        lbl  = @mode == :ok ? 'Đã làm' : 'Thiếu'
+        Sketchup.set_status_text("#{lbl} #{loai} — mối #{@idx + 1}/#{@vios.size} (← → đổi, ESC thoát)", SB_PROMPT)
         Sketchup.set_status_text('Số mối', SB_VCB_LABEL)
       end
     end

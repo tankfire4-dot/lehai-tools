@@ -12,6 +12,39 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-01 — Bộ "Soát Trước Xuất": chốt chặn trước khi xuất DXF (v1.9.25)
+
+**Vấn đề:** Trước khi xuất DXF đi cắt CNC, file hay dính lỗi làm phế phôi mà không ai soi kịp: sai độ
+dày, tấm hở < 7mm, **trùng tấm** (copy chồng khít), **cánh thiếu bản lề**, **thiếu liên kết** (rãnh
+hậu / ngàm). Tool lẻ (Độ Dày, Khoảng Cách) đã có nhưng rời rạc, dễ quên chạy.
+
+**Quyết định:** Làm 3 check mới + 1 dashboard gom tất cả, mỗi check tự expose `audit` (chỉ đọc → PASS/
+FAIL) và `review` (mở xem chi tiết):
+- `TK::DuplicateCheck` (Trùng Tấm): soi MÔ HÌNH 3D (không nesting — nesting không bao giờ trùng). Trùng
+  khít = cùng tâm world + **3 vector cạnh khớp** (cùng hướng). Vector cạnh phân biệt "chồng khít" thật
+  với "cắt mộng chữ thập" (2 tấm xoay 90° cùng tâm+bao nhưng cạnh lệch → không báo).
+- `TK::HingeCheck` (Bản Lề): group tên có "cánh"/"canh" = cánh tủ → phải có ≥2 `_ABF_hingeCup` con.
+  Bỏ qua "hộc kéo" (mặt hộc kéo không gắn bản lề) và nhánh nesting.
+- `TK::JointCheck` (Liên Kết): 2 tấm ăn nhau (AABB world, tủ thẳng trục) ~10mm → cần rãnh hậu
+  (`ABF_PHAYRANHHAU`), ~17.5mm → cần ngàm (`ABF_NGAM*`). Thiếu group `_ABF_Intersect` đúng loại ở vùng
+  giao → báo. Chặn nhầm "chồng mặt lớn" (trùng/ghép 2 lớp) bằng điều kiện vùng giao cục bộ; khử đếm đôi
+  bằng "tấm là lá" (không lấy mảnh con) + dedupe cặp tên.
+- `TK::PreExportCheck` (Soát Trước Xuất): dashboard theme LeHai, mỗi check 1 dòng chấm xanh/đỏ + nút
+  Xem. Đặt CUỐI toolbar, icon **khiên + tick** (mảng tô đậm) vì là bước quan trọng nhất.
+
+**Vì sao:** 3 lỗi đầu là hình học thuần → tự đo được. "Liên kết ABF" là LUẬT NGHỀ (không có trong hình
+học) → phải đọc dữ liệu thật trước (2 vòng probe: đọc dấu vết `_ABF_Intersect` + đo phân bố độ ăn sâu)
+rồi mới chốt ngưỡng — KHÔNG đoán mò, vì báo nhầm "PASS" cho phôi thiếu rãnh còn nguy hiểm hơn không có
+tool. Adapter `audit`/`review` cho mỗi check để dashboard chỉ gọi lại, không viết trùng logic quét.
+
+**Bài học / Rủi ro:** Dò liên kết dựa AABB → chỉ đúng cho tủ **thẳng trục** (tủ xoay/nghiêng sẽ sót —
+đã hỏi Khoa, xưởng gần như luôn thẳng trục). Ngưỡng band (rãnh hậu 8–12.5mm, ngàm 15–20mm) chọn từ
+dữ liệu probe thật, có thể cần nới nếu gặp kích thước khác. **Rãnh Led để sau** (Khoa chưa giảng cơ chế).
+Bẫy đã tránh: `_ABF_Intersect` là dấu vết CHUNG cho mọi liên kết (phân biệt bằng tag) → 2 tấm ăn nhau
+có thể dùng ngàm thay rãnh hậu, đừng ép "cứ ăn nhau là phải rãnh hậu".
+
+---
+
 ## 2026-06-30 — Dim Nhanh: chế độ Diện tích (m²) (v1.9.24)
 
 **Vấn đề:** Cần đọc m² của mảng (tường/sàn) để báo giá ốp lát/sơn. Mảng hay bị kẻ chia nhiều mặt, và

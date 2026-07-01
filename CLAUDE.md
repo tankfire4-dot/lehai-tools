@@ -198,6 +198,10 @@ toolbar rỗng tên `X` mà SketchUp nhớ — gỡ ở **View → Toolbars → 
 | Kiểm Tra Khoảng Cách | `TK::SpacingCheck` |
 | Dim Nhanh | `TK::QuickDim` |
 | Trục Tọa Độ | `TK::AxisFix` |
+| Trùng Tấm | `TK::DuplicateCheck` |
+| Bản Lề Cánh | `TK::HingeCheck` |
+| Liên Kết (rãnh hậu + ngàm) | `TK::JointCheck` |
+| **Soát Trước Xuất** (dashboard, cuối toolbar) | `TK::PreExportCheck` |
 
 ---
 

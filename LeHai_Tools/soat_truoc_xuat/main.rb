@@ -35,8 +35,7 @@ module TK
         { key: 'trung',   name: 'Trùng Tấm',        mod: mod_of(:DuplicateCheck) },
         { key: 'banle',   name: 'Bản Lề Cánh',      mod: mod_of(:HingeCheck) },
         { key: 'ranhhau', name: 'Rãnh Hậu',         mod: mod_of(:JointCheck), kind: :ranhhau },
-        { key: 'ngam',    name: 'Ngàm',             mod: mod_of(:JointCheck), kind: :ngam },
-        { key: 'led',     name: 'Rãnh Led (đang chờ)', mod: nil, todo: true }
+        { key: 'ngam',    name: 'Ngàm',             mod: mod_of(:JointCheck), kind: :ngam }
       ]
     end
     private_class_method :checks

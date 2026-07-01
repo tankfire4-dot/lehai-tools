@@ -42,6 +42,18 @@ module TK
       Sketchup.active_model.select_tool(ReviewTool.new(vios))
     end
 
+    # ── Adapter cho bộ "Soát Trước Xuất" (TK::PreExportCheck) ───
+    def self.audit
+      vios = scan
+      return { status: :na, count: 0, message: "Không tìm thấy nesting (#{NEST_HINT})." } if vios.nil?
+      return { status: :pass, count: 0, message: "Tất cả cách nhau & cách mép ≥ #{GAP_MM}mm." } if vios.empty?
+      { status: :fail, count: vios.size, message: "#{vios.size} cặp hở dưới #{GAP_MM}mm." }
+    end
+
+    def self.review
+      run
+    end
+
     def self.scan
       found = find_nest(Sketchup.active_model.entities, Geom::Transformation.new)
       return nil unless found

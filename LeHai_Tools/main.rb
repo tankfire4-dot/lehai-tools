@@ -18,7 +18,11 @@ module LeHai
         File.join(path, 'tim_tam_loi',   'main'),
         File.join(path, 'kiem_tra_khoang_cach', 'main'),
         File.join(path, 'truc_toa_do',   'main'),
-        File.join(path, 'dim_nhanh',     'main')
+        File.join(path, 'dim_nhanh',     'main'),
+        File.join(path, 'trung_tam',        'main'),
+        File.join(path, 'kiem_tra_ban_le',  'main'),
+        File.join(path, 'kiem_tra_lien_ket','main'),
+        File.join(path, 'soat_truoc_xuat',  'main')
       ].each do |f|
         begin
           require f
@@ -41,6 +45,10 @@ module LeHai
       puts "[LeHai_Tools] Defined? TK::SpacingCheck       = #{defined?(::TK::SpacingCheck).inspect}"
       puts "[LeHai_Tools] Defined? TK::AxisFix            = #{defined?(::TK::AxisFix).inspect}"
       puts "[LeHai_Tools] Defined? TK::QuickDim           = #{defined?(::TK::QuickDim).inspect}"
+      puts "[LeHai_Tools] Defined? TK::DuplicateCheck     = #{defined?(::TK::DuplicateCheck).inspect}"
+      puts "[LeHai_Tools] Defined? TK::HingeCheck         = #{defined?(::TK::HingeCheck).inspect}"
+      puts "[LeHai_Tools] Defined? TK::JointCheck         = #{defined?(::TK::JointCheck).inspect}"
+      puts "[LeHai_Tools] Defined? TK::PreExportCheck     = #{defined?(::TK::PreExportCheck).inspect}"
 
       # Build toolbar — sắp theo CỤM (cụm DC để cuối). SketchUp không hỗ trợ
       # vạch ngăn trong 1 toolbar nên gom theo thứ tự là cách nhóm khả dĩ.
@@ -74,7 +82,13 @@ module LeHai
          -> { ::TK::AxisFix.create_cmd }],
         # Dim Nhanh — đo/ghi kích thước nhanh (drafting)
         [defined?(::TK::QuickDim) && ::TK::QuickDim.respond_to?(:create_cmd),
-         -> { ::TK::QuickDim.create_cmd }]
+         -> { ::TK::QuickDim.create_cmd }],
+        # ── Cụm CUỐI: CHỐT CHẶN trước khi xuất DXF ──
+        # Soát Trước Xuất — dashboard gom các check (Độ Dày/Khoảng Cách/Trùng
+        # Tấm/Bản Lề/Liên Kết). Đặt CUỐI hàng, icon khiên nổi bật vì đây là bước
+        # quan trọng nhất trước khi cắt sản xuất.
+        [defined?(::TK::PreExportCheck) && ::TK::PreExportCheck.respond_to?(:create_cmd),
+         -> { ::TK::PreExportCheck.create_cmd }]
       ]
 
       groups.each do |loaded, builder|

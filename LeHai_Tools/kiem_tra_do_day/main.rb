@@ -47,6 +47,22 @@ module TK
     end
     private_class_method :attach
 
+    # ── Adapter cho bộ "Soát Trước Xuất" (TK::PreExportCheck) ───
+    # audit: chỉ đọc, không mở dialog — trả trạng thái tóm tắt.
+    def self.audit
+      leaves = collect_leaves
+      return { status: :na, count: 0, message: 'Không tìm thấy tấm nào để kiểm tra độ dày.' } if leaves.empty?
+      bad = leaves.count { |_e, th| !standard?(round1(th)) }
+      return { status: :pass, count: 0, message: 'Tất cả tấm đúng độ dày chuẩn.' } if bad.zero?
+      { status: :fail, count: bad, message: "#{bad} tấm sai độ dày." }
+    end
+
+    # review: mở dialog + tự cô lập tấm lỗi luôn (dùng khi bấm "Xem" từ dashboard).
+    def self.review
+      show
+      isolate_faulty
+    end
+
     def self.push_scan
       return unless @dlg&.visible?
       @dlg.execute_script("render(#{scan_data.to_json});")

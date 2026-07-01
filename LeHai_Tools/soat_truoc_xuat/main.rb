@@ -1,6 +1,6 @@
 # encoding: UTF-8
-# Soát Trước Xuất: dashboard gom các chốt chặn kiểm tra nesting ABF trước khi
-# xuất DXF sản xuất — mỗi check cũ (Độ Dày, Khoảng Cách, Trùng Tấm...) đã tự
+# Check Chốt Sản Xuất: dashboard gom các chốt chặn kiểm tra nesting ABF trước
+# khi xuất DXF sản xuất — mỗi check cũ (Độ Dày, Khoảng Cách, Trùng Tấm...) đã tự
 # chạy được riêng, tool này chỉ GỌI LẠI qua adapter chung `audit`/`review` mà
 # mỗi module tự expose, không viết lại logic quét.
 #
@@ -34,7 +34,8 @@ module TK
         { key: 'khoang',  name: 'Khoảng Cách 7mm',  mod: mod_of(:SpacingCheck) },
         { key: 'trung',   name: 'Trùng Tấm',        mod: mod_of(:DuplicateCheck) },
         { key: 'banle',   name: 'Bản Lề Cánh',      mod: mod_of(:HingeCheck) },
-        { key: 'lienket', name: 'Liên Kết (rãnh hậu + ngàm)', mod: mod_of(:JointCheck) },
+        { key: 'ranhhau', name: 'Rãnh Hậu',         mod: mod_of(:JointCheck), kind: :ranhhau },
+        { key: 'ngam',    name: 'Ngàm',             mod: mod_of(:JointCheck), kind: :ngam },
         { key: 'led',     name: 'Rãnh Led (đang chờ)', mod: nil, todo: true }
       ]
     end
@@ -53,7 +54,7 @@ module TK
         return
       end
       @dlg = UI::HtmlDialog.new(
-        dialog_title:    'Soát Trước Xuất',
+        dialog_title:    'Check Chốt Sản Xuất',
         preferences_key: 'tk.preexportcheck',
         width:           420, height: 480,
         min_width:       360, min_height: 360,
@@ -70,7 +71,9 @@ module TK
       dlg.add_action_callback('rescan') { push_scan }
       dlg.add_action_callback('review') do |_ctx, key|
         c = checks.find { |x| x[:key] == key }
-        c[:mod].review if c && c[:mod]
+        if c && c[:mod]
+          c[:kind] ? c[:mod].review(c[:kind]) : c[:mod].review
+        end
       end
     end
     private_class_method :attach
@@ -92,7 +95,7 @@ module TK
             message: 'Tool chưa được nạp trong phiên này.' }
         else
           begin
-            r = c[:mod].audit
+            r = c[:kind] ? c[:mod].audit(c[:kind]) : c[:mod].audit
             { key: c[:key], name: c[:name], status: r[:status].to_s, count: r[:count].to_i,
               message: r[:message].to_s }
           rescue => e
@@ -128,19 +131,22 @@ module TK
           .rbtn{flex:0 0 auto;border:0;border-radius:var(--lh-radius-sm);padding:8px 12px;
                 font-size:12px;font-weight:700;cursor:pointer;background:var(--lh-walnut);color:#fff}
           .rbtn:hover{filter:brightness(1.1)}
-          .rbtn[disabled]{background:var(--lh-line-2);color:var(--lh-muted);cursor:default}
+          .rbtn--ghost{background:var(--lh-surface);color:var(--lh-walnut);
+                       border:1.5px solid var(--lh-line)}
+          .rbtn--ghost:hover{border-color:var(--lh-amber);color:var(--lh-amber)}
+          .rbtn[disabled]{background:var(--lh-line-2);color:var(--lh-muted);cursor:default;border:0}
           .rescan{margin-top:14px}
         </style></head>
         <body class="lh"><div class="lh-dialog">
           <div class="lh-eyebrow">LeHai Decor Tools</div>
-          <h1 class="lh-title">Soát Trước Xuất</h1>
+          <h1 class="lh-title">Check Chốt Sản Xuất</h1>
           <div id="summary"></div>
           <div class="lh-card" style="padding:2px 8px">
             <div id="list"></div>
           </div>
           <button class="lh-btn lh-btn--ghost rescan" onclick="sketchup.rescan()">↻ Quét lại</button>
-          <div class="lh-hint">Chỉ đọc — không sửa model. Bấm "Xem" để nhảy tới từng lỗi cụ thể.</div>
-          <div class="lh-foot"><span>LeHai Tools</span><span>Soát Trước Xuất</span></div>
+          <div class="lh-hint">Chỉ đọc — không sửa model. Bấm "Xem" để soi chi tiết (kể cả mục đã đạt, để kiểm chứng).</div>
+          <div class="lh-foot"><span>LeHai Tools</span><span>Check Chốt Sản Xuất</span></div>
         </div>
         <script>
           function badge(st){
@@ -154,13 +160,15 @@ module TK
             var html = '';
             for(var i=0;i<rows.length;i++){
               var r = rows[i];
-              if(r.status==='fail' || r.status==='error'){ hasFail = true; }
-              var canView = (r.status==='fail' || r.status==='error');
+              var urgent = (r.status==='fail' || r.status==='error');
+              if(urgent){ hasFail = true; }
+              var canView = (r.status==='pass' || urgent);   // ĐẠT cũng xem được để kiểm chứng
+              var cls = urgent ? 'rbtn' : 'rbtn rbtn--ghost';
               html += '<div class="row">'+
                 '<div class="dot '+badge(r.status)+'"></div>'+
                 '<div class="rinfo"><div class="rname">'+r.name+'</div>'+
                 '<div class="rmsg">'+r.message+'</div></div>'+
-                '<button class="rbtn" '+(canView?'':'disabled')+' onclick="sketchup.review(\\''+r.key+'\\')">Xem</button>'+
+                '<button class="'+cls+'" '+(canView?'':'disabled')+' onclick="sketchup.review(\\''+r.key+'\\')">Xem</button>'+
                 '</div>';
             }
             document.getElementById('list').innerHTML = html;
@@ -183,9 +191,9 @@ module TK
     # ── Command (toolbar do LeHai_Tools/main.rb quản lý chung) ──
     def self.create_cmd
       icons = File.join(PATH, 'icons')
-      cmd = UI::Command.new('Soát trước xuất') { TK::PreExportCheck.show }
-      cmd.tooltip         = 'Soát Trước Xuất — chốt chặn trước khi xuất DXF sản xuất'
-      cmd.status_bar_text = 'Gom các check (Độ Dày, Khoảng Cách, Trùng Tấm...) vào 1 dashboard PASS/FAIL.'
+      cmd = UI::Command.new('Check chốt sản xuất') { TK::PreExportCheck.show }
+      cmd.tooltip         = 'Check Chốt Sản Xuất — chốt chặn trước khi xuất DXF sản xuất'
+      cmd.status_bar_text = 'Gom các check (Độ Dày, Khoảng Cách, Trùng Tấm, Bản Lề, Rãnh Hậu, Ngàm) vào 1 dashboard.'
       cmd.small_icon      = File.join(icons, 'gate_16.png')
       cmd.large_icon      = File.join(icons, 'gate_24.png')
       cmd

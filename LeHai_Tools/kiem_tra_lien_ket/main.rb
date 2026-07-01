@@ -48,15 +48,17 @@ module TK
     # =========================================================
     #  QUÉT
     # =========================================================
-    def self.run
-      Sketchup.set_status_text('Đang quét liên kết (rãnh hậu / ngàm)...', SB_PROMPT)
+    # kind = nil (cả 2) / :ranhhau / :ngam
+    def self.run(kind = nil)
+      Sketchup.set_status_text('Đang quét liên kết...', SB_PROMPT)
       planks, inters = collect_all
       vios = find_missing(planks, inters)
+      vios = vios.select { |v| v.kind == kind } if kind
       Sketchup.set_status_text('', SB_PROMPT)
 
       return UI.messagebox('Không tìm thấy tấm ván nào để kiểm tra.') if planks.empty?
       if vios.empty?
-        UI.messagebox("✓ Không thấy mối liên kết nào bị thiếu (đã soi #{planks.size} tấm).")
+        UI.messagebox("✓ Đã soi #{planks.size} tấm — không mối nào thiếu #{kind_label(kind)}.")
         return
       end
       Sketchup.active_model.select_tool(ReviewTool.new(vios))
@@ -67,22 +69,26 @@ module TK
       find_missing(planks, inters)
     end
 
-    # ── Adapter cho bộ "Soát Trước Xuất" (TK::PreExportCheck) ───
-    def self.audit
+    def self.kind_label(kind)
+      case kind
+      when :ranhhau then 'rãnh hậu'
+      when :ngam    then 'ngàm'
+      else 'rãnh hậu / ngàm'
+      end
+    end
+
+    # ── Adapter cho bộ "Check Chốt Sản Xuất" (TK::PreExportCheck) ───
+    def self.audit(kind = nil)
       planks, inters = collect_all
       return { status: :na, count: 0, message: 'Không tìm thấy tấm ván nào để kiểm tra.' } if planks.empty?
       vios = find_missing(planks, inters)
-      return { status: :pass, count: 0, message: "Các mối rãnh hậu / ngàm đều đủ (đã soi #{planks.size} tấm)." } if vios.empty?
-      nr = vios.count { |v| v.kind == :ranhhau }
-      ng = vios.count { |v| v.kind == :ngam }
-      parts = []
-      parts << "#{nr} mối thiếu rãnh hậu" if nr > 0
-      parts << "#{ng} mối thiếu ngàm"     if ng > 0
-      { status: :fail, count: vios.size, message: parts.join(', ') + '.' }
+      vios = vios.select { |v| v.kind == kind } if kind
+      return { status: :pass, count: 0, message: "Đã soi #{planks.size} tấm — không mối nào thiếu #{kind_label(kind)}." } if vios.empty?
+      { status: :fail, count: vios.size, message: "#{vios.size} mối thiếu #{kind_label(kind)}." }
     end
 
-    def self.review
-      run
+    def self.review(kind = nil)
+      run(kind)
     end
 
     # =========================================================

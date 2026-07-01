@@ -84,9 +84,9 @@ module LeHai
         [defined?(::TK::QuickDim) && ::TK::QuickDim.respond_to?(:create_cmd),
          -> { ::TK::QuickDim.create_cmd }],
         # ── Cụm CUỐI: CHỐT CHẶN trước khi xuất DXF ──
-        # Soát Trước Xuất — dashboard gom các check (Độ Dày/Khoảng Cách/Trùng
-        # Tấm/Bản Lề/Liên Kết). Đặt CUỐI hàng, icon khiên nổi bật vì đây là bước
-        # quan trọng nhất trước khi cắt sản xuất.
+        # Check Chốt Sản Xuất — dashboard gom các check (Độ Dày/Khoảng Cách/Trùng
+        # Tấm/Bản Lề/Rãnh Hậu/Ngàm). Đặt CUỐI hàng, icon khiên nổi bật vì đây là
+        # bước quan trọng nhất trước khi cắt sản xuất.
         [defined?(::TK::PreExportCheck) && ::TK::PreExportCheck.respond_to?(:create_cmd),
          -> { ::TK::PreExportCheck.create_cmd }]
       ]

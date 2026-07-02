@@ -45,8 +45,10 @@ module LeHai
     end
 
     def self._do_update_check
-      version_url  = 'https://raw.githubusercontent.com/tankfire4-dot/lehai-tools/master/version.json'
-      base_raw_url = 'https://raw.githubusercontent.com/tankfire4-dot/lehai-tools/master/'
+      # Update đi qua TRẠM PHÁT (Cloudflare Worker) — repo GitHub là private,
+      # máy thợ không đọc thẳng được. Xem tram_phat/HUONG_DAN.md.
+      version_url  = 'https://lehai-update.tankfire4.workers.dev/version.json'
+      base_raw_url = 'https://lehai-update.tankfire4.workers.dev/'
       version_file = File.join(File.dirname(__FILE__), '_installed_version')
 
       body = _http_get_retry(version_url)

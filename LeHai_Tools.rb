@@ -7,7 +7,7 @@ module LeHai
     unless file_loaded?(__FILE__)
       ext             = SketchupExtension.new("LeHai's Decor Tools", 'LeHai_Tools/main')
       ext.description = 'Bo cong cu thiet ke noi that Le Hai: Dan Canh, Tao Canh CNC, Tao Tam Go, Ha Nen, Dien Ten, Thu Vien Component.'
-      ext.version     = '1.9.30'
+      ext.version     = '1.9.31'
       ext.creator     = 'Le Hai Studio'
 
       begin
@@ -31,8 +31,9 @@ module LeHai
 
       UI.start_timer(3, false) do
         begin
-          version_url  = 'https://raw.githubusercontent.com/tankfire4-dot/lehai-tools/master/version.json'
-          base_raw_url = 'https://raw.githubusercontent.com/tankfire4-dot/lehai-tools/master/'
+          # Đi qua trạm phát (repo private) — đồng bộ với updater.rb
+          version_url  = 'https://lehai-update.tankfire4.workers.dev/version.json'
+          base_raw_url = 'https://lehai-update.tankfire4.workers.dev/'
           plugins_dir  = File.expand_path('..', File.dirname(__FILE__))
           version_file = File.join(File.dirname(__FILE__), 'LeHai_Tools', '_installed_version')
 

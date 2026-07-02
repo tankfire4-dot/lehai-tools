@@ -153,7 +153,9 @@ def main():
     print(f'✓ Build {os.path.basename(rbz)} ({os.path.getsize(rbz):,} bytes)')
 
     # ── 6. Git commit (message qua file — né lỗi PowerShell nuốt ngoặc) ──
-    msg_file = os.path.join(ROOT, '.release_msg.tmp')
+    # File nháp để NGOÀI repo, không thì `git add -A` vơ luôn nó vào commit.
+    import tempfile
+    msg_file = os.path.join(tempfile.gettempdir(), 'lehai_release_msg.tmp')
     body = (f'v{a.version}: {a.message}\n\n'
             'Co-Authored-By: Claude <noreply@anthropic.com>\n')
     with io.open(msg_file, 'w', encoding='utf-8') as f:

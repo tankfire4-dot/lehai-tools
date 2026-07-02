@@ -12,6 +12,30 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-02 — Trạm phát update (chuẩn bị khóa repo private) (v1.9.31)
+
+**Vấn đề:** Repo public = luật nghề xưởng (rãnh hậu 10mm, ngàm 17.5, quy tắc bản lề, cấu trúc ABF)
+phơi công khai — ai cũng đọc/copy được. Repo private thì auto-update của máy thợ (đọc raw GitHub) chết.
+Phương án "đặt pass trong plugin" bị loại: chìa nằm trên mọi máy thợ + token hết hạn = cả xưởng chết
+update không cứu từ xa được.
+
+**Quyết định:** Dựng **trạm phát** — Cloudflare Worker `lehai-update` (`tram_phat/worker.js`, cùng
+account với máy đếm `gateway/`). Trạm giữ GH_TOKEN (fine-grained, CHỈ-ĐỌC, CHỈ repo lehai-tools,
+không hết hạn) trong secret Cloudflare; máy thợ hỏi trạm thay vì GitHub. Trạm CHỈ phát version.json +
+LeHai_Tools* — không phát lịch sử git/file khác. v1.9.31 đổi URL updater (cả emergency updater) sang
+`https://lehai-update.tankfire4.workers.dev/`, phát qua đường cũ lần cuối.
+
+**Trình tự an toàn (QUAN TRỌNG cho lần sau):** dựng trạm → phát bản đổi đường → **CHỜ mọi máy lên
+1.9.31** (soi `/stats?key=...` của máy đếm — có bảng theo version) → LÚC ĐÓ mới chuyển repo private.
+Khóa sớm = máy chưa update kẹt vĩnh viễn, phải cài tay .rbz.
+
+**Bài học:** (1) Dán secret vào prompt tương tác của wrangler dễ dính ký tự rác (secret thành 1 ký
+tự "*") — dùng `Get-Content file | wrangler secret put X` chắc ăn; debug bằng cách in tokenLen (không
+lộ token). (2) `git add -A` trong release.py vơ cả file nháp message → file nháp phải để NGOÀI repo
+(đã vá). (3) PowerShell máy Khoa chặn npx.ps1 (execution policy) → dùng `npx.cmd`.
+
+---
+
 ## 2026-07-02 — release.py: phát hành 1 lệnh, khai tử quy trình tay
 
 **Vấn đề:** Quy trình phát hành tay đã dính 3 loại sẹo lặp lại: (1) PowerShell ghi file chèn BOM →

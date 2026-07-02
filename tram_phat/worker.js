@@ -42,7 +42,8 @@ export default {
     const gh = `https://api.github.com/repos/${REPO}/contents/${encoded}?ref=${BRANCH}`;
     const r = await fetch(gh, {
       headers: {
-        'Authorization': `Bearer ${env.GH_TOKEN}`,
+        // .trim() — chống ký tự xuống dòng lọt vào secret khi nạp qua pipe
+        'Authorization': `Bearer ${(env.GH_TOKEN || '').trim()}`,
         'Accept': 'application/vnd.github.raw+json',
         'User-Agent': 'lehai-update-worker'
       }

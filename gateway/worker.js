@@ -29,8 +29,17 @@ export default {
       return new Response('ok', { headers: { 'access-control-allow-origin': '*' } });
     }
 
+    // debug: khai do dai khoa dang cam (KHONG lo khoa) — chan doan secret
+    if (p === '/debug') {
+      const a = env.ADMIN_KEY || '';
+      return new Response(`ADMIN_KEY: len=${a.length} trimLen=${a.trim().length}`);
+    }
+
     if (p === '/stats') {
-      if (!env.ADMIN_KEY || (url.searchParams.get('key') || '') !== env.ADMIN_KEY) {
+      // .trim() ca hai phia — chong ky tu xuong dong/khoang trang lot vao secret
+      const given = (url.searchParams.get('key') || '').trim();
+      const admin = (env.ADMIN_KEY || '').trim();
+      if (!admin || given !== admin) {
         return new Response('Sai hoac thieu key.', { status: 403 });
       }
       const machines = [];

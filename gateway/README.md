@@ -21,17 +21,17 @@ Chỉ lưu **mã máy ngẫu nhiên + version** — không có tên người / �
 
 ## Deploy lại (khi sửa worker.js)
 
-Cần API token Cloudflare (quyền Workers + KV). Upload bằng Cloudflare API:
+Từ 2026-07-02 quản bằng **wrangler** (có `wrangler.toml` khai báo KV binding sẵn):
 
-```bash
-curl -X PUT "https://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/workers/scripts/lehai-stats" \
-  -H "Authorization: Bearer <TOKEN>" \
-  -F "metadata=<metadata.json;type=application/json" \
-  -F "worker.js=@worker.js;type=application/javascript+module"
+```
+cd gateway
+npx wrangler deploy
 ```
 
-`metadata.json` khai báo binding KV (`INSTALLS`) + secret `ADMIN_KEY`. Lưu ý: curl mingw (Git Bash)
-cần đường dẫn file kiểu `C:/...`, không phải `/c/...`.
+Thay ADMIN_KEY: ghi khóa vào file tạm (không newline) rồi
+`Get-Content file | npx.cmd wrangler secret put ADMIN_KEY` — ĐỪNG gõ vào prompt
+tương tác (dễ dính ký tự rác). Máy mới cần `npx wrangler login` một lần.
+(Cách cũ upload qua curl + API token đã bỏ.)
 
 ## Hạn chế đã biết
 

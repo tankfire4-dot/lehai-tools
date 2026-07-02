@@ -1,0 +1,7 @@
+name = "lehai-stats"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+[[kv_namespaces]]
+binding = "INSTALLS"
+id = "d1155438fcc3402b9f54f50a6a7193f1"

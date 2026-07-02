@@ -509,33 +509,38 @@ module CanhCNC
   # GIAO DIỆN HTML CSS GỌN GÀNG
   # ----------------------------------------------------------
   def self.html_content
+    theme_css = File.join(File.dirname(__FILE__), '..', 'shared', 'lehai_theme.css')
+    theme = File.exist?(theme_css) ? File.read(theme_css, encoding: 'UTF-8') : ''
     <<~HTML
       <!DOCTYPE html>
       <html lang="vi">
       <head>
         <meta charset="UTF-8">
-        <style>
+        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>#{theme}
           *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 13px;
-                 background: #1e1e2e; color: #cdd6f4; padding: 12px; overflow: hidden; }
-          h3 { font-size: 14px; color: #89b4fa; text-align: center; margin-bottom: 12px; }
+          body { font-size: 13px; padding: 12px; overflow: hidden; }
+          h3 { font-size: 14px; color: var(--lh-walnut); text-align: center; margin-bottom: 12px; }
           .row { display: flex; gap: 8px; margin-bottom: 8px; }
           .col { flex: 1; }
-          label { display: block; margin-bottom: 3px; font-size: 11px; color: #a6adc8; font-weight: bold; }
-          select, input[type=number] { width: 100%; padding: 6px 8px; border: 1px solid #45475a;
-            border-radius: 4px; background: #11111b; color: #cdd6f4; outline: none; }
-          select:focus, input[type=number]:focus { border-color: #89b4fa; }
-          .divider { height: 1px; background: #313244; margin: 10px 0; }
+          label { display: block; margin-bottom: 3px; font-size: 11px; color: var(--lh-ink-soft); font-weight: bold; }
+          select, input[type=number] { width: 100%; padding: 6px 8px; border: 1.5px solid var(--lh-line);
+            border-radius: var(--lh-radius-sm); background: var(--lh-surface); color: var(--lh-ink);
+            outline: none; font-family: inherit; }
+          select:focus, input[type=number]:focus { border-color: var(--lh-amber);
+            box-shadow: 0 0 0 3px rgba(180,83,9,.15); }
+          .divider { height: 1px; background: var(--lh-line-2); margin: 10px 0; }
           button { display: block; width: 100%; padding: 10px;
-            background: linear-gradient(135deg, #a6e3a1, #89b4fa);
-            color: #11111b; border: none; border-radius: 4px;
-            font-size: 13px; font-weight: bold; cursor: pointer; margin-top: 8px; }
-          button:hover { opacity: 0.9; }
-          .credit { text-align: right; font-size: 10px; font-style: italic; color: #585b70; margin-top: 8px; letter-spacing: 0.5px; }
-          .note { margin-top: 10px; font-size: 11px; color: #f9e2af; text-align: center; line-height: 1.5; }
+            background: var(--lh-amber);
+            color: #fff; border: none; border-radius: var(--lh-radius);
+            font-size: 13px; font-weight: bold; cursor: pointer; margin-top: 8px; font-family: inherit; }
+          button:hover { filter: brightness(1.06); }
+          .credit { text-align: right; font-size: 10px; font-style: italic; color: var(--lh-muted); margin-top: 8px; letter-spacing: 0.5px; }
+          .note { margin-top: 10px; font-size: 11px; color: var(--lh-amber-2); text-align: center; line-height: 1.5; }
         </style>
       </head>
-      <body>
+      <body class="lh">
+        <div class="lh-eyebrow" style="text-align:center">LeHai Decor Tools</div>
         <h3>🚪 Thiết Lập Độ Hở Cánh CNC</h3>
         <div class="row">
           <div class="col">

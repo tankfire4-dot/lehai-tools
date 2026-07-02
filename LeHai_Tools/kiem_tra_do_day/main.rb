@@ -13,6 +13,7 @@ module TK
   module ThickCheck
 
     PATH   = File.dirname(__FILE__).freeze
+    THEME  = File.join(PATH, '..', 'shared', 'lehai_theme.css').freeze
     MARK   = 'TK_ThickCheck'.freeze
     STD_MM = [9.0, 10.0, 17.5, 18.0].freeze
     TOL    = 0.3
@@ -195,29 +196,32 @@ module TK
 
     # ── HTML ───────────────────────────────────────────────────
     def self.html
+      theme = File.exist?(THEME) ? File.read(THEME, encoding: 'UTF-8') : ''
       <<~HTML
         <!DOCTYPE html><html><head><meta charset="utf-8">
-        <style>
-          body{font-family:Segoe UI,Arial,sans-serif;margin:0;padding:14px;background:#fafafa;color:#222}
-          h3{margin:0 0 10px;font-size:16px;text-align:center}
+        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>#{theme}
+          body{margin:0;padding:14px}
+          h3{margin:0 0 10px;font-size:16px;text-align:center;color:var(--lh-walnut)}
           .bar{display:flex;gap:8px;margin-bottom:14px}
-          .bar button{flex:1;padding:9px;border:0;border-radius:7px;cursor:pointer;font-size:12px;color:#fff;font-weight:600}
-          .b-faulty{background:#d62828}.b-all{background:#666}
-          .bar button:hover{opacity:.88}
+          .bar button{flex:1;padding:9px;border:0;border-radius:var(--lh-radius-sm);cursor:pointer;font-size:12px;color:#fff;font-weight:700;font-family:inherit}
+          .b-faulty{background:#b91c1c}.b-all{background:var(--lh-walnut)}
+          .bar button:hover{filter:brightness(1.1)}
           .chart{display:flex;align-items:flex-end;justify-content:center;gap:20px;
-                 height:300px;padding:6px 4px;background:#fff;border:1px solid #ececec;border-radius:10px}
+                 height:300px;padding:6px 4px;background:var(--lh-surface);border:1.5px solid var(--lh-line-2);border-radius:var(--lh-radius)}
           .col{display:flex;flex-direction:column;align-items:center;cursor:pointer;height:100%;justify-content:flex-end}
-          .col:hover .barv{filter:brightness(1.08);box-shadow:0 0 0 2px rgba(41,98,168,.25)}
-          .count{font-size:13px;font-weight:700;color:#1f6fc4;margin-bottom:5px}
-          .count.bad{color:#d62828}
-          .barv{width:50px;border-radius:6px 6px 0 0;background:linear-gradient(#4aa8ff,#16e0ff);transition:.15s}
-          .barv.bad{background:linear-gradient(#ff7a7a,#d62828)}
-          .label{margin-top:7px;font-size:12px;font-weight:600}
-          .label.bad{color:#d62828}
+          .col:hover .barv{filter:brightness(1.08);box-shadow:0 0 0 2px rgba(180,83,9,.30)}
+          .count{font-size:13px;font-weight:700;color:var(--lh-amber-2);margin-bottom:5px}
+          .count.bad{color:#b91c1c}
+          .barv{width:50px;border-radius:6px 6px 0 0;background:linear-gradient(#d97706,#92400e);transition:.15s}
+          .barv.bad{background:linear-gradient(#f87171,#b91c1c)}
+          .label{margin-top:7px;font-size:12px;font-weight:600;color:var(--lh-ink-soft)}
+          .label.bad{color:#b91c1c}
           .mag{margin-top:3px;font-size:13px;opacity:.45}
-          .hint{font-size:11px;color:#999;margin-top:12px;line-height:1.5;text-align:center}
-          .empty{color:#888;text-align:center;padding:40px}
-        </style></head><body>
+          .hint{font-size:11px;color:var(--lh-muted);margin-top:12px;line-height:1.5;text-align:center}
+          .empty{color:var(--lh-muted);text-align:center;padding:40px}
+        </style></head><body class="lh">
+        <div class="lh-eyebrow" style="text-align:center;margin-top:2px">LeHai Decor Tools</div>
         <h3>Độ dày các tấm trong file</h3>
         <div class="bar">
           <button class="b-faulty" onclick="sketchup.isolate_faulty()">Chỉ hiện tấm lỗi</button>
@@ -225,7 +229,7 @@ module TK
         </div>
         <div id="list"></div>
         <div class="hint">Bấm 1 cột → chỉ hiện tấm dày đó, ẩn phần còn lại, tự zoom tới.<br>
-        Cột xanh = đúng chuẩn (9/10/17.5/18mm), cột đỏ = sai.</div>
+        Cột nâu = đúng chuẩn (9/10/17.5/18mm), cột đỏ = sai.</div>
         <script>
           function render(data){
             var L=document.getElementById('list');

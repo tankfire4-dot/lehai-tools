@@ -270,21 +270,26 @@ module TK
 
     # ── HTML ───────────────────────────────────────────────────
     def self.html
+      theme_css = File.join(PATH, '..', 'shared', 'lehai_theme.css')
+      theme = File.exist?(theme_css) ? File.read(theme_css, encoding: 'UTF-8') : ''
       <<~HTML
         <!DOCTYPE html><html><head><meta charset="utf-8">
-        <style>
-          body{font-family:Segoe UI,Arial,sans-serif;margin:0;padding:14px;background:#fafafa;color:#222}
-          h3{margin:0 0 4px;font-size:15px}
-          .sub{font-size:11px;color:#999;margin-bottom:12px}
+        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>#{theme}
+          body{margin:0;padding:14px}
+          h3{margin:0 0 4px;font-size:15px;color:var(--lh-walnut)}
+          .sub{font-size:11px;color:var(--lh-muted);margin-bottom:12px}
           label{display:flex;align-items:center;gap:9px;padding:9px 10px;margin-bottom:6px;
-                 background:#fff;border:1px solid #e3e3e3;border-radius:7px;cursor:pointer;font-size:13px}
-          label:hover{border-color:#2962a8;background:#f3f8ff}
-          input{width:16px;height:16px;cursor:pointer}
-          .run{width:100%;margin-top:8px;padding:11px;border:0;border-radius:7px;
-               background:#2962a8;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
-          .run:hover{background:#1f5294}
-          #status{margin-top:11px;font-size:12px;color:#2a845c;min-height:16px;line-height:1.4}
-        </style></head><body>
+                 background:var(--lh-surface);border:1.5px solid var(--lh-line);border-radius:var(--lh-radius-sm);
+                 cursor:pointer;font-size:13px;color:var(--lh-ink)}
+          label:hover{border-color:var(--lh-amber);background:var(--lh-chip)}
+          input{width:16px;height:16px;cursor:pointer;accent-color:var(--lh-amber)}
+          .run{width:100%;margin-top:8px;padding:11px;border:0;border-radius:var(--lh-radius);
+               background:var(--lh-amber);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+          .run:hover{filter:brightness(1.06)}
+          #status{margin-top:11px;font-size:12px;color:#15803d;min-height:16px;line-height:1.4}
+        </style></head><body class="lh">
+        <div class="lh-eyebrow">LeHai Decor Tools</div>
         <h3>Dọn Component</h3>
         <div class="sub">Tích thao tác cần làm trên đối tượng đang chọn.</div>
         <label><input type="checkbox" id="convert"> Biến component → group</label>

@@ -544,38 +544,44 @@ module MyStudio
     end
 
     def self.panel_html
+      theme_css = File.join(File.dirname(__FILE__), '..', 'shared', 'lehai_theme.css')
+      theme = File.exist?(theme_css) ? File.read(theme_css, encoding: 'UTF-8') : ''
       <<~HTML
         <!DOCTYPE html><html><head><meta charset="UTF-8">
-        <style>
+        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>#{theme}
           *{box-sizing:border-box;margin:0;padding:0}
-          body{font-family:'Segoe UI',Arial,sans-serif;font-size:13px;
-               background:#1e1e1e;color:#e0e0e0;padding:12px;user-select:none}
-          h3{font-size:14px;color:#f13c97;margin-bottom:12px}
-          label{display:block;color:#aaa;font-size:11px;margin-bottom:4px}
-          select{width:100%;padding:6px 8px;background:#2d2d2d;color:#e0e0e0;
-                 border:1px solid #444;border-radius:4px;margin-bottom:10px;font-size:12px}
+          body{font-size:13px;padding:12px;user-select:none}
+          h3{font-size:14px;color:var(--lh-walnut);margin-bottom:12px}
+          label{display:block;color:var(--lh-ink-soft);font-size:11px;margin-bottom:4px;font-weight:700}
+          select{width:100%;padding:6px 8px;background:var(--lh-surface);color:var(--lh-ink);
+                 border:1.5px solid var(--lh-line);border-radius:var(--lh-radius-sm);margin-bottom:10px;
+                 font-size:12px;font-family:inherit}
           .modes{display:flex;gap:8px;margin-bottom:10px}
-          .mode-btn{flex:1;padding:6px;border:1px solid #444;border-radius:4px;
-                    background:#2d2d2d;color:#aaa;cursor:pointer;font-size:12px;text-align:center}
-          .mode-btn.active{border-color:#f13c97;color:#f13c97;background:#2a1020}
-          .btn{width:100%;padding:8px;border:none;border-radius:4px;
-               cursor:pointer;font-size:13px;font-weight:bold;margin-bottom:6px}
-          .btn-primary{background:#f13c97;color:white}
-          .btn-painter{background:#2d2d2d;color:#64b5f6;border:1px solid #1a3a5c;font-size:12px}
-          .btn-painter:hover{background:#1a2e42;border-color:#64b5f6}
-          .btn-eraser{background:#2d2d2d;color:#ff8a65;border:1px solid #5a3020;font-size:12px}
-          .btn-eraser:hover{background:#3a2010;border-color:#ff8a65}
-          .btn-clear{background:#333;color:#999;font-size:12px}
-          .divider{border:none;border-top:1px solid #333;margin:8px 0}
+          .mode-btn{flex:1;padding:6px;border:1.5px solid var(--lh-line);border-radius:var(--lh-radius-sm);
+                    background:var(--lh-surface);color:var(--lh-ink-soft);cursor:pointer;font-size:12px;text-align:center}
+          .mode-btn.active{border-color:var(--lh-amber);color:var(--lh-amber-2);background:var(--lh-chip)}
+          .btn{width:100%;padding:8px;border:none;border-radius:var(--lh-radius-sm);
+               cursor:pointer;font-size:13px;font-weight:bold;margin-bottom:6px;font-family:inherit}
+          .btn-primary{background:var(--lh-amber);color:#fff}
+          .btn-primary:hover{filter:brightness(1.06)}
+          .btn-painter{background:var(--lh-surface);color:var(--lh-walnut);border:1.5px solid var(--lh-line);font-size:12px}
+          .btn-painter:hover{border-color:var(--lh-amber);color:var(--lh-amber)}
+          .btn-eraser{background:var(--lh-surface);color:#b91c1c;border:1.5px solid var(--lh-line);font-size:12px}
+          .btn-eraser:hover{border-color:#b91c1c}
+          .btn-clear{background:var(--lh-fill);color:var(--lh-ink-soft);font-size:12px}
+          .btn-clear:hover{background:var(--lh-fill-2)}
+          .divider{border:none;border-top:1px solid var(--lh-line-2);margin:8px 0}
           .tool-row{display:flex;gap:6px;margin-bottom:6px}
           .tool-row .btn{margin-bottom:0}
-          .status{margin-top:8px;padding:7px 10px;border-radius:4px;
-                  font-size:12px;background:#2d2d2d;color:#888;min-height:32px}
-          .status.ok{color:#4caf50}.status.warn{color:#ff9800}.status.error{color:#f44336}
+          .status{margin-top:8px;padding:7px 10px;border-radius:var(--lh-radius-sm);
+                  font-size:12px;background:var(--lh-fill);color:var(--lh-ink-soft);min-height:32px}
+          .status.ok{color:#15803d}.status.warn{color:#b45309}.status.error{color:#b91c1c}
           .refresh-row{display:flex;justify-content:flex-end;margin-bottom:4px}
-          .btn-refresh{background:none;border:none;color:#555;cursor:pointer;font-size:11px;padding:2px 4px}
-          .btn-refresh:hover{color:#f13c97}
-        </style></head><body>
+          .btn-refresh{background:none;border:none;color:var(--lh-muted);cursor:pointer;font-size:11px;padding:2px 4px;font-family:inherit}
+          .btn-refresh:hover{color:var(--lh-amber)}
+        </style></head><body class="lh">
+          <div class="lh-eyebrow">LeHai Decor Tools</div>
           <h3>▣ Auto Dán Cạnh_ LeHai</h3>
           <div class="refresh-row">
             <button class="btn-refresh" onclick="sketchup.refresh_types()">↺ Làm mới danh sách</button>

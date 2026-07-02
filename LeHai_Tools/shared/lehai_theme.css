@@ -141,3 +141,16 @@ body.lh, .lh-dialog {
   font-size: 10px; color: var(--lh-muted);
   display: flex; justify-content: space-between; align-items: center;
 }
+
+/* ── thanh cuộn + bôi đen chữ đồng bộ theme (HtmlDialog = Chromium) ── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(124,45,18,.25); border-radius: 999px;
+  border: 2px solid transparent; background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(124,45,18,.45);
+  border: 2px solid transparent; background-clip: padding-box;
+}
+::selection { background: var(--lh-chip); color: var(--lh-walnut); }

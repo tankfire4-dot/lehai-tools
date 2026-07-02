@@ -153,23 +153,28 @@ module TK
 
     # ── HTML ───────────────────────────────────────────────────
     def self.html
+      theme_css = File.join(PATH, '..', 'shared', 'lehai_theme.css')
+      theme = File.exist?(theme_css) ? File.read(theme_css, encoding: 'UTF-8') : ''
       <<~HTML
         <!DOCTYPE html><html><head><meta charset="utf-8">
-        <style>
-          body{font-family:Segoe UI,Arial,sans-serif;margin:0;padding:14px;background:#fafafa;color:#222}
-          h3{margin:0 0 10px;font-size:14px}
-          .reset{width:100%;padding:11px;border:0;border-radius:7px;margin-bottom:12px;
-                 background:#6a3fb5;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
-          .reset:hover{background:#5a32a0}
-          .lbl{font-size:11px;color:#888;margin-bottom:5px}
+        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>#{theme}
+          body{margin:0;padding:14px}
+          h3{margin:0 0 10px;font-size:14px;color:var(--lh-walnut)}
+          .reset{width:100%;padding:11px;border:0;border-radius:var(--lh-radius);margin-bottom:12px;
+                 background:var(--lh-walnut);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+          .reset:hover{filter:brightness(1.1)}
+          .lbl{font-size:11px;color:var(--lh-muted);margin-bottom:5px}
           .row{display:flex;gap:8px}
-          .ax{flex:1;padding:14px 0;border:0;border-radius:7px;color:#fff;
-              font-size:16px;font-weight:700;cursor:pointer}
-          .x{background:#d0394a}.x:hover{background:#b62f3e}
-          .y{background:#3a9d4f}.y:hover{background:#318643}
-          .z{background:#2f6fd0}.z:hover{background:#285fb3}
-          #status{margin-top:13px;font-size:12px;color:#2a845c;min-height:30px;line-height:1.4}
-        </style></head><body>
+          /* X/Y/Z giữ màu trục chuẩn SketchUp — ngữ nghĩa, không đổi theo theme */
+          .ax{flex:1;padding:14px 0;border:0;border-radius:var(--lh-radius-sm);color:#fff;
+              font-size:16px;font-weight:700;cursor:pointer;font-family:inherit}
+          .x{background:#d0394a}.x:hover{filter:brightness(1.08)}
+          .y{background:#3a9d4f}.y:hover{filter:brightness(1.08)}
+          .z{background:#2f6fd0}.z:hover{filter:brightness(1.08)}
+          #status{margin-top:13px;font-size:12px;color:#15803d;min-height:30px;line-height:1.4}
+        </style></head><body class="lh">
+        <div class="lh-eyebrow">LeHai Decor Tools</div>
         <h3>Trục Tọa Độ</h3>
         <button class="reset" onclick="sketchup.reset()">Reset trục về Global</button>
         <div class="lbl">Xoay vật thể 90° quanh trục</div>

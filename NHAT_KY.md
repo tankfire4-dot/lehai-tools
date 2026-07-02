@@ -12,6 +12,28 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-02 — Đồng bộ giao diện 8 dialog theo theme LeHai (v1.9.33)
+
+**Vấn đề:** Các dialog mỗi tool một kiểu (đen tím "lập trình viên", xanh dương văn phòng, hồng neon,
+xanh Google...) — không khớp màu chủ đạo kem+walnut+amber đã chốt cho icon toolbar + theme.
+
+**Quyết định:** Khoác đồng phục cho CẢ 8 dialog còn lệch: Tạo Tấm Gỗ, Điền Tên, Kiểm Tra Độ Dày,
+Dọn Component, Trục Tọa Độ, Tạo Cánh CNC, Auto Dán Cạnh, Thư Viện (2 cái đã chuẩn từ trước: Check
+Chốt Sản Xuất + bảng kê Dim Nhanh → 10/10). CHỈ đổi CSS/màu/font — không đụng nút, ô nhập, logic.
+Kèm polish: thanh cuộn + ::selection theo theme (đặt trong `shared/lehai_theme.css` để mọi dialog
+inject hưởng chung; 3 dialog dùng file .html riêng thì chép khối đó vào).
+
+**Vì sao / Cách làm:** Dialog xây HTML trong Ruby → đọc file theme nhét vào `<style>#{theme}` (mẫu
+Dim Nhanh). Dialog dùng file .html riêng → nhúng `:root` biến LeHai trực tiếp (không link tương đối
+— tự chứa, không sợ đường dẫn gãy). Thư Viện đã dùng biến CSS sẵn → chỉ thay giá trị bảng màu gốc.
+NGOẠI LỆ có chủ đích: nút X/Y/Z của Trục Tọa Độ giữ đỏ-lục-lam (màu trục chuẩn SketchUp — ngữ nghĩa,
+đổi là mất thông tin); màu gỗ trong canvas preview Tạo Tấm Gỗ giữ nguyên (nó LÀ gỗ).
+
+**Bài học / Rủi ro:** Font DM Sans load từ Google Fonts — máy offline sẽ rơi về Segoe UI (chấp nhận
+được, màu vẫn đúng). Soát mặt hàng loạt bằng `claude_work/xem_giao_dien.rb` (mở 7 dialog 1 lệnh).
+
+---
+
 ## 2026-07-02 — Trạm phát update (chuẩn bị khóa repo private) (v1.9.31)
 
 **Vấn đề:** Repo public = luật nghề xưởng (rãnh hậu 10mm, ngàm 17.5, quy tắc bản lề, cấu trúc ABF)

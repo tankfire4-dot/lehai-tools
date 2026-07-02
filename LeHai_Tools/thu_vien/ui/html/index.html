@@ -3,20 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <title>Thư Viện Component</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* Bảng màu LeHai (kem + walnut + amber) — đồng bộ shared/lehai_theme.css */
   :root {
-    --bg:        #f5f6f8;
+    --bg:        #f5f0e8;
     --panel:     #ffffff;
-    --border:    #e1e4e8;
-    --text:      #24292f;
-    --muted:     #6e7781;
-    --accent:    #1a73e8;
-    --accent-bg: #e8f0fe;
+    --border:    rgba(124,45,18,.18);
+    --text:      #1c0a00;
+    --muted:     #a08060;
+    --accent:    #b45309;
+    --accent-bg: #fef3c7;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; }
+  /* thanh cuộn + bôi đen đồng bộ theme */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(124,45,18,.25); border-radius: 999px;
+    border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(124,45,18,.45);
+    border: 2px solid transparent; background-clip: padding-box; }
+  ::selection { background: var(--accent-bg); color: #7c2d12; }
   body {
-    font-family: "Segoe UI", system-ui, sans-serif;
+    font-family: "DM Sans", "Segoe UI", system-ui, sans-serif;
     font-size: 13px;
     color: var(--text);
     background: var(--bg);
@@ -107,7 +117,7 @@
     background: var(--bg); border-radius: 999px; padding: 1px 8px; line-height: 1.6;
   }
   nav button.active .count {
-    background: rgba(26,115,232,.14); color: var(--accent); font-weight: 600;
+    background: rgba(180,83,9,.14); color: var(--accent); font-weight: 600;
   }
   nav .subwrap { margin: 0 0 2px 17px; padding-left: 8px; border-left: 1px solid var(--border); }
   nav .subwrap button { font-size: 12.5px; padding: 5px 8px; }
@@ -174,11 +184,11 @@
     transition: box-shadow .12s, border-color .12s;
     position: relative;
   }
-  .card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(26,115,232,.18); }
+  .card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(180,83,9,.18); }
   .card .thumb {
     width: 100%;
     aspect-ratio: 1 / 1;
-    background: #fafbfc;
+    background: rgba(124,45,18,.04);
     display: flex;
     align-items: center;
     justify-content: center;

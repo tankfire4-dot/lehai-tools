@@ -7,7 +7,7 @@ module LeHai
     unless file_loaded?(__FILE__)
       ext             = SketchupExtension.new("LeHai's Decor Tools", 'LeHai_Tools/main')
       ext.description = 'Bo cong cu thiet ke noi that Le Hai: Dan Canh, Tao Canh CNC, Tao Tam Go, Ha Nen, Dien Ten, Thu Vien Component.'
-      ext.version     = '1.9.32'
+      ext.version     = '1.9.33'
       ext.creator     = 'Le Hai Studio'
 
       begin

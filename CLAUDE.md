@@ -198,11 +198,14 @@ toolbar rỗng tên `X` mà SketchUp nhớ — gỡ ở **View → Toolbars → 
 | Kiểm Tra Khoảng Cách | `TK::SpacingCheck` |
 | Dim Nhanh | `TK::QuickDim` |
 | Trục Tọa Độ | `TK::AxisFix` |
+| Trùng Tấm | `TK::DuplicateCheck` |
+| Bản Lề Cánh | `TK::HingeCheck` |
+| Liên Kết (rãnh hậu + ngàm) | `TK::JointCheck` |
+| **Check Chốt Sản Xuất** (dashboard, cuối toolbar, icon khiên) | `TK::PreExportCheck` |
 
-> ⚠ **Bộ "Check Chốt Sản Xuất"** (Trùng Tấm `TK::DuplicateCheck`, Bản Lề `TK::HingeCheck`,
-> Rãnh Hậu/Ngàm `TK::JointCheck`, dashboard `TK::PreExportCheck`) đã **TÁCH sang extension riêng
-> `LeHai_Check`** (repo **`lehai-check`**) từ 2026-07-01 — để bộ check mạnh này không tự lan xuống thợ.
-> Dashboard mượn lại `TK::ThickCheck` + `TK::SpacingCheck` từ bộ này. Khi chín muồi sẽ gộp trở lại.
+> Bộ "Check Chốt Sản Xuất" từng tách ra repo `lehai-check` (2026-07-01) rồi **GỘP TRỞ LẠI**
+> lehai-tools (2026-07-01, v1.9.30) khi Khoa quyết định phát cho thợ. Repo `lehai-check` giờ
+> KHÔNG dùng nữa — nếu máy nào lỡ cài extension `LeHai_Check` thì GỠ đi để khỏi trùng nút.
 
 ---
 

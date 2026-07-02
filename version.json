@@ -1,5 +1,5 @@
 {
-  "version": "1.9.29",
+  "version": "1.9.30",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -52,6 +52,18 @@
     "LeHai_Tools/truc_toa_do/icons/reset_24.png",
     "LeHai_Tools/dim_nhanh/main.rb",
     "LeHai_Tools/dim_nhanh/icons/dim_16.png",
-    "LeHai_Tools/dim_nhanh/icons/dim_24.png"
+    "LeHai_Tools/dim_nhanh/icons/dim_24.png",
+    "LeHai_Tools/trung_tam/main.rb",
+    "LeHai_Tools/trung_tam/icons/dup_16.png",
+    "LeHai_Tools/trung_tam/icons/dup_24.png",
+    "LeHai_Tools/kiem_tra_ban_le/main.rb",
+    "LeHai_Tools/kiem_tra_ban_le/icons/hinge_16.png",
+    "LeHai_Tools/kiem_tra_ban_le/icons/hinge_24.png",
+    "LeHai_Tools/kiem_tra_lien_ket/main.rb",
+    "LeHai_Tools/kiem_tra_lien_ket/icons/joint_16.png",
+    "LeHai_Tools/kiem_tra_lien_ket/icons/joint_24.png",
+    "LeHai_Tools/soat_truoc_xuat/main.rb",
+    "LeHai_Tools/soat_truoc_xuat/icons/gate_16.png",
+    "LeHai_Tools/soat_truoc_xuat/icons/gate_24.png"
   ]
 }

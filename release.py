@@ -56,7 +56,9 @@ def scan_ruby_files():
     """Quét repo sinh danh sách ruby_files: LeHai_Tools.rb + mọi file trong LeHai_Tools/."""
     files = ['LeHai_Tools.rb']
     for dirpath, dirnames, filenames in os.walk(PLUGIN_DIR):
-        dirnames[:] = [d for d in dirnames if not d.startswith('.') and d != '__pycache__']
+        # 'cache' = dữ liệu runtime sinh trên từng máy (vd thumbnail thu_vien) — KHÔNG ship
+        dirnames[:] = [d for d in dirnames
+                       if not d.startswith('.') and d not in ('__pycache__', 'cache')]
         for fn in sorted(filenames):
             if fn.startswith('_') or fn in EXCLUDE_NAMES \
                or os.path.splitext(fn)[1].lower() in EXCLUDE_EXTS:

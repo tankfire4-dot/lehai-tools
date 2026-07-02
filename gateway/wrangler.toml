@@ -5,3 +5,9 @@ compatibility_date = "2026-01-01"
 [[kv_namespaces]]
 binding = "INSTALLS"
 id = "d1155438fcc3402b9f54f50a6a7193f1"
+
+# ống nội bộ sang trạm phát — worker không được fetch *.workers.dev cùng account
+# (lỗi 1042), phải đi qua service binding
+[[services]]
+binding = "UPDATER"
+service = "lehai-update"

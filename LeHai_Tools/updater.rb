@@ -27,7 +27,10 @@ module LeHai
           ver_file = File.join(File.dirname(__FILE__), '_installed_version')
           ver = (File.read(ver_file).strip rescue '')
           ver = 'unknown' if ver.empty?
-          _http_get("#{STATS_PING_URL}?id=#{mid}&v=#{ver}")
+          # gửi kèm TÊN MÁY (COMPUTERNAME) để bảng thống kê đọc được máy nào của ai
+          name = (ENV['COMPUTERNAME'] || '').to_s
+          name = URI.encode_www_form_component(name) rescue ''
+          _http_get("#{STATS_PING_URL}?id=#{mid}&v=#{ver}&n=#{name}")
         rescue StandardError
           # telemetry không được phép làm phiền người dùng — nuốt mọi lỗi
         end

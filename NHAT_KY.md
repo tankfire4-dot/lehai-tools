@@ -12,6 +12,29 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-02 — release.py: phát hành 1 lệnh, khai tử quy trình tay
+
+**Vấn đề:** Quy trình phát hành tay đã dính 3 loại sẹo lặp lại: (1) PowerShell ghi file chèn BOM →
+auto-update chết im lặng; (2) QUÊN thêm file mới vào `version.json` → máy thợ "cập nhật một phần"
+(vụ thiếu spacing_24.png); (3) heredoc PowerShell nuốt ngoặc kép → hỏng commit. Tần suất phát hành
+tăng (5 bản/2 ngày) nên xác suất lỗi tay tăng theo. Và chỉ Claude thạo quy trình = phụ thuộc.
+
+**Quyết định:** Viết `release.py` (Python — né hẳn PowerShell): bump version cả 2 file, **tự quét
+thư mục sinh `ruby_files`** + báo diff thêm/bớt cho mắt người soát, kiểm BOM 2 lớp, build .rbz,
+commit qua file message, push. Quy ước mới: file bắt đầu `_` = đồ dev, không ship. Xóa `release.ps1`
+lỗi thời. Cùng ngày: xóa hẳn repo `lehai-check` (vụ tách/gộp), chốt KHÔNG làm kênh beta — 1 luồng
+duy nhất, khi nào sẵn sàng mới push.
+
+**Vì sao:** Nỗi đau đã lặp ≥3 lần → đủ chuẩn "chỉ đổi khi đau thật". Tự sinh danh sách file giết hẳn
+nguyên loại lỗi "quên file". Dry-run đầu tiên lập tức bắt được `_theme_preview.html` lọt lưới — 
+chứng minh giá trị ngay. Khoa tự chạy được không cần Claude → giảm phụ thuộc (đúng nguyên tắc nền).
+
+**Bài học / Rủi ro:** Danh sách tự quét = ship MỌI thứ trong thư mục — file rác lỡ bỏ vào LeHai_Tools/
+sẽ bị ship (đã chặn bằng quy ước `_` + diff hỏi xác nhận). Updater KHÔNG tự xóa file cũ trên máy thợ
+khi mình bỏ file khỏi danh sách — file mồ côi nằm lại (vô hại nhưng cần biết).
+
+---
+
 ## 2026-07-01 — Bộ "Soát Trước Xuất": chốt chặn trước khi xuất DXF (v1.9.25)
 
 **Vấn đề:** Trước khi xuất DXF đi cắt CNC, file hay dính lỗi làm phế phôi mà không ai soi kịp: sai độ

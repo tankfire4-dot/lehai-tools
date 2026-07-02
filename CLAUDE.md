@@ -31,7 +31,7 @@ Gộp tất cả plugin SketchUp của Le Hai Studio vào **1 file `.rbz` duy nh
 ```
 lehai_tools/
 ├── CLAUDE.md
-├── release.ps1                      ← ⚠️ LỖI THỜI, KHÔNG dùng (xem mục "Phát hành version mới")
+├── release.py                       ← phát hành 1 lệnh (xem mục "Phát hành version mới")
 ├── LeHai_Tools.rb                   ← extension registrar
 ├── LeHai_Tools-1.x.x.rbz           ← file cài đặt (build tay theo LUAT_NHA mục 7)
 └── LeHai_Tools/
@@ -126,13 +126,21 @@ toolbar.get_last_state == TB_NEVER_SHOWN ? toolbar.show : toolbar.restore
 
 ## Phát hành version mới
 
-Làm **bằng tay** theo quy trình ở **[LUAT_NHA.md](LUAT_NHA.md) mục 7** (tóm: bump version bằng Edit
-tool ở cả `LeHai_Tools.rb` + `version.json` → thêm file mới vào `version.json` → build `.rbz` →
-kiểm không BOM → commit + push). Máy thợ tự cập nhật qua `version.json`.
+Dùng **`release.py`** (Python, từ 2026-07-02) — 1 lệnh làm trọn: bump version cả 2 file,
+**tự quét sinh `ruby_files`** (kèm báo diff thêm/bớt), kiểm BOM, build `.rbz`, commit + push:
 
-> ⚠️ `release.ps1` đã **lỗi thời, KHÔNG dùng**: trỏ đường dẫn `Desktop\lehai_tools` (không tồn tại),
-> cập nhật `plugins.json`/`congty_loader` (không tồn tại), và ghi file bằng PowerShell → chèn BOM
-> (đúng cái làm hỏng auto-update). Cơ chế update thật bây giờ là `version.json`, bump tay.
+```
+python release.py 1.9.31 -m "mo ta thay doi"          # đầy đủ (hỏi xác nhận diff)
+python release.py 1.9.31 -m "..." --dry-run           # xem trước, không ghi gì
+python release.py 1.9.31 -m "..." --yes               # bỏ hỏi (Claude/tự động dùng)
+python release.py 1.9.31 -m "..." --no-push           # build + commit, chưa push
+```
+
+Quy ước: file bắt đầu bằng `_` = đồ dev, **không ship** xuống máy thợ. Máy thợ tự cập nhật
+qua `version.json`. Chi tiết từng bước tay (nếu cần hiểu/làm thủ công): [LUAT_NHA.md](LUAT_NHA.md) mục 7.
+
+> ⚠️ `release.ps1` (PowerShell) đã **lỗi thời, KHÔNG dùng** — chính nó từng chèn BOM làm hỏng
+> auto-update. `release.py` ghi UTF-8 không BOM + tự kiểm byte đầu, an toàn.
 
 ---
 

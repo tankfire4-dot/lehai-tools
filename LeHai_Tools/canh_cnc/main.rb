@@ -540,7 +540,7 @@ module CanhCNC
         </style>
       </head>
       <body class="lh">
-        <div class="lh-eyebrow" style="text-align:center">LeHai Decor Tools</div>
+        <div class="lh-eyebrow" style="text-align:center">LeHai's Decor Tools</div>
         <h3>🚪 Thiết Lập Độ Hở Cánh CNC</h3>
         <div class="row">
           <div class="col">

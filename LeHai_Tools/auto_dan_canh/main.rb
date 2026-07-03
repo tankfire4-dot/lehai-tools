@@ -581,7 +581,7 @@ module MyStudio
           .btn-refresh{background:none;border:none;color:var(--lh-muted);cursor:pointer;font-size:11px;padding:2px 4px;font-family:inherit}
           .btn-refresh:hover{color:var(--lh-amber)}
         </style></head><body class="lh">
-          <div class="lh-eyebrow">LeHai Decor Tools</div>
+          <div class="lh-eyebrow">LeHai's Decor Tools</div>
           <h3>▣ Auto Dán Cạnh_ LeHai</h3>
           <div class="refresh-row">
             <button class="btn-refresh" onclick="sketchup.refresh_types()">↺ Làm mới danh sách</button>

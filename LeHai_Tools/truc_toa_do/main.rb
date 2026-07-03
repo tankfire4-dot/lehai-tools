@@ -174,7 +174,7 @@ module TK
           .z{background:#2f6fd0}.z:hover{filter:brightness(1.08)}
           #status{margin-top:13px;font-size:12px;color:#15803d;min-height:30px;line-height:1.4}
         </style></head><body class="lh">
-        <div class="lh-eyebrow">LeHai Decor Tools</div>
+        <div class="lh-eyebrow">LeHai's Decor Tools</div>
         <h3>Trục Tọa Độ</h3>
         <button class="reset" onclick="sketchup.reset()">Reset trục về Global</button>
         <div class="lbl">Xoay vật thể 90° quanh trục</div>

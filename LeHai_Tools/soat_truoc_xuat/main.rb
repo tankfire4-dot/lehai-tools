@@ -136,7 +136,7 @@ module TK
           .rescan{margin-top:14px}
         </style></head>
         <body class="lh"><div class="lh-dialog">
-          <div class="lh-eyebrow">LeHai Decor Tools</div>
+          <div class="lh-eyebrow">LeHai's Decor Tools</div>
           <h1 class="lh-title">Check Chốt Sản Xuất</h1>
           <div id="summary"></div>
           <div class="lh-card" style="padding:2px 8px">

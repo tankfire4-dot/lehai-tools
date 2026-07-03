@@ -289,7 +289,7 @@ module TK
           .run:hover{filter:brightness(1.06)}
           #status{margin-top:11px;font-size:12px;color:#15803d;min-height:16px;line-height:1.4}
         </style></head><body class="lh">
-        <div class="lh-eyebrow">LeHai Decor Tools</div>
+        <div class="lh-eyebrow">LeHai's Decor Tools</div>
         <h3>Dọn Component</h3>
         <div class="sub">Tích thao tác cần làm trên đối tượng đang chọn.</div>
         <label><input type="checkbox" id="convert"> Biến component → group</label>

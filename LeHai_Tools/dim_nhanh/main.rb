@@ -561,7 +561,7 @@ module TK
           .lh-hidden{position:absolute;left:-9999px;top:0;width:1px;height:1px;opacity:0}
         </style></head>
         <body class="lh"><div class="lh-dialog">
-          <div class="lh-eyebrow">LeHai Decor Tools</div>
+          <div class="lh-eyebrow">LeHai's Decor Tools</div>
           <h1 class="lh-title">#{title}</h1>
           <div class="lh-card" style="padding:6px 8px 8px">
             <table><thead><tr><th>#</th><th style="text-align:right">#{col}</th></tr></thead>

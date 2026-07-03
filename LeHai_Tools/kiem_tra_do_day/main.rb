@@ -221,7 +221,7 @@ module TK
           .hint{font-size:11px;color:var(--lh-muted);margin-top:12px;line-height:1.5;text-align:center}
           .empty{color:var(--lh-muted);text-align:center;padding:40px}
         </style></head><body class="lh">
-        <div class="lh-eyebrow" style="text-align:center;margin-top:2px">LeHai Decor Tools</div>
+        <div class="lh-eyebrow" style="text-align:center;margin-top:2px">LeHai's Decor Tools</div>
         <h3>Độ dày các tấm trong file</h3>
         <div class="bar">
           <button class="b-faulty" onclick="sketchup.isolate_faulty()">Chỉ hiện tấm lỗi</button>

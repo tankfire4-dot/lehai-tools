@@ -12,6 +12,26 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-03 — Rãnh Led (cảnh báo) + Xóa tên cho Dọn Component (v1.9.36)
+
+**Rãnh Led — `TK::LedCheck` (folder kiem_tra_led):** mảnh cuối bộ Check Chốt Sản Xuất. Điểm khác mọi
+check trước: **trạng thái CẢNH BÁO (vàng)**, không phải lỗi đỏ — vì ~80% căn có led nhưng KHÔNG xác
+định chắc căn nào có. Dashboard thêm status `:warn` (chấm vàng, banner vàng riêng, không kích hoạt
+"có lỗi cần xử lý"), nút Xem vẫn lướt được.
+
+Bài học đắt: ban đầu tôi thiết kế check dựa THANH ĐÈN led (NTT: `ABF_LED`/tag `NTT_led`). Test file
+thật → SAI: file sản xuất chỉ còn RÃNH PHAY led (ABF: `_ABF_Intersect`/tag `ABF_PHAYLED`, cùng họ
+`ABF_PHAYRANHHAU`/`ABF_NGAM`), đã bỏ thanh đèn (đèn mua sẵn, không cắt CNC). Phải LẬT NGƯỢC: rãnh phay
+mới là bằng chứng "đã làm led". Luật cuối: có rãnh phay → ĐẠT (xanh, lướt xem rãnh); có thanh đèn mà
+thiếu rãnh gần (NEAR 60mm) → cảnh báo lướt thanh; không có gì → cảnh báo mức file. → **Bài học: luôn
+test trên FILE THẬT (đã qua quy trình sản xuất) chứ không chỉ file dựng thử.**
+
+**Xóa tên — Dọn Component (`TK::GoGroup`):** thêm checkbox "Xóa tên (gồm cả tấm con)" — xóa Instance
+name của group/component, đệ quy toàn cây (nhất quán với xóa màu/tag/thuộc tính). Nằm trong 1 operation
+nên Ctrl+Z lùi được.
+
+---
+
 ## 2026-07-02 — Đồng bộ giao diện 8 dialog theo theme LeHai (v1.9.33)
 
 **Vấn đề:** Các dialog mỗi tool một kiểu (đen tím "lập trình viên", xanh dương văn phòng, hồng neon,

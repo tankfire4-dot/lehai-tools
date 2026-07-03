@@ -1,6 +1,7 @@
 # encoding: UTF-8
 # Gỡ DC / Dọn Component — bấm icon hiện bảng chọn, tích thao tác cần làm:
 #   - Biến component → group (nổ DC/component thành group lồng nhau, an toàn)
+#   - Xóa tên (Instance name của group/component, đệ quy cả tấm con)
 #   - Xóa màu (material front + back)
 #   - Xóa tag
 #   - Xóa thuộc tính (attribute dictionaries, gồm dữ liệu ABF)
@@ -19,7 +20,7 @@ module TK
     ABF_NAME_PREFIX = '_ABF'.freeze
     ABF_TAG_PREFIX  = 'ABF_'.freeze
 
-    OPTS = %w[convert makecomp color tag attr abf].freeze
+    OPTS = %w[convert makecomp name color tag attr abf].freeze
 
     # ── Dialog ─────────────────────────────────────────────────
     def self.show
@@ -85,8 +86,8 @@ module TK
 
         abf = opts['abf'] ? purge_abf_objects(model.entities, 0) : 0
 
-        if opts['color'] || opts['tag'] || opts['attr']
-          flags = { color: opts['color'], tag: opts['tag'], attr: opts['attr'] }
+        if opts['color'] || opts['tag'] || opts['attr'] || opts['name']
+          flags = { color: opts['color'], tag: opts['tag'], attr: opts['attr'], name: opts['name'] }
           roots.each { |r| clean(r, 0, flags) if r && !r.deleted? }
         end
 
@@ -111,6 +112,7 @@ module TK
       parts << "biến #{comp} group→component" if opts['makecomp']
       parts << "xóa #{abf} object ABF"        if opts['abf']
       done = []
+      done << 'tên'        if opts['name']
       done << 'màu'        if opts['color']
       done << 'tag'        if opts['tag']
       done << 'thuộc tính' if opts['attr']
@@ -202,8 +204,17 @@ module TK
       strip_material(e)   if f[:color]
       strip_attributes(e) if f[:attr]
       strip_tag(e)        if f[:tag]
+      strip_name(e)       if f[:name]
     end
     private_class_method :apply_flags
+
+    def self.strip_name(entity)
+      # chỉ group/component mới có tên (name=) — face/edge bỏ qua tự nhiên
+      entity.name = '' if entity.respond_to?(:name=)
+    rescue StandardError
+      nil
+    end
+    private_class_method :strip_name
 
     def self.strip_material(entity)
       entity.material      = nil if entity.respond_to?(:material=)
@@ -294,6 +305,7 @@ module TK
         <div class="sub">Tích thao tác cần làm trên đối tượng đang chọn.</div>
         <label><input type="checkbox" id="convert"> Biến component → group</label>
         <label><input type="checkbox" id="makecomp"> Biến group → component</label>
+        <label><input type="checkbox" id="name"> Xóa tên (gồm cả tấm con)</label>
         <label><input type="checkbox" id="color"> Xóa màu</label>
         <label><input type="checkbox" id="tag"> Xóa tag</label>
         <label><input type="checkbox" id="attr"> Xóa thuộc tính</label>
@@ -301,7 +313,7 @@ module TK
         <button class="run" onclick="runIt()">Thực hiện</button>
         <div id="status"></div>
         <script>
-          var KEYS=['convert','makecomp','color','tag','attr','abf'];
+          var KEYS=['convert','makecomp','name','color','tag','attr','abf'];
           function setStatus(m){ document.getElementById('status').textContent=m; }
           function runIt(){
             var o={}; KEYS.forEach(function(k){ o[k]=document.getElementById(k).checked; });
@@ -317,8 +329,8 @@ module TK
     def self.create_cmd
       icons_path = File.join(PATH, 'icons')
       cmd = UI::Command.new('Dọn Component') { TK::GoGroup.show }
-      cmd.tooltip         = 'Dọn component: chọn thao tác (group hóa / xóa màu / tag / thuộc tính / ABF)'
-      cmd.status_bar_text = 'Mở bảng chọn: biến component→group, xóa màu/tag/thuộc tính/object ABF tùy ý.'
+      cmd.tooltip         = 'Dọn component: chọn thao tác (group hóa / xóa tên / màu / tag / thuộc tính / ABF)'
+      cmd.status_bar_text = 'Mở bảng chọn: biến component→group, xóa tên/màu/tag/thuộc tính/object ABF tùy ý.'
       cmd.small_icon      = File.join(icons_path, 'go_group_16.png')
       cmd.large_icon      = File.join(icons_path, 'go_group_24.png')
       cmd

@@ -18,7 +18,7 @@ module TK
     THEME = File.join(PATH, '..', 'shared', 'lehai_theme.css').freeze
 
     # Nạp các check phụ thuộc — rescue để 1 tool lỗi không chặn dashboard.
-    %w[kiem_tra_do_day kiem_tra_khoang_cach trung_tam kiem_tra_ban_le kiem_tra_lien_ket].each do |folder|
+    %w[kiem_tra_do_day kiem_tra_khoang_cach trung_tam kiem_tra_ban_le kiem_tra_lien_ket kiem_tra_led].each do |folder|
       begin
         require File.join(PATH, '..', folder, 'main')
       rescue LoadError, StandardError => e
@@ -34,7 +34,8 @@ module TK
         { key: 'trung',   name: 'Trùng Tấm',        mod: mod_of(:DuplicateCheck) },
         { key: 'banle',   name: 'Bản Lề Cánh',      mod: mod_of(:HingeCheck) },
         { key: 'ranhhau', name: 'Rãnh Hậu',         mod: mod_of(:JointCheck), kind: :ranhhau },
-        { key: 'ngam',    name: 'Ngàm',             mod: mod_of(:JointCheck), kind: :ngam }
+        { key: 'ngam',    name: 'Ngàm',             mod: mod_of(:JointCheck), kind: :ngam },
+        { key: 'led',     name: 'Rãnh Led',         mod: mod_of(:LedCheck) }
       ]
     end
     private_class_method :checks
@@ -115,11 +116,13 @@ module TK
           .summary{border-radius:var(--lh-radius);padding:14px 16px;margin-bottom:14px;font-weight:700;font-size:13px}
           .summary--ok{background:rgba(21,128,61,.12);color:#15803d}
           .summary--bad{background:rgba(185,28,28,.10);color:#b91c1c}
+          .summary--warn{background:rgba(230,160,0,.14);color:#a16207}
           .row{display:flex;align-items:center;gap:12px;padding:11px 8px;border-bottom:1px solid var(--lh-line-2)}
           .row:last-child{border-bottom:0}
           .dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
           .dot--pass{background:#16a34a}
           .dot--fail{background:#dc2626}
+          .dot--warn{background:#e6a000}
           .dot--na{background:#a08060}
           .dot--todo{background:#c9c2b8}
           .dot--error{background:#dc2626}
@@ -150,17 +153,20 @@ module TK
           function badge(st){
             if(st==='pass') return 'dot--pass';
             if(st==='fail' || st==='error') return 'dot--fail';
+            if(st==='warn') return 'dot--warn';
             if(st==='todo') return 'dot--todo';
             return 'dot--na';
           }
           function render(rows){
-            var ok = true, hasFail = false;
+            var hasFail = false, hasWarn = false;
             var html = '';
             for(var i=0;i<rows.length;i++){
               var r = rows[i];
               var urgent = (r.status==='fail' || r.status==='error');
               if(urgent){ hasFail = true; }
-              var canView = (r.status==='pass' || urgent);   // ĐẠT cũng xem được để kiểm chứng
+              if(r.status==='warn'){ hasWarn = true; }
+              // ĐẠT + CẢNH BÁO cũng xem được để kiểm chứng
+              var canView = (r.status==='pass' || r.status==='warn' || urgent);
               var cls = urgent ? 'rbtn' : 'rbtn rbtn--ghost';
               html += '<div class="row">'+
                 '<div class="dot '+badge(r.status)+'"></div>'+
@@ -174,6 +180,9 @@ module TK
             if(hasFail){
               s.className = 'summary summary--bad';
               s.innerHTML = '⚠ Có lỗi cần xử lý trước khi xuất DXF.';
+            } else if(hasWarn){
+              s.className = 'summary summary--warn';
+              s.innerHTML = '⚠ Không có lỗi bắt buộc, nhưng có cảnh báo nên xem qua (vd rãnh led).';
             } else {
               s.className = 'summary summary--ok';
               s.innerHTML = '✓ Các mục đã kiểm tra đều đạt.';

@@ -1,5 +1,5 @@
 {
-  "version": "1.9.35",
+  "version": "1.9.36",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -35,6 +35,7 @@
     "LeHai_Tools/kiem_tra_khoang_cach/main.rb",
     "LeHai_Tools/kiem_tra_khoang_cach/icons/spacing_16.png",
     "LeHai_Tools/kiem_tra_khoang_cach/icons/spacing_24.png",
+    "LeHai_Tools/kiem_tra_led/main.rb",
     "LeHai_Tools/kiem_tra_lien_ket/main.rb",
     "LeHai_Tools/kiem_tra_lien_ket/icons/joint_16.png",
     "LeHai_Tools/kiem_tra_lien_ket/icons/joint_24.png",

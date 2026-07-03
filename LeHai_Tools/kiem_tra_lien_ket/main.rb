@@ -35,8 +35,15 @@ module TK
     MID_MAX_MM = 250.0    # chiều GIỮA của khối giao ≤ mức này = liên kết cục bộ
     NEAR_MM    = 25.0     # nới vùng giao khi dò điểm Intersect
 
-    COLOR_BAD  = Sketchup::Color.new(255, 140, 0)    # cam — mối THIẾU liên kết
-    COLOR_GAP  = Sketchup::Color.new(255, 60, 0)     # đỏ-cam — vùng giao (thiếu)
+    # ── Đo "đâm xuyên gỗ đặc" để tách KHẤU TAY (đã khoét) khỏi CHƯA LÀM ──
+    # ABF chỉ dán nhãn (gỗ vẫn đâm xuyên) → dựa dấu ABF. Khấu tay cắt gỗ thật
+    # (không đâm xuyên) → dựa hình học. Đã xử lý = có dấu ABF HOẶC đâm xuyên thấp.
+    SAMPLE_N       = 3     # lưới N×N×N điểm mẫu trong vùng giao
+    COLLIDE_THRESH = 0.4   # tỉ lệ điểm nằm trong CẢ 2 tấm ≥ mức này = còn đâm xuyên = chưa khoét
+
+    COLOR_BAD  = Sketchup::Color.new(255, 140, 0)    # cam-đỏ — RÃNH HẬU thiếu (lỗi)
+    COLOR_GAP  = Sketchup::Color.new(255, 60, 0)     # đỏ-cam — vùng giao (lỗi)
+    COLOR_WARN = Sketchup::Color.new(230, 160, 0)    # vàng — NGÀM thiếu (cảnh báo, có thể khấu tay)
     COLOR_OK   = Sketchup::Color.new(0, 170, 80)     # xanh lá — mối ĐÃ làm liên kết
     COLOR_OKGAP= Sketchup::Color.new(0, 210, 110)    # xanh sáng — vùng giao (đã làm)
 
@@ -51,23 +58,35 @@ module TK
     # =========================================================
     #  QUÉT
     # =========================================================
+    # ── Cache 1 lần quét (dashboard gọi audit 2 lần: rãnh hậu + ngàm) ──
+    def self.clear_cache
+      @cache = nil
+    end
+
+    def self.cached
+      @cache ||= begin
+        Sketchup.set_status_text('Đang quét liên kết (đo đâm xuyên)...', SB_PROMPT)
+        planks, inters = collect_all
+        joints = find_joints(planks, inters)
+        Sketchup.set_status_text('', SB_PROMPT)
+        { planks_n: planks.size, joints: joints }
+      end
+    end
+
     # kind = nil (cả 2) / :ranhhau / :ngam
     def self.run(kind = nil)
-      Sketchup.set_status_text('Đang quét liên kết...', SB_PROMPT)
-      planks, inters = collect_all
-      joints = find_joints(planks, inters)
-      joints = joints.select { |v| v.kind == kind } if kind
-      Sketchup.set_status_text('', SB_PROMPT)
+      clear_cache
+      c = cached
+      joints = kind ? c[:joints].select { |v| v.kind == kind } : c[:joints]
 
-      return UI.messagebox('Không tìm thấy tấm ván nào để kiểm tra.') if planks.empty?
+      return UI.messagebox('Không tìm thấy tấm ván nào để kiểm tra.') if c[:planks_n].zero?
       missing = joints.reject(&:made)
-      # Có lỗi → lướt mối THIẾU (cam). Không lỗi → lướt mối ĐÃ LÀM (xanh) để kiểm chứng.
       if !missing.empty?
         Sketchup.active_model.select_tool(ReviewTool.new(missing, :loi))
       else
         made = joints.select(&:made)
         if made.empty?
-          UI.messagebox("✓ Không thấy mối #{kind_label(kind)} nào (đã soi #{planks.size} tấm).")
+          UI.messagebox("✓ Không thấy mối #{kind_label(kind)} nào (đã soi #{c[:planks_n]} tấm).")
         else
           Sketchup.active_model.select_tool(ReviewTool.new(made, :ok))
         end
@@ -75,8 +94,7 @@ module TK
     end
 
     def self.scan
-      planks, inters = collect_all
-      find_joints(planks, inters).reject(&:made)
+      cached[:joints].reject(&:made)
     end
 
     def self.kind_label(kind)
@@ -89,14 +107,14 @@ module TK
 
     # ── Adapter cho bộ "Check Chốt Sản Xuất" (TK::PreExportCheck) ───
     def self.audit(kind = nil)
-      planks, inters = collect_all
-      return { status: :na, count: 0, message: 'Không tìm thấy tấm ván nào để kiểm tra.' } if planks.empty?
-      joints  = find_joints(planks, inters)
-      joints  = joints.select { |v| v.kind == kind } if kind
+      c = cached
+      return { status: :na, count: 0, message: 'Không tìm thấy tấm ván nào để kiểm tra.' } if c[:planks_n].zero?
+      joints  = kind ? c[:joints].select { |v| v.kind == kind } : c[:joints]
       missing = joints.reject(&:made)
       made    = joints.size - missing.size
-      return { status: :pass, count: 0, message: "Đã soi #{planks.size} tấm — #{made} mối #{kind_label(kind)} đã làm, không thiếu mối nào." } if missing.empty?
-      { status: :fail, count: missing.size, message: "#{missing.size} mối thiếu #{kind_label(kind)}." }
+      return { status: :pass, count: 0, message: "Đã soi #{c[:planks_n]} tấm — #{made} mối #{kind_label(kind)} đã làm, không thiếu." } if missing.empty?
+      # Giờ đã tách khấu-tay khỏi chưa-làm (đo đâm xuyên) → mối còn lại là LỖI thật (đỏ).
+      { status: :fail, count: missing.size, message: "#{missing.size} mối #{kind_label(kind)}: 2 tấm đâm xuyên chưa khoét (chưa ABF, chưa khấu tay)." }
     end
 
     def self.review(kind = nil)
@@ -146,10 +164,99 @@ module TK
 
       kind = classify(pen_mm)
       return nil unless kind
+
+      # Đã xử lý = có dấu ABF (sẽ phay khi xuất) HOẶC gỗ đã khoét thật (khấu tay).
+      # Chỉ đo đâm xuyên (chậm) khi KHÔNG có dấu ABF — cặp có ABF khỏi cần đo.
       made = has_intersect?(kind == :ranhhau ? rh : ng, ov)
+      unless made
+        frac = collide_frac(ov, tris_of(a), tris_of(b))
+        made = frac < COLLIDE_THRESH   # đâm xuyên thấp = đã khoét (khấu tay)
+      end
 
       Vio.new(kind, a[:name], b[:name], pen_mm.round(1),
               aabb_box_segs(a[:aabb]), aabb_box_segs(b[:aabb]), aabb_box_segs(ov), made)
+    end
+
+    # =========================================================
+    #  ĐO ĐÂM XUYÊN GỖ ĐẶC (point-in-solid bằng bắn tia +X)
+    # =========================================================
+    # tỉ lệ điểm mẫu nằm trong CẢ 2 khối tấm (0..1)
+    def self.collide_frac(ov, ta, tb)
+      n = SAMPLE_N
+      dx = ov[3] - ov[0]; dy = ov[4] - ov[1]; dz = ov[5] - ov[2]
+      both = 0; total = 0
+      (0...n).each do |i|
+        x = ov[0] + dx * (i + 0.5) / n
+        (0...n).each do |j|
+          y = ov[1] + dy * (j + 0.5) / n
+          (0...n).each do |k|
+            z = ov[2] + dz * (k + 0.5) / n
+            total += 1
+            both += 1 if point_inside?(x, y, z, ta) && point_inside?(x, y, z, tb)
+          end
+        end
+      end
+      total.zero? ? 0.0 : both.to_f / total
+    end
+
+    # điểm (x,y,z) nằm trong khối đặc? tia +X, đếm giao tam giác lẻ = trong.
+    # tris đã kèm bbox Y-Z + xmax để lọc nhanh trước khi tính giao.
+    def self.point_inside?(x, y, z, tris)
+      cnt = 0
+      tris.each do |tr|
+        next if y < tr[3] || y > tr[4] || z < tr[5] || z > tr[6] || tr[7] < x
+        cnt += 1 if ray_x_hit?(x, y, z, tr[0], tr[1], tr[2])
+      end
+      cnt.odd?
+    end
+
+    # tia (x,y,z)+X cắt tam giác (a,b,c)? (Möller–Trumbore, d = (1,0,0))
+    def self.ray_x_hit?(px, py, pz, a, b, c)
+      e1y = b[1] - a[1]; e1z = b[2] - a[2]; e1x = b[0] - a[0]
+      e2y = c[1] - a[1]; e2z = c[2] - a[2]; e2x = c[0] - a[0]
+      hy = -e2z; hz = e2y                 # h = d × e2 = (0, -e2z, e2y)
+      aa = e1y * hy + e1z * hz            # e1 · h
+      return false if aa.abs < 1e-12
+      ff = 1.0 / aa
+      sy = py - a[1]; sz = pz - a[2]; sx = px - a[0]
+      u = ff * (sy * hy + sz * hz)
+      return false if u < 0.0 || u > 1.0
+      qx = sy * e1z - sz * e1y           # q = s × e1
+      v = ff * qx                         # d · q = qx
+      return false if v < 0.0 || (u + v) > 1.0
+      t = ff * (e2x * qx + (sz * e1x - sx * e1z) * e2y + (sx * e1y - sy * e1x) * e2z)
+      t > 1e-7
+    end
+
+    # tam giác world của tấm (lazy — chỉ dựng khi cần đo đâm xuyên)
+    def self.tris_of(plank)
+      plank[:tris] ||= build_tris(plank[:faces], plank[:te])
+    end
+
+    def self.build_tris(faces, te)
+      out = []
+      return out unless faces
+      faces.each do |f|
+        next if f.deleted?
+        mesh = f.mesh
+        mesh.polygons.each do |poly|
+          idx = poly.map(&:abs)
+          next if idx.size < 3
+          a = te * mesh.point_at(idx[0])
+          pa = [a.x, a.y, a.z]
+          (1...(idx.size - 1)).each do |k|
+            b = te * mesh.point_at(idx[k]); c = te * mesh.point_at(idx[k + 1])
+            pb = [b.x, b.y, b.z]; pc = [c.x, c.y, c.z]
+            ymin = pa[1] < pb[1] ? (pa[1] < pc[1] ? pa[1] : pc[1]) : (pb[1] < pc[1] ? pb[1] : pc[1])
+            ymax = pa[1] > pb[1] ? (pa[1] > pc[1] ? pa[1] : pc[1]) : (pb[1] > pc[1] ? pb[1] : pc[1])
+            zmin = pa[2] < pb[2] ? (pa[2] < pc[2] ? pa[2] : pc[2]) : (pb[2] < pc[2] ? pb[2] : pc[2])
+            zmax = pa[2] > pb[2] ? (pa[2] > pc[2] ? pa[2] : pc[2]) : (pb[2] > pc[2] ? pb[2] : pc[2])
+            xmax = pa[0] > pb[0] ? (pa[0] > pc[0] ? pa[0] : pc[0]) : (pb[0] > pc[0] ? pb[0] : pc[0])
+            out << [pa, pb, pc, ymin, ymax, zmin, zmax, xmax]
+          end
+        end
+      end
+      out
     end
 
     def self.classify(pen_mm)
@@ -226,7 +333,8 @@ module TK
       dims = [ab[3] - ab[0], ab[4] - ab[1], ab[5] - ab[2]].sort
       th = dims[0] * MM; mid = dims[1] * MM; big = dims[2] * MM
       return false unless th >= MIN_TH_MM && th <= MAX_TH_MM && mid >= MIN_SIDE_MM && big >= MIN_SIDE_MM
-      planks << { name: label(e), aabb: ab }
+      # giữ faces + transform để LAZY dựng tam giác world khi cần đo đâm xuyên
+      planks << { name: label(e), aabb: ab, faces: ents.grep(Sketchup::Face), te: te }
       true
     end
 
@@ -271,13 +379,21 @@ module TK
     #  TOOL XEM TỪNG MỐI (thiếu = cam / đã làm = xanh)
     # =========================================================
     class ReviewTool
-      # mode = :loi (thiếu, cam) / :ok (đã làm, xanh)
+      # mode = :loi (thiếu) / :ok (đã làm). Màu tô quyết định THEO LOẠI mối:
+      # rãnh hậu = cam-đỏ (lỗi), ngàm = vàng (cảnh báo), đã làm = xanh.
       def initialize(vios, mode = :loi)
-        @vios    = vios
-        @mode    = mode
-        @color   = mode == :ok ? COLOR_OK : COLOR_BAD
-        @gapcol  = mode == :ok ? COLOR_OKGAP : COLOR_GAP
-        @idx     = 0
+        @vios = vios
+        @mode = mode
+        @idx  = 0
+        pick_color(0)
+      end
+
+      def pick_color(_i)
+        if @mode == :ok
+          @color = COLOR_OK; @gapcol = COLOR_OKGAP
+        else
+          @color = COLOR_BAD; @gapcol = COLOR_GAP
+        end
       end
 
       def activate; focus(0); end
@@ -315,6 +431,7 @@ module TK
 
       def focus(i)
         @idx = i
+        pick_color(i)
         v = @vios[i]
         @draw_a = flatten(v.segs_a)
         @draw_b = flatten(v.segs_b)
@@ -373,7 +490,7 @@ module TK
           info_col  = Sketchup::Color.new(150, 255, 190)
         else
           l1 = "Thiếu #{loai}   (mối #{@idx + 1}/#{@vios.size})"
-          l3 = "Hai tấm ăn nhau #{v.pen}mm — chưa thấy liên kết ABF"
+          l3 = "Hai tấm đâm xuyên #{v.pen}mm — chưa khoét (chưa ABF, chưa khấu tay)"
           title_col = Sketchup::Color.new(255, 180, 90)
           info_col  = Sketchup::Color.new(255, 210, 60)
         end

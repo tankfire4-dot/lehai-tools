@@ -18,7 +18,7 @@ module TK
     THEME = File.join(PATH, '..', 'shared', 'lehai_theme.css').freeze
 
     # Nạp các check phụ thuộc — rescue để 1 tool lỗi không chặn dashboard.
-    %w[kiem_tra_do_day kiem_tra_khoang_cach trung_tam kiem_tra_ban_le kiem_tra_lien_ket kiem_tra_led].each do |folder|
+    %w[kiem_tra_do_day kiem_tra_khoang_cach trung_tam kiem_tra_ban_le kiem_tra_lien_ket kiem_tra_led kiem_tra_ten].each do |folder|
       begin
         require File.join(PATH, '..', folder, 'main')
       rescue LoadError, StandardError => e
@@ -35,7 +35,8 @@ module TK
         { key: 'banle',   name: 'Bản Lề Cánh',      mod: mod_of(:HingeCheck) },
         { key: 'ranhhau', name: 'Rãnh Hậu',         mod: mod_of(:JointCheck), kind: :ranhhau },
         { key: 'ngam',    name: 'Ngàm',             mod: mod_of(:JointCheck), kind: :ngam },
-        { key: 'led',     name: 'Rãnh Led',         mod: mod_of(:LedCheck) }
+        { key: 'led',     name: 'Rãnh Led',         mod: mod_of(:LedCheck) },
+        { key: 'ten',     name: 'Đặt Tên',          mod: mod_of(:NameCheck) }
       ]
     end
     private_class_method :checks
@@ -79,6 +80,8 @@ module TK
 
     def self.push_scan
       return unless @dlg&.visible?
+      # xóa cache JointCheck để mỗi lần quét lại tính đâm xuyên trên model mới nhất
+      TK::JointCheck.clear_cache if defined?(TK::JointCheck) && TK::JointCheck.respond_to?(:clear_cache)
       @dlg.execute_script("render(#{scan_all.to_json});")
     end
     private_class_method :push_scan

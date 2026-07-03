@@ -12,6 +12,35 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-03 — Liên Kết: đo ĐÂM XUYÊN GỖ THẬT thay bbox + check Đặt Tên (v1.9.38)
+
+**Vấn đề (Khoa phát hiện):** JointCheck dùng bounding box → mù với ngàm KHẤU TAY (đục mộng thủ công,
+không dấu ABF). 110 mối "thiếu ngàm" phần lớn là báo nhầm ngàm khấu tay. Khoa hỏi: dùng hình học thật
+của tấm có phân biệt được không?
+
+**Điều tra (probe `dam_xuyen_probe.rb`):** đo % đâm xuyên gỗ đặc (point-in-solid bằng bắn tia) cho
+từng cặp. Kết quả LẬT NGƯỢC giả định: **84 mối "đã làm bằng ABF" thì 76 vẫn đâm xuyên 100%** → ABF chỉ
+DÁN NHÃN `_ABF_Intersect`, KHÔNG cắt khối 3D (cắt xảy ra ở khâu xuất DXF). Ngược lại 30 mối "thiếu"
+thực ra đã khấu TAY (đâm xuyên ~0%, vì cắt gỗ thật trong model).
+
+**Quyết định:** Công thức đúng = **Đã xử lý nếu (có dấu ABF) HOẶC (gỗ đã khoét = đâm xuyên < 40%)**;
+Lỗi nếu (không ABF) VÀ (còn đâm xuyên). Thêm point-in-solid (Möller–Trumbore ray +X) vào JointCheck,
+CHỈ đo cặp không-ABF (tối ưu). Ngàm quay về LỖI ĐỎ (bỏ cảnh báo vàng — giờ đã chính xác). Vẫn phân
+biệt rãnh hậu 10mm vs ngàm 17.5mm bằng band.
+
+**Tối ưu tốc độ:** probe thô 30s → sau tối ưu <10s. Bằng: (1) chỉ đo cặp không-ABF, (2) lọc tam giác
+theo Y-Z bbox + xmax trước khi tính giao, (3) lưới mẫu 3×3×3, (4) lazy build tam giác + cache 1 lần
+quét (dashboard gọi audit 2 lần rãnh hậu/ngàm dùng chung).
+
+**Đặt Tên — `TK::NameCheck` (kiem_tra_ten):** CẢNH BÁO vàng. "Chưa đặt tên" = rỗng HOẶC số trơn
+(vd "31", "608" — SketchUp tự đặt). Vì nhiều check (Bản Lề) dựa tên. Dashboard giờ 8 mục.
+
+**Bài học:** (1) LUÔN đo trên file thật — giả định "ABF cắt gỗ" sai hoàn toàn. (2) Bounding box nhanh
+nhưng mù chi tiết; point-in-solid chậm hơn nhưng "nhìn gỗ thật" — dùng bbox prefilter + point-in-solid
+xác nhận là cân bằng tốt. (3) Ngưỡng đâm xuyên 40% + lưới 3×3×3 có thể cần tinh chỉnh nếu gặp khấu nông.
+
+---
+
 ## 2026-07-03 — Rãnh Led (cảnh báo) + Xóa tên cho Dọn Component (v1.9.36)
 
 **Rãnh Led — `TK::LedCheck` (folder kiem_tra_led):** mảnh cuối bộ Check Chốt Sản Xuất. Điểm khác mọi

@@ -23,6 +23,7 @@ module LeHai
         File.join(path, 'kiem_tra_ban_le',  'main'),
         File.join(path, 'kiem_tra_lien_ket','main'),
         File.join(path, 'kiem_tra_led',     'main'),
+        File.join(path, 'kiem_tra_ten',     'main'),
         File.join(path, 'soat_truoc_xuat',  'main')
       ].each do |f|
         begin

@@ -61,13 +61,9 @@ module TK
         Sketchup.active_model.select_tool(ReviewTool.new(missing, :warn))
         return
       end
-      # (1) đã làm led → đạt, lướt các rãnh đã phay (xanh)
-      if grooves.any?
-        UI.messagebox("✓ Đã phay #{grooves.size} rãnh led — bấm OK để lướt xem.")
-        Sketchup.active_model.select_tool(ReviewTool.new(grooves, :ok))
-      else
-        UI.messagebox("✓ #{leds.size} thanh đèn led đều đã phay rãnh.")
-      end
+      # (1) đã làm led → đạt, lướt thẳng các rãnh đã phay (xanh), không popup thừa
+      # (tới đây chắc chắn grooves.any: 2 nhánh trên đã bắt hết ca rỗng)
+      Sketchup.active_model.select_tool(ReviewTool.new(grooves, :ok))
     end
 
     # ── Adapter cho dashboard (TK::PreExportCheck) ─────────────

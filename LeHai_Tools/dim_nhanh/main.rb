@@ -19,6 +19,7 @@ module TK
     AMBER   = Sketchup::Color.new(180, 83, 9)
     TEAL    = Sketchup::Color.new(20, 160, 120)   # che do dien tich
     SQIN_M2 = 0.00064516                           # 1 inch^2 -> m^2
+    FILL_OFFSET = 0.06                             # inch (~1.5mm): day mang to noi nhe tren mat, tranh z-fighting
 
     def self.run
       Sketchup.active_model.select_tool(DimTool.new)
@@ -355,20 +356,28 @@ module TK
       # to nen teal trong suot cho cac mang DA DEM
       def draw_picked(view)
         return if @picked.empty?
-        view.drawing_color = Sketchup::Color.new(20, 160, 120, 70)
+        view.drawing_color = Sketchup::Color.new(20, 160, 120, 110)
         @picked.each do |r|
           r[:faces].each { |f| fill_face(view, f, r[:tr]) }
         end
       end
 
+      # Ve 3D (view.draw) -> CO kiem tra che khuat: mang bi tuong/mat truoc che dung,
+      # KHONG con "nhin xuyen qua". Day diem ra 1 chut theo phap tuyen ve phia camera
+      # de mang noi nhe tren mat go, tranh nhap nhay z-fighting.
       def fill_face(view, face, tr)
         mesh = face.mesh
+        n    = tr * face.normal
+        n    = (n.length > 0 ? n.normalize : Z_AXIS)
+        fc   = tr * face.bounds.center
+        n    = n.reverse if n.dot(view.camera.eye - fc) < 0    # huong ve camera
+        off  = Geom::Vector3d.new(n.x * FILL_OFFSET, n.y * FILL_OFFSET, n.z * FILL_OFFSET)
         pts = []
         mesh.polygons.each do |poly|
           next unless poly.size == 3 # mesh da tam giac hoa
-          poly.each { |idx| pts << view.screen_coords(tr * mesh.point_at(idx.abs)) }
+          poly.each { |idx| pts << (tr * mesh.point_at(idx.abs)).offset(off) }
         end
-        view.draw2d(GL_TRIANGLES, pts) unless pts.empty? # 2D -> luon noi tren
+        view.draw(GL_TRIANGLES, pts) unless pts.empty?
       end
 
       def draw_hover(view)

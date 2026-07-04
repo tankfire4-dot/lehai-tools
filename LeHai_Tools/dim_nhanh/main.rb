@@ -242,9 +242,15 @@ module TK
         @arc_tr * vs[vs.size / 2].position
       end
 
-      # ban kinh (mm): cung that thi lay .radius; cong tay thi fit vong tron qua 3 diem cach deu
+      # ban kinh (mm) — LUON tinh o WORLD (da ap transform tr) de dung ca khi
+      # vong nam trong group/component BI SCALE. Truoc day nhanh ArcCurve lay
+      # .radius LOCAL (chua nhan scale) -> D/R lech khi tui bi phong/thu.
       def radius_of(curve, tr)
-        return curve.radius.to_mm if curve.is_a?(Sketchup::ArcCurve)
+        if curve.is_a?(Sketchup::ArcCurve)
+          c = tr * curve.center                     # tam o world
+          p = tr * curve.vertices.first.position    # 1 diem tren cung o world
+          return (p - c).length.to_mm
+        end
         vs = curve.vertices
         n = vs.size
         return 0 if n < 3

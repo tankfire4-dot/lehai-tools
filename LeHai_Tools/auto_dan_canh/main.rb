@@ -249,8 +249,11 @@ module MyStudio
       )
       @dialog.set_html(panel_html)
       register_callbacks(@dialog)
+      # Đóng panel = thoát plugin → tự ẩn dấu (như ABF chỉ hiện khi bật).
+      @dialog.set_on_closed { hide_all_bands rescue nil }
       @dialog.show
       refresh_band_types
+      show_all_bands rescue nil   # mở panel → hiện lại dấu đã ẩn
     end
 
     def self.register_callbacks(dlg)
@@ -525,6 +528,68 @@ module MyStudio
         clean[4..5].to_i(16)
       )
       mat
+    end
+
+    # ═══════════════════════════════════════════════════════
+    #  ẨN / HIỆN dấu dán cạnh toàn file (giống bật/tắt của ABF)
+    #  Ẩn  = đổi màu tô về màu gỗ gốc (đã lưu ở OriginalMat), GIỮ dấu bền
+    #        (attribute ABF/edge-band-id + dict Hung_EdgeBanding) → hết viền tím
+    #        nhưng check & máy vẫn đọc được là "đã dán".
+    #  Hiện = tô lại material đã lưu (ShowMat); tạo lại nếu material bị xoá.
+    # ═══════════════════════════════════════════════════════
+    def self.hide_all_bands
+      model = Sketchup.active_model
+      model.start_operation('An dau dan canh', true)
+      n = 0
+      each_banded_face_in_model(model) do |face|
+        m = face.material
+        next unless m && m.name.to_s.start_with?('Hung_Show_ABF_')
+        face.set_attribute('Hung_EdgeBanding', 'ShowMat', m.name)   # nhớ để hiện lại
+        orig = face.get_attribute('Hung_EdgeBanding', 'OriginalMat')
+        face.material = (orig && orig != 'nil') ? model.materials[orig] : nil
+        n += 1
+      end
+      n.positive? ? model.commit_operation : model.abort_operation
+      n
+    rescue => e
+      model.abort_operation rescue nil
+      raise e
+    end
+
+    def self.show_all_bands
+      model = Sketchup.active_model
+      model.start_operation('Hien dau dan canh', true)
+      n = 0
+      each_banded_face_in_model(model) do |face|
+        m = face.material
+        next if m && m.name.to_s.start_with?('Hung_Show_ABF_')     # đang hiện rồi
+        smat = face.get_attribute('Hung_EdgeBanding', 'ShowMat')
+        next unless smat
+        mat = model.materials[smat] || recreate_show_mat(model, smat)
+        face.material = mat if mat
+        n += 1
+      end
+      n.positive? ? model.commit_operation : model.abort_operation
+      n
+    rescue => e
+      model.abort_operation rescue nil
+      raise e
+    end
+
+    def self.recreate_show_mat(model, name)
+      hex = name.to_s.sub('Hung_Show_ABF_', '')
+      return nil if hex.empty?
+      ensure_display_material(model, hex)
+    rescue StandardError
+      nil
+    end
+
+    # duyệt MỌI face qua definitions (mỗi định nghĩa 1 lần → nhanh, không trùng)
+    def self.each_banded_face_in_model(model)
+      model.definitions.each do |d|
+        next if d.image?
+        d.entities.grep(Sketchup::Face).each { |f| yield f unless f.deleted? }
+      end
     end
 
     def self.scan_all_band_types(model)

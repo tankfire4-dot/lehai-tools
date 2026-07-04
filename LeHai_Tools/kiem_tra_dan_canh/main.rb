@@ -19,14 +19,24 @@ require 'sketchup.rb'
 module TK
   module EdgeBandCheck
 
-    PATH    = File.dirname(__FILE__).freeze
-    EDGE_RE = /edgeband/i.freeze   # bắt "_ABF_edgeBanding"
+    PATH     = File.dirname(__FILE__).freeze
+    EDGE_RE  = /edgeband/i.freeze          # dấu ABF: group "_ABF_edgeBanding"
+    AUTO_RE  = /\AHung_Show_ABF_/.freeze    # dấu Auto Dán Cạnh: material tô lên mặt
 
-    # Đếm số group/comp mang dấu dán cạnh trong toàn model.
+    # Đếm số group/comp mang dấu dán cạnh CỦA ABF trong toàn model.
     def self.count
       n = 0
       walk(Sketchup.active_model.entities, 0) { |e| n += 1 if e.name.to_s =~ EDGE_RE }
       n
+    end
+
+    # Auto Dán Cạnh (MyStudio::AutoEdgeBand) KHÔNG tạo group — nó tô material
+    # "Hung_Show_ABF_..." lên mặt cạnh dán. Chỉ cần material đó có trong file là
+    # dấu hiệu đã có dùng dán cạnh (mức thô — không đếm chính xác từng cạnh).
+    def self.auto_banded?
+      Sketchup.active_model.materials.any? { |m| m.name.to_s =~ AUTO_RE }
+    rescue StandardError
+      false
     end
 
     def self.walk(entities, depth, &blk)
@@ -44,21 +54,22 @@ module TK
     # ── Adapter cho dashboard ──────────────────────────────────
     def self.audit
       n = count
-      if n.zero?
-        { status: :warn, count: 0,
-          message: 'Chưa thấy cạnh nào được dán — kiểm tra file đã chạy dán cạnh chưa.' }
-      else
-        { status: :pass, count: n, message: "Đã dán #{n} cạnh." }
-      end
+      return { status: :pass, count: n, message: "Đã dán #{n} cạnh (ABF)." } if n.positive?
+      return { status: :pass, count: 0, message: 'Đã dán cạnh (Auto Dán Cạnh).' } if auto_banded?
+      { status: :warn, count: 0,
+        message: 'Chưa thấy cạnh nào được dán — kiểm tra file đã chạy dán cạnh chưa.' }
     end
 
     def self.review
       n = count
-      if n.zero?
+      if n.positive?
+        UI.messagebox("✓ File đã dán cạnh (ABF).\n\nTìm thấy #{n} cạnh mang dấu \"_ABF_edgeBanding\".")
+      elsif auto_banded?
+        UI.messagebox("✓ File đã dán cạnh (Auto Dán Cạnh_LeHai).\n\n" \
+                      "Có dấu material \"Hung_Show_ABF_...\" — cạnh đã được tô dán.")
+      else
         UI.messagebox("⚠ Cảnh báo (không bắt buộc): chưa thấy cạnh nào được dán trong file.\n\n" \
                       "Kiểm tra xem file này đã chạy DÁN CẠNH chưa (ABF hoặc Auto Dán Cạnh) trước khi xuất DXF.")
-      else
-        UI.messagebox("✓ File đã dán cạnh.\n\nTìm thấy #{n} cạnh mang dấu \"_ABF_edgeBanding\".")
       end
     end
 

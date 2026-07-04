@@ -1,5 +1,5 @@
 {
-  "version": "1.9.41",
+  "version": "1.9.42",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -29,6 +29,7 @@
     "LeHai_Tools/kiem_tra_ban_le/main.rb",
     "LeHai_Tools/kiem_tra_ban_le/icons/hinge_16.png",
     "LeHai_Tools/kiem_tra_ban_le/icons/hinge_24.png",
+    "LeHai_Tools/kiem_tra_dan_canh/main.rb",
     "LeHai_Tools/kiem_tra_do_day/main.rb",
     "LeHai_Tools/kiem_tra_do_day/icons/check_16.png",
     "LeHai_Tools/kiem_tra_do_day/icons/check_24.png",

@@ -18,7 +18,7 @@ module TK
     THEME = File.join(PATH, '..', 'shared', 'lehai_theme.css').freeze
 
     # Nạp các check phụ thuộc — rescue để 1 tool lỗi không chặn dashboard.
-    %w[kiem_tra_do_day kiem_tra_khoang_cach trung_tam kiem_tra_ban_le kiem_tra_lien_ket kiem_tra_led kiem_tra_ten].each do |folder|
+    %w[kiem_tra_do_day kiem_tra_khoang_cach trung_tam kiem_tra_ban_le kiem_tra_lien_ket kiem_tra_led kiem_tra_ten kiem_tra_dan_canh].each do |folder|
       begin
         require File.join(PATH, '..', folder, 'main')
       rescue LoadError, StandardError => e
@@ -36,7 +36,8 @@ module TK
         { key: 'ranhhau', name: 'Rãnh Hậu',         mod: mod_of(:JointCheck), kind: :ranhhau },
         { key: 'ngam',    name: 'Ngàm',             mod: mod_of(:JointCheck), kind: :ngam },
         { key: 'led',     name: 'Rãnh Led',         mod: mod_of(:LedCheck) },
-        { key: 'ten',     name: 'Đặt Tên',          mod: mod_of(:NameCheck) }
+        { key: 'ten',     name: 'Đặt Tên',          mod: mod_of(:NameCheck) },
+        { key: 'dancanh', name: 'Dán Cạnh',         mod: mod_of(:EdgeBandCheck) }
       ]
     end
     private_class_method :checks

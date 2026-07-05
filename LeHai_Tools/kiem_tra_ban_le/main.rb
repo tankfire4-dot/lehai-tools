@@ -5,6 +5,12 @@
 # báo lỗi. "canh"/"cánh" là tên KHÔNG trùng nghĩa khác trong xưởng (dán cạnh
 # không cần điền tên).
 #
+# LUẬT 2 (thêm 2026-07-05): TÂM cốc bản lề ĐẦU/CUỐI phải cách MÉP ĐẦU cánh
+# ≥ 80mm — thiết kế hay set 50 mà không biết → bản lề dễ bung. Đo theo TRỤC XẾP
+# cốc (phương hàng bản lề, tự dò bằng độ trải của tâm cốc): cốc đầu cách mép đầu,
+# cốc cuối cách mép cuối; cái nào < 80mm → lỗi. Cạnh bên (nơi cốc gắn, ~22mm)
+# KHÔNG tính. Cốc giữa miễn (đương nhiên xa mép). Cả 2 luật đều là LỖI ĐỎ.
+#
 # HAI ngoại lệ theo luật xưởng:
 #  - CHỈ soi mô hình 3D: BỎ QUA nhánh nesting (__ABF_Nesting) — trong đó cũng có
 #    tấm tên "canh..." (phôi phẳng), quét vào sẽ báo nhầm.
@@ -25,6 +31,9 @@ module TK
     DRAWER_RE   = /h[oôộ]c\s*k[eé]o/i.freeze     # "hộc kéo" — miễn bản lề
     HINGE_RE    = /hingecup/i.freeze             # dau hieu da khoet cop ban le
     MIN_HINGES  = 2
+    MM          = 25.4
+    MIN_EDGE_MM = 80.0                            # tâm cốc đầu/cuối cách mép đầu tối thiểu
+    EDGE_TOL_MM = 1.0                             # dung sai đo (báo lỗi khi < 79mm)
     COLOR_BAD   = Sketchup::Color.new(255, 140, 0)   # cam — canh THIEU ban le
     COLOR_OK    = Sketchup::Color.new(0, 170, 80)    # xanh la — canh DA lam ban le (dat)
 
@@ -33,7 +42,9 @@ module TK
     EDGES12 = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4],
                [0, 4], [1, 5], [2, 6], [3, 7]].freeze
 
-    Violation = Struct.new(:name, :found, :need, :segs)
+    # reason: :missing (thiếu cốc) / :edge (cốc sát mép) / :both
+    # edge_mm: khoảng cách nhỏ nhất tâm cốc đầu-cuối tới mép đầu (nil nếu không đo được)
+    Violation = Struct.new(:name, :found, :need, :segs, :reason, :edge_mm)
 
     # =========================================================
     #  QUÉT
@@ -63,8 +74,14 @@ module TK
       vios, oks = scan
       total = vios.size + oks.size
       return { status: :na, count: 0, message: 'Không tìm thấy cánh nào (tên chứa "cánh") để kiểm tra.' } if total.zero?
-      return { status: :pass, count: 0, message: "Tất cả #{total} cánh đã đủ bản lề (≥#{MIN_HINGES})." } if vios.empty?
-      { status: :fail, count: vios.size, message: "#{vios.size}/#{total} cánh thiếu bản lề (cần ≥#{MIN_HINGES})." }
+      return { status: :pass, count: 0, message: "Tất cả #{total} cánh đủ bản lề (≥#{MIN_HINGES}) & đúng khoảng cách mép (≥#{MIN_EDGE_MM.to_i}mm)." } if vios.empty?
+
+      miss = vios.count { |v| v.reason == :missing || v.reason == :both }
+      edge = vios.count { |v| v.reason == :edge    || v.reason == :both }
+      parts = []
+      parts << "#{miss} thiếu bản lề" if miss.positive?
+      parts << "#{edge} cốc sát mép (<#{MIN_EDGE_MM.to_i}mm)" if edge.positive?
+      { status: :fail, count: vios.size, message: "#{vios.size}/#{total} cánh lỗi: #{parts.join(' · ')}." }
     end
 
     def self.review
@@ -92,8 +109,57 @@ module TK
       ents = ents_of(e)
       return unless ents
       count = count_hinges(ents, 0)
-      rec = Violation.new(label(e), count, MIN_HINGES, panel_box_segs(ents, te))
-      (count >= MIN_HINGES ? oks : vios) << rec
+
+      cups = []
+      collect_cup_centers(ents, te, 0, cups)
+      edge_mm  = min_edge_distance(cups, door_world_bbox(ents, te))
+
+      missing  = count < MIN_HINGES
+      edge_bad = !edge_mm.nil? && edge_mm < (MIN_EDGE_MM - EDGE_TOL_MM)
+      reason   = if missing && edge_bad then :both
+                 elsif missing          then :missing
+                 elsif edge_bad         then :edge
+                 end
+
+      rec = Violation.new(label(e), count, MIN_HINGES, panel_box_segs(ents, te), reason, edge_mm)
+      (reason ? vios : oks) << rec
+    end
+
+    # tâm (world) từng cốc bản lề — dùng HỘP BAO cả nhóm cốc (cốc chỉ là đường
+    # tròn khoét, KHÔNG có mặt phẳng nên không đo bằng face được).
+    def self.collect_cup_centers(entities, te, depth, out)
+      return if depth > 10
+      entities.each do |c|
+        next unless c.is_a?(Sketchup::Group) || c.is_a?(Sketchup::ComponentInstance)
+        out << (te * c.bounds.center) if c.name.to_s =~ HINGE_RE
+        sub = ents_of(c)
+        collect_cup_centers(sub, te * c.transformation, depth + 1, out) if sub
+      end
+    end
+
+    # bbox world của tấm cánh (chỉ mặt trực tiếp)
+    def self.door_world_bbox(ents, te)
+      bb = Geom::BoundingBox.new
+      ents.each { |c| bb.add(world_face_bounds(c, te)) if c.is_a?(Sketchup::Face) }
+      bb
+    end
+
+    def self.world_face_bounds(face, te)
+      bb = Geom::BoundingBox.new
+      face.vertices.each { |v| bb.add(te * v.position) }
+      bb
+    end
+
+    # Khoảng cách nhỏ nhất (mm) từ cốc ĐẦU/CUỐI tới mép ĐẦU cánh, theo trục xếp cốc.
+    # Trục xếp = trục world mà các tâm cốc trải rộng nhất (tự dò, hợp cánh đứng/ngang).
+    def self.min_edge_distance(cups, bb)
+      return nil if cups.size < 2 || bb.nil? || bb.empty?
+      spreads = { x: cups.map(&:x), y: cups.map(&:y), z: cups.map(&:z) }
+      axis    = spreads.max_by { |_, vals| vals.max - vals.min }[0]
+      vals    = cups.map { |c| c.send(axis) }
+      d_head  = (vals.min - bb.min.send(axis)).abs   # cốc đầu → mép đầu
+      d_tail  = (bb.max.send(axis) - vals.max).abs    # cốc cuối → mép cuối
+      [d_head, d_tail].min * MM
     end
 
     def self.count_hinges(entities, depth)
@@ -237,12 +303,21 @@ module TK
         v = @vios[@idx]
         if @mode == :ok
           l1 = "Đã làm bản lề   (cánh #{@idx + 1}/#{@vios.size})"
-          l3 = "Có #{v.found} bản lề — đạt (≥ #{v.need})"
+          l3 = "Có #{v.found} bản lề, cốc cách mép #{v.edge_mm ? v.edge_mm.round : '?'}mm — đạt"
           title_col = Sketchup::Color.new(120, 240, 160)
           info_col  = Sketchup::Color.new(150, 255, 190)
         else
-          l1 = "Thiếu bản lề   (cánh #{@idx + 1}/#{@vios.size})"
-          l3 = "Đã có #{v.found} bản lề — cần ≥ #{v.need}"
+          edge_txt = v.edge_mm ? "cốc sát mép #{v.edge_mm.round}mm (cần ≥#{MIN_EDGE_MM.to_i})" : nil
+          l1 = case v.reason
+               when :edge then "Cốc bản lề sát mép   (cánh #{@idx + 1}/#{@vios.size})"
+               when :both then "Thiếu bản lề + cốc sát mép   (cánh #{@idx + 1}/#{@vios.size})"
+               else            "Thiếu bản lề   (cánh #{@idx + 1}/#{@vios.size})"
+               end
+          l3 = case v.reason
+               when :edge then edge_txt
+               when :both then "Có #{v.found} bản lề (cần ≥#{v.need}) · #{edge_txt}"
+               else            "Đã có #{v.found} bản lề — cần ≥ #{v.need}"
+               end
           title_col = Sketchup::Color.new(255, 180, 90)
           info_col  = Sketchup::Color.new(255, 210, 60)
         end

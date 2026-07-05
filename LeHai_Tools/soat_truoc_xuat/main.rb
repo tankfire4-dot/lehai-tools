@@ -28,16 +28,17 @@ module TK
 
     # ── Danh sách check (thêm check mới = thêm 1 dòng ở đây) ────
     def self.checks
+      # Thứ tự = quy trình nên làm (Khoa chốt): Đặt Tên trước vì nhiều check dựa TÊN.
       [
-        { key: 'day',     name: 'Độ Dày Ván',       mod: mod_of(:ThickCheck) },
-        { key: 'khoang',  name: 'Khoảng Cách 7mm',  mod: mod_of(:SpacingCheck) },
-        { key: 'trung',   name: 'Trùng Tấm',        mod: mod_of(:DuplicateCheck) },
-        { key: 'banle',   name: 'Bản Lề Cánh',      mod: mod_of(:HingeCheck) },
-        { key: 'ranhhau', name: 'Rãnh Hậu',         mod: mod_of(:JointCheck), kind: :ranhhau },
-        { key: 'ngam',    name: 'Ngàm',             mod: mod_of(:JointCheck), kind: :ngam },
-        { key: 'led',     name: 'Rãnh Led',         mod: mod_of(:LedCheck) },
         { key: 'ten',     name: 'Đặt Tên',          mod: mod_of(:NameCheck) },
-        { key: 'dancanh', name: 'Dán Cạnh',         mod: mod_of(:EdgeBandCheck) }
+        { key: 'day',     name: 'Độ Dày Ván',       mod: mod_of(:ThickCheck) },
+        { key: 'trung',   name: 'Trùng Tấm',        mod: mod_of(:DuplicateCheck) },
+        { key: 'dancanh', name: 'Dán Cạnh',         mod: mod_of(:EdgeBandCheck) },
+        { key: 'ranhhau', name: 'Rãnh Hậu',         mod: mod_of(:JointCheck), kind: :ranhhau },
+        { key: 'led',     name: 'Rãnh Led',         mod: mod_of(:LedCheck) },
+        { key: 'ngam',    name: 'Ngàm',             mod: mod_of(:JointCheck), kind: :ngam },
+        { key: 'banle',   name: 'Bản Lề Cánh',      mod: mod_of(:HingeCheck) },
+        { key: 'khoang',  name: 'Khoảng Cách 7mm',  mod: mod_of(:SpacingCheck) }
       ]
     end
     private_class_method :checks
@@ -141,6 +142,15 @@ module TK
           .rbtn--ghost:hover{border-color:var(--lh-amber);color:var(--lh-amber)}
           .rbtn[disabled]{background:var(--lh-line-2);color:var(--lh-muted);cursor:default;border:0}
           .rescan{margin-top:14px}
+          .note{margin-top:12px;font-size:11.5px;color:var(--lh-ink-soft);
+                background:var(--lh-fill);border-radius:var(--lh-radius);padding:0 12px}
+          .note summary{cursor:pointer;padding:10px 0;font-weight:700;color:var(--lh-walnut);
+                        list-style:none;outline:none}
+          .note summary::-webkit-details-marker{display:none}
+          .note summary::before{content:'▸  '}
+          .note[open] summary::before{content:'▾  '}
+          .note p{margin:0 0 10px;line-height:1.6}
+          .note b{color:var(--lh-amber-2)}
         </style></head>
         <body class="lh"><div class="lh-dialog">
           <div class="lh-eyebrow">LeHai's Decor Tools</div>
@@ -151,6 +161,11 @@ module TK
           </div>
           <button class="lh-btn lh-btn--ghost rescan" onclick="sketchup.rescan()">↻ Quét lại</button>
           <div class="lh-hint">Chỉ đọc — không sửa model. Bấm "Xem" để soi chi tiết (kể cả mục đã đạt, để kiểm chứng).</div>
+          <details class="note">
+            <summary>Lưu ý</summary>
+            <p>Plugin <b>chỉ ĐỌC</b> mô hình 3D, dò dấu hiệu lỗi trước khi xuất DXF — <b>không sửa gì</b> trong file.</p>
+            <p>Thứ tự các mục = <b>quy trình nên làm</b>: <b>Đặt Tên trước tiên</b>, vì nhiều mục check dựa vào <b>TÊN tấm</b>. Ví dụ <b>Bản Lề Cánh chỉ kiểm những tấm có tên chứa "cánh"</b> — nếu một cánh tủ chưa được đặt tên "cánh", nó sẽ bị <b>BỎ SÓT</b> (không báo thiếu bản lề dù thiếu thật). Nên đặt tên đúng chuẩn xong rồi mới soi các lỗi gia công thì mới chắc.</p>
+          </details>
           <div class="lh-foot"><span>LeHai Tools</span><span>Check Chốt Sản Xuất</span></div>
         </div>
         <script>

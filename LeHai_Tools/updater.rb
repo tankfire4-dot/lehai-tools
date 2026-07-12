@@ -48,8 +48,8 @@ module LeHai
     end
 
     def self._do_update_check
-      # Update đi qua TRẠM PHÁT (Cloudflare Worker) — repo GitHub là private,
-      # máy thợ không đọc thẳng được. Xem tram_phat/HUONG_DAN.md.
+      # Update đi qua TRẠM PHÁT (Cloudflare Worker) — địa chỉ cố định mọi máy thợ
+      # đã trỏ vào (repo hiện PUBLIC, trạm giữ để URL không đổi). Xem tram_phat/HUONG_DAN.md.
       version_url  = 'https://lehai-update.tankfire4.workers.dev/version.json'
       base_raw_url = 'https://lehai-update.tankfire4.workers.dev/'
       version_file = File.join(File.dirname(__FILE__), '_installed_version')

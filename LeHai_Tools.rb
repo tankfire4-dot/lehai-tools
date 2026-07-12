@@ -31,7 +31,7 @@ module LeHai
 
       UI.start_timer(3, false) do
         begin
-          # Đi qua trạm phát (repo private) — đồng bộ với updater.rb
+          # Đi qua trạm phát (URL cố định, repo hiện public) — đồng bộ với updater.rb
           version_url  = 'https://lehai-update.tankfire4.workers.dev/version.json'
           base_raw_url = 'https://lehai-update.tankfire4.workers.dev/'
           plugins_dir  = File.expand_path('..', File.dirname(__FILE__))

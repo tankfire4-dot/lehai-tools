@@ -1,13 +1,22 @@
 # Trạm phát update (lehai-update)
 
-Worker Cloudflare đứng giữa máy thợ và repo private. Xem giải thích đầy đủ trong
+Worker Cloudflare đứng giữa máy thợ và repo GitHub. Xem giải thích đầy đủ trong
 `worker.js`. Tóm tắt vận hành:
 
 ## Vì sao có trạm này
-Repo `lehai-tools` là PRIVATE (chứa luật nghề xưởng). Máy thợ không tự đọc GitHub
-được → auto-update đi qua trạm: `https://lehai-update.<subdomain>.workers.dev/<file>`.
+Trạm là **địa chỉ cố định** mà updater trên mọi máy thợ đã trỏ vào:
+`https://lehai-update.<subdomain>.workers.dev/<file>`.
+
+Lịch sử: trạm dựng 07/2026 để chuẩn bị khóa repo private. Nhưng **12/07/2026 Khoa
+chốt repo GIỮ PUBLIC** (máy thợ auto-update phụ thuộc vào nó — xem `decisions.md`
+của lab). Trạm vẫn giữ vì hai lý do:
+1. Đổi URL update = phải phát một bản update qua đường cũ trước — rủi ro không đáng
+   khi trạm đang chạy tốt và miễn phí.
+2. Nếu sau này cần khóa repo lại, chỉ việc khóa — máy thợ không cần biết gì.
+
 Chìa khóa (GH_TOKEN — fine-grained, chỉ-đọc, chỉ repo này) nằm trong secret của
-Cloudflare, KHÔNG nằm trên máy thợ.
+Cloudflare, KHÔNG nằm trên máy thợ. Repo đang public nên chìa không bắt buộc,
+nhưng cứ giữ để sẵn sàng cho ngày khóa repo.
 
 ## Deploy / cập nhật trạm
 ```

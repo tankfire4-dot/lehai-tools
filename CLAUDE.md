@@ -121,7 +121,9 @@ toolbar.get_last_state == TB_NEVER_SHOWN ? toolbar.show : toolbar.restore
 ## Nguồn / vị trí (source of truth)
 
 - **GitHub `tankfire4-dot/lehai-tools` = nguồn chính dài hạn.** Mất file trên máy vẫn còn GitHub.
-- **`C:\Users\tankf\Desktop\claude_work\lehai-tools`** = bản làm việc trên máy (git repo). Sửa ở đây → **push** lên GitHub.
+- **`C:\Users\tankf\Desktop\agent_lab_khoa\projects\lehai-tools`** = bản làm việc trên máy (git repo riêng,
+  nằm trong workspace lab từ 10/07/2026 — bản cũ ở `claude_work` KHÔNG còn). Sửa ở đây → **push** lên GitHub.
+- Repo GitHub **cố ý để PUBLIC** (12/07/2026): máy thợ auto-update phụ thuộc nó, chuyển private là đứt update.
 - **`%AppData%\SketchUp\SketchUp 2025\SketchUp\Plugins\LeHai_Tools`** = bản đang chạy (auto-update tải về).
 
 ## Phát hành version mới
@@ -157,7 +159,7 @@ qua `version.json`. Chi tiết từng bước tay (nếu cần hiểu/làm thủ
 Mở **Window → Ruby Console**, nạp thẳng file đang sửa từ bản repo và gọi luôn:
 
 ```ruby
-load 'C:/Users/tankf/Desktop/claude_work/lehai-tools/LeHai_Tools/<ten_tool>/main.rb'
+load 'C:/Users/tankf/Desktop/agent_lab_khoa/projects/lehai-tools/LeHai_Tools/<ten_tool>/main.rb'
 TK::ABFFinder.prompt   # ← gọi method của tool để chạy thử ngay
 ```
 

@@ -1,8 +1,10 @@
 // ============================================================
 //  lehai-update — TRẠM PHÁT update cho LeHai Tools (Cloudflare Worker)
 //
-//  Vì sao tồn tại: repo lehai-tools chuyển PRIVATE (khóa kho) để người lạ
-//  không đọc được luật nghề. Máy thợ không tự vào kho được nữa → hỏi trạm này.
+//  Vì sao tồn tại: trạm là ĐỊA CHỈ CỐ ĐỊNH mà updater mọi máy thợ đã trỏ vào.
+//  Dựng 07/2026 để chuẩn bị khóa repo private; 12/07/2026 Khoa chốt repo GIỮ PUBLIC.
+//  Trạm vẫn giữ: đổi URL update là phải phát update qua đường cũ trước (rủi ro
+//  không đáng), và nếu sau này khóa repo lại thì máy thợ không cần biết gì.
 //  Trạm giữ chìa GH_TOKEN (fine-grained, CHỈ-ĐỌC, CHỈ repo lehai-tools) trong
 //  két secret của Cloudflare — chìa KHÔNG BAO GIỜ nằm trên máy thợ.
 //
@@ -37,7 +39,7 @@ export default {
                  || path.startsWith('LeHai_Tools/');
     if (!allowed) return new Response('not found', { status: 404 });
 
-    // vào kho private lấy file (GitHub Contents API, nhận bản raw)
+    // vào kho GitHub lấy file (Contents API, nhận bản raw)
     const encoded = path.split('/').map(encodeURIComponent).join('/');
     const gh = `https://api.github.com/repos/${REPO}/contents/${encoded}?ref=${BRANCH}`;
     const r = await fetch(gh, {

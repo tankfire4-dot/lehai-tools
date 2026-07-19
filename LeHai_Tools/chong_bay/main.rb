@@ -24,7 +24,6 @@ module TK
     SRC_RE    = /cutting.?lines/i.freeze     # phòng tên viết hoa/thường khác nhau
     DST_RE      = /chongbay/i.freeze         # tag đích do Khoa tạo bên ABF
     DEFAULT_DST = 'CHONGBAYTRAI'.freeze      # tên gợi ý sẵn khi phải tạo tag
-    NEW_LABEL   = '— Tạo tag mới —'.freeze   # dòng cuối trong hộp sổ xuống
 
     # Hai tag này tạo sẵn cho mọi file — đỡ phải khai tay từng lần.
     # Vẫn phải khai ĐÚNG tên bên ABF thì hai bên mới khớp.
@@ -100,35 +99,8 @@ module TK
       TAG_COLORS[tag_name] || PALETTE[tag_name.hash.abs % PALETTE.size]
     end
 
-    def self.pick_dst_tag(model)
-      ensure_default_tags(model)
-      tags = model.layers.to_a
-                  .select { |l| l.name.to_s =~ DST_RE }
-                  .sort_by { |l| l.name.to_s }
-      return create_dst_tag(model) if tags.empty?
-
-      names   = tags.map { |l| l.name.to_s }
-      choices = names + [NEW_LABEL]
-      pick    = ask_from_list('Quét sang tag:', choices)
-      return nil if pick.nil?
-      return create_dst_tag(model) if pick == NEW_LABEL
-
-      tags.find { |l| l.name.to_s == pick }
-    end
-
-    # Hộp sổ xuống. Bản SketchUp nào không nhận dạng danh sách thì rớt về gõ tay
-    # — nuốt được vì đã báo ra Console và vẫn hỏi lại bằng đường khác.
-    def self.ask_from_list(prompt, choices)
-      res = begin
-        UI.inputbox([prompt], [choices.first], [choices.join('|')], 'Chống Bay')
-      rescue => e
-        puts "[Chống Bay] hộp sổ xuống lỗi (#{e.message}) — chuyển sang gõ tay."
-        UI.inputbox([prompt], [choices.first], 'Chống Bay')
-      end
-      return nil unless res
-      res[0].to_s.strip
-    end
-
+    # Chỉ dùng cho trường hợp hiếm: file không có tag chống bay nào và cũng không
+    # tạo sẵn được. Đường thường không chạm tới hàm này.
     def self.create_dst_tag(model)
       res = UI.inputbox(
         ["Tên tag mới — gõ ĐÚNG tên đã tạo bên ABF:"],
@@ -267,10 +239,14 @@ module TK
 
     class SweepTool
 
-      def initialize(dst_tag)
-        @dst      = dst_tag
-        @dst_name = dst_tag.name.to_s
+      # tags = danh sách tag chống bay, Tab xoay vòng qua chúng
+      def initialize(tags)
+        @tags = tags
+        @i    = 0
       end
+
+      def dst      ; @tags[@i]                 end
+      def dst_name ; @tags[@i].name.to_s       end
 
       def activate
         rescan
@@ -291,7 +267,13 @@ module TK
         view.model.select_tool(nil)
       end
 
+      # Tab xoay vòng tag đích — khuôn dim_nhanh/main.rb:197 (key 9 = Tab)
       def onKeyDown(key, _rep, _flags, view)
+        if key == 9 && @tags.size > 1
+          @i = (@i + 1) % @tags.size
+          view.invalidate
+          return false
+        end
         view.model.select_tool(nil) if key == 27   # Esc
         false
       end
@@ -397,20 +379,20 @@ module TK
         # Quét trúng cái đang đeo tag khác thì ĐỔI SANG tag đích — cho phép chuyển
         # trái ↔ phải. Chỉ bỏ qua cái đã đúng tag đích rồi.
         hits = @cands.select do |c|
-          next false if c.tag == @dst_name
+          next false if c.tag == dst_name
           next false if (c.group.deleted? rescue true)
           touches?(view, c.segs, rect)
         end
         return if hits.empty?
 
-        dst_name = @dst_name
+        target = dst_name
         match = lambda do |e|
           n = TK::ChongBay.tag_name(e)
-          next false if n == dst_name
+          next false if n == target
           TK::ChongBay.src?(e) || !!(n =~ TK::ChongBay::DST_RE)
         end
 
-        stats = TK::ChongBay.retag(hits.map(&:group), match, @dst)
+        stats = TK::ChongBay.retag(hits.map(&:group), match, dst)
         if stats && stats[:unique_fail] > 0
           UI.messagebox(
             "Cảnh báo: #{stats[:unique_fail]} nhóm không tách riêng được.\n\n" \
@@ -438,7 +420,8 @@ module TK
         theo  = Hash.new(0)
         @cands.each { |c| theo[c.tag] += 1 if c.tag }
 
-        line1 = "Chống Bay → #{@dst_name}"
+        line1 = @tags.size > 1 ? "Chống Bay → #{dst_name}    [Tab] đổi" :
+                                 "Chống Bay → #{dst_name}"
         line2 = theo.keys.sort.map { |t| "#{t} #{theo[t]}" }.join('   ·   ')
         line2 = line2.empty? ? "chưa đổi #{chua}" : "#{line2}   ·   chưa đổi #{chua}"
         line3 = 'Kéo chuột quét qua chi tiết  ·  Ctrl+Z gỡ  ·  ESC thoát'
@@ -461,7 +444,7 @@ module TK
         # của chính tool ở chỗ này)
         bar = [[x, y], [x + 6, y], [x + 6, y + h], [x, y + h]]
               .map { |a, b| Geom::Point3d.new(a, b, 0) }
-        view.drawing_color = TK::ChongBay.color_for(@dst_name)
+        view.drawing_color = TK::ChongBay.color_for(dst_name)
         view.draw2d(GL_POLYGON, bar)
 
         view.draw_text(Geom::Point3d.new(x + 16, y + 8, 0), line1,
@@ -478,11 +461,25 @@ module TK
 
     # ── Cổng vào ─────────────────────────────────────────────────
 
+    # Thứ tự Tab: TRAI trước, PHAI sau (theo DEFAULT_TAGS), tag tự thêm xếp cuối.
+    def self.chong_bay_tags(model)
+      all = model.layers.to_a.select { |l| l.name.to_s =~ DST_RE }
+      uu  = DEFAULT_TAGS.map { |n| all.find { |l| l.name.to_s == n } }.compact
+      uu + (all - uu).sort_by { |l| l.name.to_s }
+    end
+
+    # KHÔNG hỏi gì lúc mở — vào thẳng bộ quét, đổi tag bằng Tab ngay trong tool
+    # (khuôn Dim Nhanh). Hộp thoại chọn tag lúc mở đã bỏ: vừa xấu vừa thừa.
     def self.start
       model = Sketchup.active_model
-      dst   = pick_dst_tag(model)
-      return unless dst
-      model.select_tool(SweepTool.new(dst))
+      ensure_default_tags(model)
+      tags = chong_bay_tags(model)
+      if tags.empty?
+        t = create_dst_tag(model)   # gần như không xảy ra vì đã tạo sẵn 2 tag
+        return unless t
+        tags = [t]
+      end
+      model.select_tool(SweepTool.new(tags))
     end
 
     # Gỡ ngược trên vùng đang chọn (dùng khi lỡ quét nhầm cả mảng)

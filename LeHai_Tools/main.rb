@@ -82,15 +82,15 @@ module LeHai
         # Kiểm Tra Khoảng Cách — QC sau nesting, cùng cụm kiểm tra
         [defined?(::TK::SpacingCheck) && ::TK::SpacingCheck.respond_to?(:create_cmd),
          -> { ::TK::SpacingCheck.create_cmd }],
-        # Chống Bay — quét đổi tag chi tiết nhỏ sang tag chống bay (sau nesting,
-        # trước khi xuất DXF) → đặt cạnh cụm soi tấm sau nesting
-        [defined?(::TK::ChongBay) && ::TK::ChongBay.respond_to?(:create_cmd),
-         -> { ::TK::ChongBay.create_cmd }],
         [defined?(::TK::AxisFix) && ::TK::AxisFix.respond_to?(:create_cmd),
          -> { ::TK::AxisFix.create_cmd }],
         # Dim Nhanh — đo/ghi kích thước nhanh (drafting)
         [defined?(::TK::QuickDim) && ::TK::QuickDim.respond_to?(:create_cmd),
          -> { ::TK::QuickDim.create_cmd }],
+        # Chống Bay — quét đổi tag chi tiết nhỏ sang tag chống bay. Đứng NGAY
+        # TRƯỚC khiên: cùng là việc làm sau nesting, ngay trước khi xuất DXF.
+        [defined?(::TK::ChongBay) && ::TK::ChongBay.respond_to?(:create_cmd),
+         -> { ::TK::ChongBay.create_cmd }],
         # ── Cụm CUỐI: CHỐT CHẶN trước khi xuất DXF ──
         # Check Chốt Sản Xuất — dashboard gom các check (Độ Dày/Khoảng Cách/Trùng
         # Tấm/Bản Lề/Rãnh Hậu/Ngàm). Đặt CUỐI hàng, icon khiên nổi bật.

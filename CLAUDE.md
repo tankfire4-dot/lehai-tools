@@ -218,9 +218,9 @@ là danh sách nút. Muốn biết đủ module thì `ls LeHai_Tools/*/`.
 | Kiểm Tra Độ Dày | `TK::ThickCheck` | ✓ |
 | Tìm Tấm Lỗi | `TK::ABFFinder` | ✓ |
 | Kiểm Tra Khoảng Cách | `TK::SpacingCheck` | ✓ |
-| **Chống Bay** (quét đổi tag chi tiết nhỏ, sau nesting) | `TK::ChongBay` | ✓ |
 | Trục Tọa Độ | `TK::AxisFix` | ✓ |
 | Dim Nhanh | `TK::QuickDim` | ✓ |
+| **Chống Bay** (quét đổi tag chi tiết nhỏ, sau nesting) | `TK::ChongBay` | ✓ |
 | **Check Chốt Sản Xuất** (dashboard, cuối toolbar, icon khiên) | `TK::PreExportCheck` | ✓ |
 | Trùng Tấm | `TK::DuplicateCheck` | — chạy trong dashboard |
 | Bản Lề Cánh | `TK::HingeCheck` | — chạy trong dashboard |

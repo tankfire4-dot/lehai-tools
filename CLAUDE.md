@@ -194,25 +194,42 @@ toolbar rỗng tên `X` mà SketchUp nhớ — gỡ ở **View → Toolbars → 
 
 ## Namespace các tool
 
-| Tool | Module |
-|------|--------|
-| Auto Dán Cạnh | `MyStudio::AutoEdgeBand` |
-| Tạo Cánh CNC | `CanhCNC` |
-| Tạo Tấm Gỗ | `Lehai::TamGoGen` |
-| Hạ Nền Uốn Cong | `LeHaiDecor::HaNen` |
-| Điền Tên Nhanh | `TuDong::DienTen` |
-| Thư Viện Component | `TK::ThuVien` |
-| Gỡ DC → Group | `TK::GoGroup` |
-| Kiểm Tra Độ Dày | `TK::ThickCheck` |
-| Tìm Tấm Lỗi | `TK::ABFFinder` |
-| Kiểm Tra Khoảng Cách | `TK::SpacingCheck` |
-| Dim Nhanh | `TK::QuickDim` |
-| Trục Tọa Độ | `TK::AxisFix` |
-| Trùng Tấm | `TK::DuplicateCheck` |
-| Bản Lề Cánh | `TK::HingeCheck` |
-| Liên Kết (rãnh hậu + ngàm) | `TK::JointCheck` |
-| **Chống Bay** (quét đổi tag chi tiết nhỏ, sau nesting) | `TK::ChongBay` |
-| **Check Chốt Sản Xuất** (dashboard, cuối toolbar, icon khiên) | `TK::PreExportCheck` |
+**Đọc kỹ cột "Nút" — hai cách đếm khác nhau, đừng trộn.** Số module ≠ số nút trên toolbar.
+Có module **không có nút riêng**: nó chạy từ trong dashboard Check Chốt Sản Xuất (icon khiên cuối
+hàng). Tính tới 19/07/2026: **20 module, 14 nút**.
+
+Nguồn sự thật cho từng cột: cột Module = thư mục trong `LeHai_Tools/`; cột Nút = mảng `groups`
+trong `LeHai_Tools/main.rb` (chỗ DUY NHẤT quyết định nút nào lên toolbar và theo thứ tự nào).
+Sửa bảng này thì đối chiếu lại cả hai chỗ, đừng chép từ trí nhớ.
+
+⚠️ **Module chạy trong dashboard KHÔNG nằm trong danh sách `require` của `main.rb`** — dashboard tự
+nạp lấy (`soat_truoc_xuat/main.rb:21`). Nên đừng lấy `main.rb` làm danh sách module đầy đủ; nó chỉ
+là danh sách nút. Muốn biết đủ module thì `ls LeHai_Tools/*/`.
+
+| Tool | Module | Nút |
+|------|--------|-----|
+| Tạo Tấm Gỗ | `Lehai::TamGoGen` | ✓ |
+| Tạo Cánh CNC | `CanhCNC` | ✓ |
+| Hạ Nền Uốn Cong | `LeHaiDecor::HaNen` | ✓ |
+| Auto Dán Cạnh | `MyStudio::AutoEdgeBand` | ✓ |
+| Điền Tên Nhanh | `TuDong::DienTen` | ✓ |
+| Thư Viện Component | `TK::ThuVien` | ✓ |
+| Gỡ DC → Group | `TK::GoGroup` | ✓ |
+| Kiểm Tra Độ Dày | `TK::ThickCheck` | ✓ |
+| Tìm Tấm Lỗi | `TK::ABFFinder` | ✓ |
+| Kiểm Tra Khoảng Cách | `TK::SpacingCheck` | ✓ |
+| **Chống Bay** (quét đổi tag chi tiết nhỏ, sau nesting) | `TK::ChongBay` | ✓ |
+| Trục Tọa Độ | `TK::AxisFix` | ✓ |
+| Dim Nhanh | `TK::QuickDim` | ✓ |
+| **Check Chốt Sản Xuất** (dashboard, cuối toolbar, icon khiên) | `TK::PreExportCheck` | ✓ |
+| Trùng Tấm | `TK::DuplicateCheck` | — chạy trong dashboard |
+| Bản Lề Cánh | `TK::HingeCheck` | — chạy trong dashboard |
+| Liên Kết (rãnh hậu + ngàm) | `TK::JointCheck` | — chạy trong dashboard |
+| Kiểm Tra LED | `TK::LedCheck` | — chạy trong dashboard |
+| Kiểm Tra Đặt Tên | `TK::NameCheck` | — chạy trong dashboard |
+| Kiểm Tra Dán Cạnh | `TK::EdgeBandCheck` | — chạy trong dashboard |
+
+> Thứ tự dòng trong bảng = thứ tự nút trên toolbar (nhóm theo cụm), rồi tới nhóm không có nút.
 
 > Bộ "Check Chốt Sản Xuất" từng tách ra repo `lehai-check` (2026-07-01) rồi **GỘP TRỞ LẠI**
 > lehai-tools (2026-07-01, v1.9.30) khi Khoa quyết định phát cho thợ. Repo `lehai-check` giờ

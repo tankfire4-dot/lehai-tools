@@ -48,6 +48,18 @@ nhau) vừa quét lẹm sang cái bên cạnh. Dùng cạnh thật chữa cả h
 nháp cùng logic) đã đổi được 33/50 chi tiết trên file thật. Bản đóng vào repo **chưa chạy lại** —
 phải test qua Ruby Console trước khi release.
 
+**Phụ — bảng namespace trong CLAUDE.md đã lệch, nay sửa:** Claude nói "tool thứ 17" trong khi
+toolbar thật chỉ có 13 nút; Khoa nhìn toolbar thấy vênh nên hỏi lại. Truy ra bảng cũ vừa **thiếu**
+(không có `LedCheck`, `NameCheck`, `EdgeBandCheck`) vừa **không phân biệt** module có nút riêng với
+module chạy trong dashboard. Nay bảng có cột "Nút", ghi rõ nguồn sự thật của từng cột (thư mục
+`LeHai_Tools/*/` cho module, mảng `groups` trong `main.rb` cho nút), và cảnh báo rằng **module chạy
+trong dashboard KHÔNG nằm trong `require` của `main.rb`** — dashboard tự nạp lấy
+(`soat_truoc_xuat/main.rb:21`), nên `main.rb` không phải danh sách module đầy đủ.
+
+Bài học: **tài liệu đếm số là thứ tự hỏng âm thầm.** Không ai sai lúc viết, nó lệch dần theo mỗi
+lần thêm tool. Cách chữa không phải "nhớ cập nhật" mà là **ghi nguồn sự thật ngay trong bảng** để
+lần sau kiểm được bằng một lệnh thay vì bằng trí nhớ.
+
 ---
 
 ## 2026-07-03 — Liên Kết: đo ĐÂM XUYÊN GỖ THẬT thay bbox + check Đặt Tên (v1.9.38)

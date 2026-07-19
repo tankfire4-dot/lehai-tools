@@ -22,7 +22,27 @@ module TK
 
     SRC_TAG   = 'ABF_cuttingLines'.freeze
     SRC_RE    = /cutting.?lines/i.freeze     # phòng tên viết hoa/thường khác nhau
-    DST_RE    = /chongbay/i.freeze           # tag đích do Khoa tạo bên ABF
+    DST_RE      = /chongbay/i.freeze         # tag đích do Khoa tạo bên ABF
+    DEFAULT_DST = 'CHONGBAYTRAI'.freeze      # tên gợi ý sẵn khi phải tạo tag
+    NEW_LABEL   = '— Tạo tag mới —'.freeze   # dòng cuối trong hộp sổ xuống
+
+    # Hai tag này tạo sẵn cho mọi file — đỡ phải khai tay từng lần.
+    # Vẫn phải khai ĐÚNG tên bên ABF thì hai bên mới khớp.
+    DEFAULT_TAGS = ['CHONGBAYTRAI', 'CHONGBAYPHAI'].freeze
+
+    # Mỗi tag một màu để nhìn phát biết cái nào trái cái nào phải.
+    TAG_COLORS = {
+      'CHONGBAYTRAI' => Sketchup::Color.new(0, 190, 80),     # xanh lá
+      'CHONGBAYPHAI' => Sketchup::Color.new(255, 130, 0)     # cam
+    }.freeze
+
+    # Tag chống bay tự đặt thêm thì lấy màu theo thứ tự trong bảng này
+    PALETTE = [
+      Sketchup::Color.new(60, 130, 255),    # xanh dương
+      Sketchup::Color.new(200, 60, 220),    # tím
+      Sketchup::Color.new(220, 200, 0),     # vàng
+      Sketchup::Color.new(0, 200, 200)      # xanh ngọc
+    ].freeze
     MAX_DEPTH = 12
 
     COL_DONE  = Sketchup::Color.new(0, 190, 80)      # xanh lá = đã đổi
@@ -54,28 +74,82 @@ module TK
     # 1 cái  → dùng luôn, không hỏi (đỡ vướng tay).
     # nhiều  → cho chọn.  0 cái → bảo Khoa tạo bên ABF trước.
 
-    def self.pick_dst_tag(model)
-      tags = model.layers.to_a.select { |l| l.name.to_s =~ DST_RE }
-      if tags.empty?
-        UI.messagebox(
-          "Chưa có tag chống bay nào trong file này.\n\n" \
-          "Tạo tag bên ABF trước (mục Layer → Tạo mới), đặt tên có chữ " \
-          "CHONGBAY — ví dụ CHONGBAYTRAI — rồi chạy lại."
-        )
-        return nil
-      end
-      return tags.first if tags.size == 1
-
-      names = tags.map { |l| l.name.to_s }.sort
-      res = begin
-        UI.inputbox(['Đổi sang tag:'], [names.first], [names.join('|')], 'Chống Bay')
+    # Danh sách Layer bên ABF KHÔNG phải tag SketchUp — đó là danh sách riêng của
+    # ABF (đo thật 19/07: model có 8 tag, hộp thoại ABF liệt kê 31 layer). ABF chỉ
+    # đẻ tag SketchUp thật khi có hình được gán vào. Nên tag tạo ở đây phải đặt
+    # ĐÚNG tên đã khai bên ABF thì hai bên mới khớp — lệch tên là ABF không nhận
+    # mà chẳng báo lỗi gì.
+    # Tạo sẵn CHONGBAYTRAI + CHONGBAYPHAI nếu file chưa có. layers.add trả về cái
+    # cũ nếu đã tồn tại nên gọi nhiều lần vô hại.
+    def self.ensure_default_tags(model)
+      thieu = DEFAULT_TAGS.reject { |n| model.layers.to_a.any? { |l| l.name.to_s == n } }
+      return if thieu.empty?
+      model.start_operation('Tao tag chong bay', true)
+      begin
+        thieu.each { |n| model.layers.add(n) }
+        model.commit_operation
       rescue => e
-        # Bản SketchUp nào không nhận dạng danh sách thì hỏi trơn
-        puts "[Chống Bay] inputbox dạng danh sách lỗi (#{e.message}) — hỏi dạng gõ tay."
-        UI.inputbox(['Đổi sang tag:'], [names.first], 'Chống Bay')
+        model.abort_operation
+        UI.messagebox("Lỗi: #{e.message}")
+      end
+    end
+
+    # Màu overlay của một tag. Tag không tên (chưa đổi) → xám.
+    def self.color_for(tag_name)
+      return COL_TODO if tag_name.nil?
+      TAG_COLORS[tag_name] || PALETTE[tag_name.hash.abs % PALETTE.size]
+    end
+
+    def self.pick_dst_tag(model)
+      ensure_default_tags(model)
+      tags = model.layers.to_a
+                  .select { |l| l.name.to_s =~ DST_RE }
+                  .sort_by { |l| l.name.to_s }
+      return create_dst_tag(model) if tags.empty?
+
+      names   = tags.map { |l| l.name.to_s }
+      choices = names + [NEW_LABEL]
+      pick    = ask_from_list('Quét sang tag:', choices)
+      return nil if pick.nil?
+      return create_dst_tag(model) if pick == NEW_LABEL
+
+      tags.find { |l| l.name.to_s == pick }
+    end
+
+    # Hộp sổ xuống. Bản SketchUp nào không nhận dạng danh sách thì rớt về gõ tay
+    # — nuốt được vì đã báo ra Console và vẫn hỏi lại bằng đường khác.
+    def self.ask_from_list(prompt, choices)
+      res = begin
+        UI.inputbox([prompt], [choices.first], [choices.join('|')], 'Chống Bay')
+      rescue => e
+        puts "[Chống Bay] hộp sổ xuống lỗi (#{e.message}) — chuyển sang gõ tay."
+        UI.inputbox([prompt], [choices.first], 'Chống Bay')
       end
       return nil unless res
-      tags.find { |l| l.name.to_s == res[0].to_s }
+      res[0].to_s.strip
+    end
+
+    def self.create_dst_tag(model)
+      res = UI.inputbox(
+        ["Tên tag mới — gõ ĐÚNG tên đã tạo bên ABF:"],
+        [DEFAULT_DST],
+        'Chống Bay — tạo tag'
+      )
+      return nil unless res
+      name = res[0].to_s.strip
+      if name.empty?
+        UI.messagebox('Chưa nhập tên tag.')
+        return nil
+      end
+      unless name =~ DST_RE
+        ok = UI.messagebox(
+          "Tên \"#{name}\" không có chữ CHONGBAY.\n\n" \
+          "Lần sau tool sẽ không tự thấy tag này trong danh sách.\n\nVẫn tạo?",
+          MB_YESNO
+        )
+        return nil if ok != IDYES
+      end
+      model.layers.add(name)      # có sẵn thì trả về cái cũ, chưa có thì tạo
     end
 
     # ── Duyệt (khuôn tim_tam_loi/main.rb:36) ─────────────────────
@@ -111,15 +185,20 @@ module TK
 
     # ── Ứng viên để quét ─────────────────────────────────────────
 
-    Cand = Struct.new(:group, :segs, :done)
+    # tag = nil nếu chưa đổi (còn ABF_cuttingLines), ngược lại là tên tag chống bay
+    # đang đeo. Gom CẢ chi tiết đã đổi sang tag chống bay KHÁC — nếu chỉ gom tag
+    # đích thì mấy cái đã gắn tag khác biến mất khỏi màn hình, không nhìn thấy,
+    # không sửa lại được (lỗi này đã xảy ra: quét sang PHAI thì 6 cái TRAI mất tăm).
+    Cand = Struct.new(:group, :segs, :tag)
 
-    def self.collect_cands(dst_name)
+    def self.collect_cands
       out = []
       traverse(Sketchup.active_model.entities, Geom::Transformation.new) do |e, t|
+        n = tag_name(e)
         if src?(e)
-          out << Cand.new(e, world_segments(e, t), false)
-        elsif tag_name(e) == dst_name
-          out << Cand.new(e, world_segments(e, t), true)
+          out << Cand.new(e, world_segments(e, t), nil)
+        elsif n =~ DST_RE
+          out << Cand.new(e, world_segments(e, t), n)
         end
       end
       out
@@ -238,28 +317,32 @@ module TK
       end
 
       def draw(view)
-        done_pts = []
-        todo_pts = []
+        # Gom điểm theo TAG rồi vẽ mỗi tag một lệnh — mỗi tag một màu, và 50 chi
+        # tiết vẫn chỉ vài lệnh vẽ chứ không phải 50.
+        by_tag = Hash.new { |h, k| h[k] = [] }
         @cands.each do |c|
           next if (c.group.deleted? rescue true)
-          bucket = c.done ? done_pts : todo_pts
+          pts = by_tag[c.tag]
           c.segs.each do |a, b|
-            bucket << view.screen_coords(a) << view.screen_coords(b)
+            pts << view.screen_coords(a) << view.screen_coords(b)
           end
         end
-        unless todo_pts.empty?
+
+        # chưa đổi vẽ trước (mảnh, xám) để mấy cái đã đổi nổi lên trên
+        todo = by_tag.delete(nil)
+        if todo && !todo.empty?
           view.drawing_color = COL_TODO
           view.line_width    = 1
-          view.draw2d(GL_LINES, todo_pts)
+          view.draw2d(GL_LINES, todo)
         end
-        unless done_pts.empty?
-          view.drawing_color = COL_DONE
+        by_tag.each do |tag, pts|
+          next if pts.empty?
+          view.drawing_color = TK::ChongBay.color_for(tag)
           view.line_width    = 3
-          view.draw2d(GL_LINES, done_pts)
+          view.draw2d(GL_LINES, pts)
         end
-        if @drag
-          draw_band(view)
-        end
+
+        draw_band(view) if @drag
         draw_banner(view)
       end
 
@@ -272,7 +355,7 @@ module TK
       def rescan
         # make_unique thay entity cũ bằng entity mới → danh sách cũ thành rác,
         # phải quét lại từ đầu sau mỗi lần đổi.
-        @cands = TK::ChongBay.collect_cands(@dst_name)
+        @cands = TK::ChongBay.collect_cands
       end
 
       # ---- va chạm: khung quét vs CẠNH THẬT của chi tiết ----
@@ -311,13 +394,23 @@ module TK
         # khung quá nhỏ = lỡ tay click, bỏ qua để khỏi đổi oan một chi tiết
         return if (rect[2] - rect[0]).abs < 4 && (rect[3] - rect[1]).abs < 4
 
-        hits = @cands.reject(&:done).select do |c|
+        # Quét trúng cái đang đeo tag khác thì ĐỔI SANG tag đích — cho phép chuyển
+        # trái ↔ phải. Chỉ bỏ qua cái đã đúng tag đích rồi.
+        hits = @cands.select do |c|
+          next false if c.tag == @dst_name
           next false if (c.group.deleted? rescue true)
           touches?(view, c.segs, rect)
         end
         return if hits.empty?
 
-        stats = TK::ChongBay.retag(hits.map(&:group), TK::ChongBay.method(:src?), @dst)
+        dst_name = @dst_name
+        match = lambda do |e|
+          n = TK::ChongBay.tag_name(e)
+          next false if n == dst_name
+          TK::ChongBay.src?(e) || !!(n =~ TK::ChongBay::DST_RE)
+        end
+
+        stats = TK::ChongBay.retag(hits.map(&:group), match, @dst)
         if stats && stats[:unique_fail] > 0
           UI.messagebox(
             "Cảnh báo: #{stats[:unique_fail]} nhóm không tách riêng được.\n\n" \
@@ -341,29 +434,44 @@ module TK
       end
 
       def draw_banner(view)
-        done  = @cands.count(&:done)
-        line1 = "Chống Bay → #{@dst_name}   ·   đã đổi #{done}/#{@cands.size}"
-        line2 = 'Kéo chuột quét qua chi tiết  ·  Ctrl+Z gỡ  ·  ESC thoát'
+        chua  = @cands.count { |c| c.tag.nil? }
+        theo  = Hash.new(0)
+        @cands.each { |c| theo[c.tag] += 1 if c.tag }
+
+        line1 = "Chống Bay → #{@dst_name}"
+        line2 = theo.keys.sort.map { |t| "#{t} #{theo[t]}" }.join('   ·   ')
+        line2 = line2.empty? ? "chưa đổi #{chua}" : "#{line2}   ·   chưa đổi #{chua}"
+        line3 = 'Kéo chuột quét qua chi tiết  ·  Ctrl+Z gỡ  ·  ESC thoát'
+
+        # Thông số bám đúng bảng nhắc của bộ (tim_tam_loi/main.rb:277): góc 18/18,
+        # bề rộng = 26 + ký_tự*9, nền (18,22,30,210), vạch màu 6px bên trái, chữ
+        # thụt x+16, dòng đầu trắng đậm 13, dòng nhắc vàng 11. Khác một điểm: bảng
+        # này 3 dòng (thêm dòng đếm theo tag) nên cao 80 thay vì 58.
         x = 18
         y = 18
-        w = 26 + [line1.length, line2.length].max * 8
-        h = 58
+        w = 26 + [line1.length, line2.length, line3.length].max * 9
+        h = 80
 
         bg = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]
              .map { |a, b| Geom::Point3d.new(a, b, 0) }
         view.drawing_color = Sketchup::Color.new(18, 22, 30, 210)
         view.draw2d(GL_POLYGON, bg)
 
+        # vạch màu bên trái = màu của tag đang quét sang (bộ dùng màu trạng thái
+        # của chính tool ở chỗ này)
         bar = [[x, y], [x + 6, y], [x + 6, y + h], [x, y + h]]
               .map { |a, b| Geom::Point3d.new(a, b, 0) }
-        view.drawing_color = COL_DONE
+        view.drawing_color = TK::ChongBay.color_for(@dst_name)
         view.draw2d(GL_POLYGON, bar)
 
-        view.draw_text(Geom::Point3d.new(x + 18, y + 10, 0), line1,
+        view.draw_text(Geom::Point3d.new(x + 16, y + 8, 0), line1,
                        color: Sketchup::Color.new(255, 255, 255),
-                       font: 'Arial', size: 12, bold: true)
-        view.draw_text(Geom::Point3d.new(x + 18, y + 32, 0), line2,
-                       color: Sketchup::Color.new(190, 195, 205),
+                       font: 'Arial', size: 13, bold: true)
+        view.draw_text(Geom::Point3d.new(x + 16, y + 32, 0), line2,
+                       color: Sketchup::Color.new(255, 255, 255),
+                       font: 'Arial', size: 11)
+        view.draw_text(Geom::Point3d.new(x + 16, y + 54, 0), line3,
+                       color: Sketchup::Color.new(255, 210, 60),
                        font: 'Arial', size: 11)
       end
     end

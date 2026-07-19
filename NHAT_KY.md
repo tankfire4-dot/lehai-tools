@@ -48,6 +48,11 @@ nhau) vừa quét lẹm sang cái bên cạnh. Dùng cạnh thật chữa cả h
 nháp cùng logic) đã đổi được 33/50 chi tiết trên file thật. Bản đóng vào repo **chưa chạy lại** —
 phải test qua Ruby Console trước khi release.
 
+**Kiểm chứng rạng sáng 20/07 (Khoa chạy thật):** quét chi tiết có `_ABF_hingeCup` nằm LỒNG BÊN
+TRONG — lỗ bản lề `ABF-D35`/`ABF-D3` **giữ nguyên tag**, chỉ viền `ABF_cuttingLines` bị đổi.
+Xác nhận bộ lọc per-entity đúng như thiết kế: tool đi xuyên mọi tầng con nhưng chỉ đổi entity có
+tag khớp họ cutting-lines/CHONGBAY; group lồng trong và mọi tag gia công khác không bị chạm.
+
 **Bổ sung cùng ngày — chế độ GỠ, và cách gỡ ĐÚNG:**
 
 Thiếu đường gỡ khi quét nhầm (Ctrl+Z chỉ lùi được theo thứ tự, không chọn được cái nào). Thêm

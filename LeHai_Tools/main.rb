@@ -17,6 +17,7 @@ module LeHai
         File.join(path, 'kiem_tra_do_day', 'main'),
         File.join(path, 'tim_tam_loi',   'main'),
         File.join(path, 'kiem_tra_khoang_cach', 'main'),
+        File.join(path, 'chong_bay',     'main'),
         File.join(path, 'truc_toa_do',   'main'),
         File.join(path, 'dim_nhanh',     'main'),
         File.join(path, 'trung_tam',        'main'),
@@ -45,6 +46,7 @@ module LeHai
       puts "[LeHai_Tools] Defined? TK::ThickCheck         = #{defined?(::TK::ThickCheck).inspect}"
       puts "[LeHai_Tools] Defined? TK::ABFFinder          = #{defined?(::TK::ABFFinder).inspect}"
       puts "[LeHai_Tools] Defined? TK::SpacingCheck       = #{defined?(::TK::SpacingCheck).inspect}"
+      puts "[LeHai_Tools] Defined? TK::ChongBay           = #{defined?(::TK::ChongBay).inspect}"
       puts "[LeHai_Tools] Defined? TK::AxisFix            = #{defined?(::TK::AxisFix).inspect}"
       puts "[LeHai_Tools] Defined? TK::QuickDim           = #{defined?(::TK::QuickDim).inspect}"
       puts "[LeHai_Tools] Defined? TK::DuplicateCheck     = #{defined?(::TK::DuplicateCheck).inspect}"
@@ -80,6 +82,10 @@ module LeHai
         # Kiểm Tra Khoảng Cách — QC sau nesting, cùng cụm kiểm tra
         [defined?(::TK::SpacingCheck) && ::TK::SpacingCheck.respond_to?(:create_cmd),
          -> { ::TK::SpacingCheck.create_cmd }],
+        # Chống Bay — quét đổi tag chi tiết nhỏ sang tag chống bay (sau nesting,
+        # trước khi xuất DXF) → đặt cạnh cụm soi tấm sau nesting
+        [defined?(::TK::ChongBay) && ::TK::ChongBay.respond_to?(:create_cmd),
+         -> { ::TK::ChongBay.create_cmd }],
         [defined?(::TK::AxisFix) && ::TK::AxisFix.respond_to?(:create_cmd),
          -> { ::TK::AxisFix.create_cmd }],
         # Dim Nhanh — đo/ghi kích thước nhanh (drafting)

@@ -211,6 +211,7 @@ toolbar rỗng tên `X` mà SketchUp nhớ — gỡ ở **View → Toolbars → 
 | Trùng Tấm | `TK::DuplicateCheck` |
 | Bản Lề Cánh | `TK::HingeCheck` |
 | Liên Kết (rãnh hậu + ngàm) | `TK::JointCheck` |
+| **Chống Bay** (quét đổi tag chi tiết nhỏ, sau nesting) | `TK::ChongBay` |
 | **Check Chốt Sản Xuất** (dashboard, cuối toolbar, icon khiên) | `TK::PreExportCheck` |
 
 > Bộ "Check Chốt Sản Xuất" từng tách ra repo `lehai-check` (2026-07-01) rồi **GỘP TRỞ LẠI**

@@ -12,6 +12,44 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-19 — Chống Bay: tool quét đổi tag chi tiết nhỏ (tool thứ 17)
+
+**Vấn đề:** chi tiết nhỏ bay khi chạy đường cắt chính — mất lực hút chân không rồi văng. Khoa muốn
+đánh dấu riêng mấy chi tiết đó để bên Aspire chạy dao khác (giữ lại, cắt sau, hoặc chừa da).
+
+**Điều tra (probe đọc file đã nest):** ABF **không** dồn hết vào một tag — `ABF_cuttingLines` chỉ
+chiếm 4.7% (250/5318 entity). Mỗi loại gia công có tag riêng: `ABF_Groove` (rãnh), `ABF-D35` +
+`ABF-D3` (khoan cốc bản lề Ø35 + 2 lỗ vít Ø3), `ABF_Label`, `ABF_sheetBorder`. **Tag đặt theo đường
+kính khoan** (`ABF-D<Ø>`) — nghĩa là muốn thêm lỗ vít chống bay thì đã có sẵn khuôn, không phải
+phát minh gì.
+
+**Quyết định:** viết tool quét riêng, **không dùng selection của SketchUp**. Tự chiếu cạnh thật của
+từng chi tiết lên màn hình rồi so với khung quét (cắt đoạn thẳng, không dùng hộp bao).
+
+**Vì sao không dùng selection:** chi tiết nằm trong `__ABF_Nesting`. Quét ở ngoài group thì SketchUp
+chỉ chọn được nguyên cả cục — Khoa quét thật, Entity Info báo "No Selection". Không phải lỗi vặt sửa
+được, là bản chất cách SketchUp chọn. Đã thử cả hướng SelectionObserver (quét xong tự đổi) — vẫn
+chết vì cùng lý do: không có gì để observe.
+
+**Vì sao không dùng hộp bao:** chi tiết nesting nằm xiên → hộp bao phình to, vừa vẽ xấu (khung chồng
+nhau) vừa quét lẹm sang cái bên cạnh. Dùng cạnh thật chữa cả hai bằng một thay đổi.
+
+**Bài học / Rủi ro (cả hai đều trả giá bằng lần chạy thật, không phải suy đoán):**
+1. **Tag ABF nằm ở EDGE, không nằm ở GROUP vỏ.** Group `_ABF_Label`, `_ABF_hingeCup`,
+   `_ABF_Intersect`, `__ABF_Nesting` đều đeo `Layer0`; edge bên trong mới mang tag thật. Chỉ đổi tag
+   ở group thì **DXF ra layer rỗng mà trong SketchUp nhìn vẫn thấy "có tag"** — bug im lặng.
+   (Ngoại lệ: `_ABF_cuttingLines` và `__ABF_sheetBorder` đeo tag ở cả hai cấp.)
+2. **Chi tiết nesting DÙNG CHUNG group.** Lần chạy thật báo "tách 18 container dùng chung". Không
+   `make_unique` trước khi sửa thì đổi 18 cái là 18 cái ở tấm khác đổi lây, không hiện triệu chứng
+   gì cho tới lúc ra máy cắt. `make_unique` thay entity cũ bằng entity mới → phải **quét lại danh
+   sách sau mỗi lần đổi**, không tin danh sách cũ.
+
+**Chưa kiểm được:** máy không có Ruby nên chưa chạy `ruby -c`. Bản chạy tay qua Ruby Console (bản
+nháp cùng logic) đã đổi được 33/50 chi tiết trên file thật. Bản đóng vào repo **chưa chạy lại** —
+phải test qua Ruby Console trước khi release.
+
+---
+
 ## 2026-07-03 — Liên Kết: đo ĐÂM XUYÊN GỖ THẬT thay bbox + check Đặt Tên (v1.9.38)
 
 **Vấn đề (Khoa phát hiện):** JointCheck dùng bounding box → mù với ngàm KHẤU TAY (đục mộng thủ công,

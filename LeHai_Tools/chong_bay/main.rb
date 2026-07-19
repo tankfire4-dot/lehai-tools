@@ -19,6 +19,7 @@ module TK
   module ChongBay
 
     PATH      = File.dirname(__FILE__).freeze
+    THEME     = File.join(PATH, '..', 'shared', 'lehai_theme.css').freeze
 
     SRC_TAG   = 'ABF_cuttingLines'.freeze
     SRC_RE    = /cutting.?lines/i.freeze     # phòng tên viết hoa/thường khác nhau
@@ -93,10 +94,124 @@ module TK
       end
     end
 
-    # Màu overlay của một tag. Tag không tên (chưa đổi) → xám.
+    # Màu overlay của một tag. Tag không tên (chưa đổi) hoặc tag nguồn → xám.
     def self.color_for(tag_name)
-      return COL_TODO if tag_name.nil?
+      return COL_TODO if tag_name.nil? || tag_name == SRC_TAG
       TAG_COLORS[tag_name] || PALETTE[tag_name.hash.abs % PALETTE.size]
+    end
+
+    def self.find_tag(model, name)
+      model.layers.to_a.find { |l| l.name.to_s == name }
+    end
+
+    # Layer ABF_cuttingLines — chỉ dùng làm ĐƯỜNG LUI khi không có ghi chú tag gốc.
+    def self.src_layer(model)
+      find_tag(model, SRC_TAG) || model.layers.add(SRC_TAG)
+    end
+
+    # ── Nhớ tag gốc để gỡ đúng ────────────────────────────────────
+    # Gỡ KHÔNG đoán "chắc nó vốn là ABF_cuttingLines". Mình không viết ABF, không
+    # biết nó còn dựa vào gì. Nên lúc gắn thì GHI LẠI tag gốc lên chính entity đó,
+    # lúc gỡ thì đọc ra mà trả về. Khuôn: auto_dan_canh/main.rb:504-517 (nhớ
+    # OriginalMat rồi trả lại + delete_attribute).
+    DICT = 'LeHai_ChongBay'.freeze
+    KEY  = 'tag_goc'.freeze
+
+    def self.set_tag(e, mode, dst)
+      model = Sketchup.active_model
+      if mode == :go
+        ten = e.get_attribute(DICT, KEY)
+        lay = ten && find_tag(model, ten.to_s)
+        e.layer = lay || src_layer(model)   # không có ghi chú → đường lui
+        e.delete_attribute(DICT)
+      else
+        # ghi MỘT LẦN: chuyển trái ↔ phải không được đè mất tag gốc thật
+        e.set_attribute(DICT, KEY, tag_name(e)) if e.get_attribute(DICT, KEY).nil?
+        e.layer = dst
+      end
+    end
+
+    # ── Bảng tổng kết khi thoát (khuôn Dim Nhanh: ESC → bảng kê) ──────
+
+    def self.hex(color)
+      format('#%02x%02x%02x', color.red, color.green, color.blue)
+    end
+
+    def self.esc_html(s)
+      s.to_s.gsub('&', '&amp;').gsub('<', '&lt;').gsub('>', '&gt;')
+    end
+
+    # trong_file = { tên_tag => tổng chi tiết đang đeo tag đó trong cả file }
+    # con_lai    = số chi tiết chưa gắn tag chống bay nào
+    # Bất biến kiểm được bằng mắt: số lớn + con_lai = tổng chi tiết của file.
+    def self.show_summary(trong_file, con_lai)
+      @dlg.close if @dlg && (@dlg.visible? rescue false)
+      @dlg = UI::HtmlDialog.new(
+        dialog_title:    'Chống Bay — đã gắn',
+        preferences_key: 'tk.chongbay',
+        width: 380, height: 400, min_width: 320, min_height: 300,
+        resizable: true, style: UI::HtmlDialog::STYLE_DIALOG
+      )
+      @dlg.add_action_callback('close_dlg') { |_ctx| @dlg.close }
+      @dlg.set_html(build_summary_html(trong_file, con_lai))
+      @dlg.show
+    end
+
+    def self.build_summary_html(trong_file, con_lai)
+      da_gan = trong_file.values.inject(0) { |s, v| s + v }
+
+      rows = trong_file.keys.sort.map do |tag|
+        mau = hex(color_for(tag))
+        "<tr>" \
+          "<td><span class='dot' style='background:#{mau}'></span>#{esc_html(tag)}</td>" \
+          "<td class='v'>#{trong_file[tag].to_i}</td>" \
+        "</tr>"
+      end.join
+
+      theme = File.exist?(THEME) ? File.read(THEME, encoding: 'UTF-8') : ''
+      <<~HTML
+        <!DOCTYPE html><html><head><meta charset="utf-8">
+        <style>#{theme}
+          table{width:100%;border-collapse:collapse;font-size:13px}
+          th{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+             color:var(--lh-ink-soft);text-align:left;padding:6px 8px;
+             border-bottom:1.5px solid var(--lh-line)}
+          td{padding:7px 8px;border-bottom:1px solid var(--lh-line-2)}
+          td.v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;
+               color:var(--lh-amber)}
+          .dot{display:inline-block;width:10px;height:10px;border-radius:3px;
+               margin-right:8px;vertical-align:-1px}
+          .tot{display:flex;justify-content:space-between;align-items:baseline;
+               margin-top:14px;padding:12px 8px;background:var(--lh-fill);
+               border-radius:var(--lh-radius)}
+          .tot b{font-size:22px;color:var(--lh-amber-2)}
+          .lh-copybtn{width:auto;padding:7px 13px;font-size:12px}
+        </style></head>
+        <body class="lh"><div class="lh-dialog">
+          <div class="lh-eyebrow">LeHai's Decor Tools</div>
+          <h1 class="lh-title">Đã gắn chống bay</h1>
+          <div class="lh-card" style="padding:6px 8px 8px">
+            <table>
+              <thead><tr><th>Tag</th>
+                <th style="text-align:right">Trong file</th></tr></thead>
+              <tbody>#{rows}</tbody>
+            </table>
+          </div>
+          <div class="tot">
+            <span class="lh-label" style="margin:0">Đã gắn · còn #{con_lai} chi tiết chưa gắn</span>
+            <b>#{da_gan}</b>
+          </div>
+          <div class="lh-hint">
+            Nhớ khai đúng tên tag bên ABF (mục Layer) thì khâu xuất DXF mới nhận —
+            hai bên là hai danh sách riêng, chỉ dính nhau qua tên.
+          </div>
+          <div style="margin-top:14px;text-align:right">
+            <button class="lh-btn lh-btn--primary lh-copybtn"
+                    onclick="sketchup.close_dlg()">Xong</button>
+          </div>
+          <div class="lh-foot"><span>LeHai Tools</span><span>Chống Bay</span></div>
+        </div></body></html>
+      HTML
     end
 
     # Chỉ dùng cho trường hợp hiếm: file không có tag chống bay nào và cũng không
@@ -187,7 +302,7 @@ module TK
       false
     end
 
-    def self.apply(entities, match, dst, depth, stats)
+    def self.apply(entities, match, mode, dst, depth, stats)
       return if depth > MAX_DEPTH
       entities.each do |e|
         if container?(e)
@@ -203,25 +318,26 @@ module TK
             end
           end
           if match.call(e)
-            e.layer = dst
+            set_tag(e, mode, dst)
             stats[:groups] += 1
           end
-          apply(kids_of(e), match, dst, depth + 1, stats)   # gọi SAU make_unique
+          apply(kids_of(e), match, mode, dst, depth + 1, stats)  # gọi SAU make_unique
         elsif match.call(e)
-          e.layer = dst
+          set_tag(e, mode, dst)
           stats[:leaves] += 1
         end
       end
     end
 
     # Trả về stats, hoặc nil nếu không có gì để đổi
-    def self.retag(items, match, dst)
+    # mode = :gan (gắn chống bay) | :go (trả về tag gốc đã ghi nhớ)
+    def self.retag(items, match, mode, dst)
       model = Sketchup.active_model
       stats = { :groups => 0, :leaves => 0, :unique => 0, :unique_fail => 0 }
 
       model.start_operation('Doi tag chong bay', true)
       begin
-        apply(items, match, dst, 0, stats)
+        apply(items, match, mode, dst, 0, stats)
         if stats[:groups] + stats[:leaves] == 0
           model.abort_operation                 # không đổi gì → khỏi bậc undo rỗng
           return nil
@@ -240,13 +356,18 @@ module TK
     class SweepTool
 
       # tags = danh sách tag chống bay, Tab xoay vòng qua chúng
+      # Vòng Tab: các tag chống bay, rồi tới CHẾ ĐỘ GỠ (vị trí cuối cùng).
+      # Gỡ = trả chi tiết về ABF_cuttingLines. Nhét vào cùng vòng Tab thay vì
+      # thêm phím mới: Khoa đã quen Tab rồi, không phải học thêm gì.
       def initialize(tags)
-        @tags = tags
-        @i    = 0
+        @tags   = tags
+        @i      = 0
+        @co_doi = false     # phiên này có đổi được gì không (quyết định hiện bảng)
       end
 
-      def dst      ; @tags[@i]                 end
-      def dst_name ; @tags[@i].name.to_s       end
+      def erase?   ; @i == @tags.size end
+      def dst      ; erase? ? nil : @tags[@i] end
+      def dst_name ; erase? ? TK::ChongBay::SRC_TAG : @tags[@i].name.to_s end
 
       def activate
         rescan
@@ -264,17 +385,17 @@ module TK
       end
 
       def onCancel(_reason, view)
-        view.model.select_tool(nil)
+        finish(view)
       end
 
       # Tab xoay vòng tag đích — khuôn dim_nhanh/main.rb:197 (key 9 = Tab)
       def onKeyDown(key, _rep, _flags, view)
-        if key == 9 && @tags.size > 1
-          @i = (@i + 1) % @tags.size
+        if key == 9
+          @i = (@i + 1) % (@tags.size + 1)   # +1 = ô cuối cho chế độ GỠ
           view.invalidate
           return false
         end
-        view.model.select_tool(nil) if key == 27   # Esc
+        finish(view) if key == 27   # Esc
         false
       end
 
@@ -294,7 +415,16 @@ module TK
         return unless @drag
         @drag = false
         @x1 = x; @y1 = y
-        apply_rect(view)
+        begin
+          apply_rect(view)
+        rescue => e
+          # Surface lỗi thay vì để SketchUp ném backtrace cụt ra Console
+          # (LUAT_NHA mục 4: thao tác sửa model luôn phải báo ra).
+          msg = "Lỗi khi quét: #{e.class}: #{e.message}"
+          puts msg
+          puts e.backtrace.first(5).join("\n") if e.backtrace
+          UI.messagebox("#{msg}\n\n#{(e.backtrace || []).first(3).join("\n")}")
+        end
         view.invalidate
       end
 
@@ -340,6 +470,23 @@ module TK
         @cands = TK::ChongBay.collect_cands
       end
 
+      # Thoát tool. Có gắn được gì trong phiên thì mở bảng tổng kết; không gắn gì
+      # thì im lặng, đừng bắt bấm thêm một hộp thoại vô nghĩa.
+      # Khuôn: dim_nhanh/main.rb:301 (ESC → bảng kê).
+      #
+      # Bảng chỉ báo TRẠNG THÁI HIỆN TẠI của file, không báo "phiên này gắn bao
+      # nhiêu". Cột đó từng có và đã bỏ (19/07): vừa sai — cộng dồn nên quét đi
+      # quét lại thì đội số lên quá cả số chi tiết có thật — vừa không ai cần.
+      def finish(view)
+        view.model.select_tool(nil)
+        return unless @co_doi
+
+        trong_file = Hash.new(0)
+        con_lai    = 0
+        @cands.each { |c| c.tag ? trong_file[c.tag] += 1 : con_lai += 1 }
+        TK::ChongBay.show_summary(trong_file, con_lai)
+      end
+
       # ---- va chạm: khung quét vs CẠNH THẬT của chi tiết ----
 
       def in_rect?(p, r)
@@ -376,23 +523,38 @@ module TK
         # khung quá nhỏ = lỡ tay click, bỏ qua để khỏi đổi oan một chi tiết
         return if (rect[2] - rect[0]).abs < 4 && (rect[3] - rect[1]).abs < 4
 
-        # Quét trúng cái đang đeo tag khác thì ĐỔI SANG tag đích — cho phép chuyển
-        # trái ↔ phải. Chỉ bỏ qua cái đã đúng tag đích rồi.
-        hits = @cands.select do |c|
-          next false if c.tag == dst_name
-          next false if (c.group.deleted? rescue true)
-          touches?(view, c.segs, rect)
+        if erase?
+          # GỠ: chỉ đụng cái đang đeo tag chống bay, trả về ABF_cuttingLines.
+          hits = @cands.select do |c|
+            next false if c.tag.nil?
+            next false if (c.group.deleted? rescue true)
+            touches?(view, c.segs, rect)
+          end
+          return if hits.empty?
+          match  = lambda { |e| TK::ChongBay.tag_name(e) =~ TK::ChongBay::DST_RE ? true : false }
+          mode   = :go
+          target = nil          # tag trả về đọc từ ghi chú trên từng entity
+        else
+          # Quét trúng cái đang đeo tag khác thì ĐỔI SANG tag đích — cho phép
+          # chuyển trái ↔ phải. Chỉ bỏ qua cái đã đúng tag đích rồi.
+          hits = @cands.select do |c|
+            next false if c.tag == dst_name
+            next false if (c.group.deleted? rescue true)
+            touches?(view, c.segs, rect)
+          end
+          return if hits.empty?
+          ten   = dst_name
+          match = lambda do |e|
+            n = TK::ChongBay.tag_name(e)
+            next false if n == ten
+            TK::ChongBay.src?(e) || !!(n =~ TK::ChongBay::DST_RE)
+          end
+          mode   = :gan
+          target = dst
         end
-        return if hits.empty?
 
-        target = dst_name
-        match = lambda do |e|
-          n = TK::ChongBay.tag_name(e)
-          next false if n == target
-          TK::ChongBay.src?(e) || !!(n =~ TK::ChongBay::DST_RE)
-        end
-
-        stats = TK::ChongBay.retag(hits.map(&:group), match, dst)
+        stats = TK::ChongBay.retag(hits.map(&:group), match, mode, target)
+        @co_doi = true if stats && stats[:groups] > 0
         if stats && stats[:unique_fail] > 0
           UI.messagebox(
             "Cảnh báo: #{stats[:unique_fail]} nhóm không tách riêng được.\n\n" \
@@ -420,11 +582,18 @@ module TK
         theo  = Hash.new(0)
         @cands.each { |c| theo[c.tag] += 1 if c.tag }
 
-        line1 = @tags.size > 1 ? "Chống Bay → #{dst_name}    [Tab] đổi" :
-                                 "Chống Bay → #{dst_name}"
+        line1 = if erase?
+                  "Chống Bay → GỠ về #{TK::ChongBay::SRC_TAG}    [Tab] đổi"
+                else
+                  "Chống Bay → #{dst_name}    [Tab] đổi"
+                end
         line2 = theo.keys.sort.map { |t| "#{t} #{theo[t]}" }.join('   ·   ')
         line2 = line2.empty? ? "chưa đổi #{chua}" : "#{line2}   ·   chưa đổi #{chua}"
-        line3 = 'Kéo chuột quét qua chi tiết  ·  Ctrl+Z gỡ  ·  ESC thoát'
+        line3 = if erase?
+                  'Quét để GỠ chống bay  ·  [Tab] về chế độ gắn  ·  ESC thoát'
+                else
+                  'Kéo chuột quét qua chi tiết  ·  [Tab] tới cuối = GỠ  ·  ESC thoát'
+                end
 
         # Thông số bám đúng bảng nhắc của bộ (tim_tam_loi/main.rb:277): góc 18/18,
         # bề rộng = 26 + ký_tự*9, nền (18,22,30,210), vạch màu 6px bên trái, chữ
@@ -483,26 +652,6 @@ module TK
     end
 
     # Gỡ ngược trên vùng đang chọn (dùng khi lỡ quét nhầm cả mảng)
-    def self.revert_selection
-      model = Sketchup.active_model
-      if model.selection.empty?
-        UI.messagebox("Chưa chọn gì.\n\nChọn vùng cần gỡ rồi chạy lại.")
-        return
-      end
-      src = model.layers.to_a.find { |l| l.name.to_s == SRC_TAG }
-      if src.nil?
-        UI.messagebox("Không tìm thấy tag \"#{SRC_TAG}\" trong file này.")
-        return
-      end
-      match = lambda { |e| tag_name(e) =~ DST_RE ? true : false }
-      stats = retag(model.selection.to_a, match, src)
-      if stats.nil?
-        UI.messagebox('Không có chi tiết chống bay nào trong vùng đang chọn.')
-      else
-        UI.messagebox("Đã gỡ #{stats[:groups]} nhóm về \"#{SRC_TAG}\".")
-      end
-    end
-
     def self.create_cmd
       icons = File.join(PATH, 'icons')
       cmd = UI::Command.new('Chống Bay') { TK::ChongBay.start }

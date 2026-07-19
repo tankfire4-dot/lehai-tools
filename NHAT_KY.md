@@ -48,6 +48,32 @@ nhau) vừa quét lẹm sang cái bên cạnh. Dùng cạnh thật chữa cả h
 nháp cùng logic) đã đổi được 33/50 chi tiết trên file thật. Bản đóng vào repo **chưa chạy lại** —
 phải test qua Ruby Console trước khi release.
 
+**Bổ sung cùng ngày — chế độ GỠ, và cách gỡ ĐÚNG:**
+
+Thiếu đường gỡ khi quét nhầm (Ctrl+Z chỉ lùi được theo thứ tự, không chọn được cái nào). Thêm
+**chế độ GỠ vào chính vòng Tab** (TRAI → PHAI → GỠ), không thêm phím mới.
+
+Bản đầu gỡ bằng cách **gán về `ABF_cuttingLines`**. Khoa bác: *"nhiều khi cái suy nghĩ xóa để về lại
+ABF cutting line của ABF lại lỗi, vì tụi mình không hiểu rõ nó là gì."* Đúng — đó là **giả định**
+không có gì bảo đảm. Nay đổi: lúc gắn thì **ghi tag gốc lên chính entity** (`LeHai_ChongBay/tag_goc`),
+lúc gỡ thì đọc ra mà trả về, xong xoá ghi chú. `ABF_cuttingLines` tụt xuống chỉ còn là **đường lui**
+khi không có ghi chú. Khuôn: `auto_dan_canh/main.rb:504-517` (nhớ `OriginalMat` rồi trả lại).
+
+Ghi tag gốc **một lần duy nhất** — chuyển trái ↔ phải nhiều lần vẫn gỡ về đúng cái ban đầu.
+
+**Bài học (Khoa dạy, đáng giữ):** khi phải hoàn tác một thay đổi, đừng hỏi "trạng thái ban đầu chắc
+là gì" — hãy **ghi lại nó lúc còn thấy**. Suy đoán về hệ thống mình không viết ra là chỗ đẻ lỗi.
+
+**Sự cố cùng ngày:** bê code từ scratchpad sang repo, rơi mất hàm `find_tag` mà vẫn giữ 2 chỗ gọi →
+`undefined method` chỉ nổ trên nhánh gỡ. Mất 3 vòng test của Khoa. Cách chặn (quét gọi-vs-định-nghĩa,
+không cần Ruby) đã ghi vào `shared-notes/sketchup-api.md` mục 1b, kèm mẫu bọc `rescue` cho callback
+của `Sketchup::Tool` — SketchUp nuốt exception trong callback thành backtrace cụt, không hộp thoại.
+
+**Bỏ cột "Phiên này" trong bảng tổng kết:** cột đó cộng dồn từng nhát quét nên quét đi quét lại thì
+đội số lên quá cả số chi tiết có thật (báo "vừa gắn 34" trong khi cả file có 26). Khoa phát hiện vì
+**con số vô lý với thực tế xưởng**. Đã bỏ hẳn cột, bảng chỉ báo trạng thái hiện tại. Bất biến kiểm
+được bằng mắt: **số lớn + "chưa gắn" = tổng chi tiết của file**.
+
 **Phụ — bảng namespace trong CLAUDE.md đã lệch, nay sửa:** Claude nói "tool thứ 17" trong khi
 toolbar thật chỉ có 13 nút; Khoa nhìn toolbar thấy vênh nên hỏi lại. Truy ra bảng cũ vừa **thiếu**
 (không có `LedCheck`, `NameCheck`, `EdgeBandCheck`) vừa **không phân biệt** module có nút riêng với

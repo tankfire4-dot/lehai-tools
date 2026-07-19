@@ -64,7 +64,11 @@ module LeHai
         # ── Cụm 1: Dựng hình ──
         [defined?(::Lehai::TamGoGen),       -> { ::Lehai::TamGoGen.create_cmd }],
         [defined?(::CanhCNC),               -> { ::CanhCNC.create_cmd }],
-        [defined?(::LeHaiDecor::HaNen),     -> { ::LeHaiDecor::HaNen.create_cmd }],
+        # CẤT 19/07/2026 — bên thiết kế phản ánh không dùng Hạ Nền Uốn Cong nữa.
+        # Chỉ gỡ NÚT, KHÔNG xoá code: module vẫn `require` bên trên nên gọi được
+        # từ Ruby Console (`LeHaiDecor::HaNen.show`). Muốn trả nút lại thì bỏ dấu
+        # `#` ở dòng dưới, không phải viết lại gì.
+        # [defined?(::LeHaiDecor::HaNen),     -> { ::LeHaiDecor::HaNen.create_cmd }],
         # ── Cụm 2: Gia công & nhãn ──
         [defined?(::MyStudio::AutoEdgeBand),-> { ::MyStudio::AutoEdgeBand.create_cmd }],
         [defined?(::TuDong::DienTen),       -> { ::TuDong::DienTen.create_cmd }],

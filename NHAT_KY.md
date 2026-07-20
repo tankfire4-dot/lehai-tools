@@ -12,6 +12,36 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-20 — Chống Bay v1.9.48: một chữ số, và mỗi lượt kéo đúng 9 cái
+
+**Vấn đề:** Khoa xuất DXF sang Aspire, danh sách layer hiện `...1, ...10, ...11, ...12, ...2, ...3`.
+Không phải DXF thiếu layer — đủ cả 24. Aspire **sắp tên bằng chuỗi**.
+
+**Đây là con bug đã bắt hai lần trong chính code tool** (bảng điều khiển, rồi bảng tổng kết). Cả hai
+lần tao vá đúng chỗ Khoa chỉ. Lần này nó xuất hiện ở nơi tao **không vá được** — Aspire không phải
+code mình.
+
+**Quyết định:** hạ trần từ 12 xuống **9 đợt**. Một chữ số thì sắp chuỗi trùng sắp số ở mọi phần mềm.
+
+**Vì sao không đệm số 0 (`01`…`12`):** đệm 0 chữa được và giữ đủ 12 đợt — tao đã làm bản đó trước.
+Nhưng đổi tên tag nghĩa là phải **khai lại toàn bộ tên bên ABF**, lệch một ký tự là ABF im lặng
+không nhận. Khoa cân hai bên rồi chọn 9: xưởng chưa bao giờ chạm trần 12, còn khai lại tên là việc
+tay có thể sai âm thầm.
+
+**Sửa thứ hai (Khoa phát hiện khi nhìn màu):** một lượt kéo trúng 12 chi tiết thì số quay vòng —
+chi tiết thứ 10 nhận lại số 1, **cùng màu với chi tiết thứ nhất trong cùng một lượt**. Nhìn không ra
+là cố ý hay lỗi. Nay mỗi lượt kéo nhận tối đa `đợt_cuối − đợt_đầu + 1` chi tiết, dư thì bỏ phần cuối
+và báo rõ; kéo lượt nữa cho chúng. Số **vẫn** lặp giữa các lượt — đó mới là nghĩa "đợt cắt".
+
+**Bài học:**
+1. **Khi một cái tên bị nhiều phần mềm đọc, sửa CÁI TÊN chứ đừng sửa từng người đọc.** Vá chỗ hiển
+   thị là chữa triệu chứng ở những nơi mình với tay tới được, rồi để nguyên bệnh cho nơi mình không
+   với tới. Ở đây "sửa tên" hoá ra là **thu hẹp miền giá trị** (≤9) — rẻ hơn đổi định dạng tên.
+2. **Màu và số phải đọc được như nhau.** Màu sinh ra từ số, nên số trùng là màu trùng. Nếu miền số
+   nhỏ hơn số vật thể thì đừng quay vòng im lặng — cắt bớt và nói ra.
+
+---
+
 ## 2026-07-19 — Chống Bay: tool quét đổi tag chi tiết nhỏ (tool thứ 17)
 
 **Vấn đề:** chi tiết nhỏ bay khi chạy đường cắt chính — mất lực hút chân không rồi văng. Khoa muốn
@@ -621,6 +651,7 @@ Tóm tắt 1 dòng mỗi version. Lý do chi tiết của các thay đổi gần
 
 | Phiên bản | Ngày       | Nội dung |
 |-----------|------------|----------|
+| 1.9.48    | 2026-07-20 | Chống Bay: trần 9 đợt (một chữ số → Aspire sắp tên bằng chuỗi vẫn ra đúng thứ tự số); mỗi lượt kéo nhận tối đa `đợt_cuối−đợt_đầu+1` chi tiết, dư thì cắt bớt + báo, KHÔNG quay vòng (quay vòng làm hai chi tiết cùng lượt trùng số trùng màu) |
 | 1.9.10    | 2026-06-20 | Trục Tọa Độ: Reset phát hiện Dynamic Component (có dict `dynamic_attributes`) → bỏ qua + cảnh báo "gỡ DC trước" thay vì lặng lẽ không ăn (engine DC giữ Position kéo trục về chỗ cũ). Lý do: reset đổi transformation nhưng DC áp lại x/y/z stored → trục không bám góc tấm. Phải Dọn Component (DC→group) trước rồi mới reset |
 | 1.9.9     | 2026-06-20 | Thêm tool Trục Tọa Độ (`truc_toa_do/`, module `TK::AxisFix`): 1 icon mở bảng nhỏ — nút Reset trục về global (+ gốc về góc hình, khử -0) và 3 nút X/Y/Z xoay vật thể 90° quanh trục. Kết quả báo ngay trong bảng (không popup). Ở cụm DC, cuối toolbar |
 | 1.9.8     | 2026-06-20 | Dọn Component: tự `purge_unused` sau khi đổi component↔group → tránh rác definition phình file + số đuôi #N leo thang khi đổi qua lại nhiều lần |

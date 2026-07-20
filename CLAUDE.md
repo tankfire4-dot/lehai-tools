@@ -4,11 +4,12 @@
 
 Đọc `C:\Users\tankf\.claude\profile\PROFILE.md` và các file liên quan trước khi làm việc.
 Cập nhật profile nếu có thông tin mới đáng lưu trong session này.
-Sau khi cập nhật bất kỳ file nào trong profile, chạy luôn: `cd C:\Users\tankf\.claude\profile && git add . && git commit -m "update: <nội dung>" && git push`
+Sau khi cập nhật bất kỳ file nào trong profile, commit LOCAL: `cd C:\Users\tankf\.claude\profile && git add . && git commit -m "update: <nội dung>"`.
+**KHÔNG push** — ghi lệnh push vào `KHOA.md` cho Khoa tự chạy (luật CONG GITHUB 16/07, xem `agent_lab_khoa/AGENTS.md`).
 
 ## Cách làm việc
 
-- Xưng hô: **ông** (Claude) / **tôi** (Khoa) — luôn luôn
+- Xưng hô: agent xưng **tao**, gọi Khoa là **mày** — luôn luôn (Khoa chốt 18/07, xem `AGENTS.md`)
 - Giải thích như báo cáo cho sếp không chuyên IT — tránh jargon kỹ thuật
 - Đưa khuyến nghị rõ ràng, không liệt kê options trung lập
 

@@ -23,26 +23,49 @@ module TK
 
     SRC_TAG   = 'ABF_cuttingLines'.freeze
     SRC_RE    = /cutting.?lines/i.freeze     # phòng tên viết hoa/thường khác nhau
-    DST_RE      = /chongbay/i.freeze         # tag đích do Khoa tạo bên ABF
-    DEFAULT_DST = 'CHONGBAYTRAI'.freeze      # tên gợi ý sẵn khi phải tạo tag
+    DST_RE      = /chongbay/i.freeze         # nhận DIỆN mọi tag chống bay (kể cả
+                                             # tag cũ chưa đánh số, để gỡ được)
 
-    # Hai tag này tạo sẵn cho mọi file — đỡ phải khai tay từng lần.
-    # Vẫn phải khai ĐÚNG tên bên ABF thì hai bên mới khớp.
-    DEFAULT_TAGS = ['CHONGBAYTRAI', 'CHONGBAYPHAI'].freeze
+    # ── Tag = HƯỚNG + SỐ THỨ TỰ CẮT ──────────────────────────────
+    # Số không phải để đánh dấu — nó là THỨ TỰ CẮT. Mỗi số thành một tag riêng
+    # → bên Aspire thành một đường dao riêng, máy chạy lần lượt. Chống bay bằng
+    # cách xếp trình tự: chi tiết nào cắt trước, chi tiết nào cắt sau khi xung
+    # quanh còn nguyên để giữ ván. (Khuôn ABF moro, Khoa chốt 20/07.)
+    HUONG = ['CHONGBAYTRAI', 'CHONGBAYPHAI'].freeze   # thứ tự Tab xoay
 
-    # Mỗi tag một màu để nhìn phát biết cái nào trái cái nào phải.
-    TAG_COLORS = {
-      'CHONGBAYTRAI' => Sketchup::Color.new(0, 190, 80),     # xanh lá
-      'CHONGBAYPHAI' => Sketchup::Color.new(255, 130, 0)     # cam
+    # Màu GỐC của từng hướng — số 1 đậm nhất, số càng lớn càng nhạt dần.
+    # Nhìn cả tấm là đọc được trình tự cắt, khỏi bấm từng tag.
+    MAU_GOC = {
+      'CHONGBAYTRAI' => Sketchup::Color.new(0, 150, 60),     # xanh lá đậm
+      'CHONGBAYPHAI' => Sketchup::Color.new(210, 90, 0)      # cam đậm
     }.freeze
 
-    # Tag chống bay tự đặt thêm thì lấy màu theo thứ tự trong bảng này
-    PALETTE = [
-      Sketchup::Color.new(60, 130, 255),    # xanh dương
-      Sketchup::Color.new(200, 60, 220),    # tím
-      Sketchup::Color.new(220, 200, 0),     # vàng
-      Sketchup::Color.new(0, 200, 200)      # xanh ngọc
-    ].freeze
+    SO_DAU_MD  = 1
+    SO_CUOI_MD = 9      # mặc định
+    # TRẦN CỨNG **9** — Khoa chốt 20/07 (đổi từ 12 xuống).
+    # Hai lý do, lý do sau mới là lý do thật:
+    #   1. Mỗi số là một tag VÀ một đường dao phải dựng tay bên Aspire — gõ nhầm
+    #      40 là đẻ ra 40 đường dao, dọn rất mệt.
+    #   2. MỘT CHỮ SỐ thì sắp CHUỖI trùng sắp SỐ. Aspire sắp tên layer bằng chuỗi
+    #      và không phải code mình để vá: hễ có số 2 chữ số là "TRAI10" chen lên
+    #      trước "TRAI2", sai thứ tự cắt. Trần 9 làm lỗi đó không tồn tại được.
+    # Đổi trần lên >9 thì BẮT BUỘC đệm 0 trong ten_tag, nếu không là tái phát.
+    SO_TOI_DA  = 9
+    NHAT_NHAT  = 0.72   # số cuối nhạt tới đâu (0 = giữ nguyên, 1 = trắng hẳn)
+
+    # ── Kiểu quét ────────────────────────────────────────────────
+    # :khung = kéo hình chữ nhật, trúng cả cụm (nhanh, thứ tự theo hướng kéo)
+    # :duong = kéo một đường thẳng, đánh số theo thứ tự đường cắt qua
+    # :tu_do = vẽ tay tự do, đánh số theo đúng thứ tự nét đi qua
+    #          (trước gọi "zigzag" — Khoa 20/07: nét là do mình vẽ chứ không phải
+    #           hình zigzag đều, gọi "vẽ tự do" đúng hơn)
+    KIEU     = [:khung, :duong, :tu_do].freeze
+    BUOC_NET = 4        # nét tự do chỉ ghi thêm điểm khi chuột đi quá 4px
+
+    # Tô NỀN chi tiết thay vì chỉ tô viền: đợt sau màu nhạt, viền mảnh nhìn không
+    # ra (Khoa 20/07). Khuôn alpha: tim_tam_loi/main.rb:211.
+    FILL_ALPHA = 120
+
     MAX_DEPTH = 12
 
     COL_DONE  = Sketchup::Color.new(0, 190, 80)      # xanh lá = đã đổi
@@ -79,25 +102,68 @@ module TK
     # đẻ tag SketchUp thật khi có hình được gán vào. Nên tag tạo ở đây phải đặt
     # ĐÚNG tên đã khai bên ABF thì hai bên mới khớp — lệch tên là ABF không nhận
     # mà chẳng báo lỗi gì.
-    # Tạo sẵn CHONGBAYTRAI + CHONGBAYPHAI nếu file chưa có. layers.add trả về cái
-    # cũ nếu đã tồn tại nên gọi nhiều lần vô hại.
-    def self.ensure_default_tags(model)
-      thieu = DEFAULT_TAGS.reject { |n| model.layers.to_a.any? { |l| l.name.to_s == n } }
-      return if thieu.empty?
-      model.start_operation('Tao tag chong bay', true)
-      begin
-        thieu.each { |n| model.layers.add(n) }
-        model.commit_operation
-      rescue => e
-        model.abort_operation
-        UI.messagebox("Lỗi: #{e.message}")
+    # Tách tên tag thành [hướng, số]. Tag cũ chưa đánh số → số nil.
+    def self.tach_tag(ten)
+      m = ten.to_s.match(/\A(CHONGBAY(?:TRAI|PHAI))(\d*)\z/i)
+      return [nil, nil] unless m
+      [m[1].upcase, (m[2].empty? ? nil : m[2].to_i)]
+    end
+
+    # KHÔNG đệm 0: tên giữ nguyên "CHONGBAYTRAI1"… "CHONGBAYTRAI9" như đã khai
+    # bên ABF. Đệm 0 chỉ cần khi trần >9 (xem SO_TOI_DA) — với trần 9 thì thừa,
+    # mà đổi tên là phải khai lại toàn bộ bên ABF, lệch một ký tự là ABF im lặng
+    # không nhận.
+    def self.ten_tag(huong, so)
+      format('%s%d', huong, so.to_i)
+    end
+
+    # Sắp tên tag theo [hướng, SỐ THẬT] — KHÔNG sắp bằng chuỗi.
+    # Sắp chuỗi thì "TRAI12" đứng trước "TRAI2" vì so ký tự '1' với '2'.
+    # Khoa bắt được lỗi này HAI LẦN (bảng điều khiển, rồi bảng tổng kết) vì lần
+    # đầu vá một chỗ mà không tìm hết. Nay dùng chung một hàm — mọi chỗ sắp tên
+    # tag đều phải gọi nó.
+    def self.sap_tag(tens)
+      tens.sort_by do |t|
+        h, s = tach_tag(t)
+        [h || t.to_s, s || 0]
       end
     end
 
-    # Màu overlay của một tag. Tag không tên (chưa đổi) hoặc tag nguồn → xám.
-    def self.color_for(tag_name)
+    # Màu overlay: số 1 đậm nhất, số càng lớn càng pha trắng nhiều.
+    # so_cuoi truyền vào để dải màu co giãn theo khoảng Khoa đang đặt.
+    def self.color_for(tag_name, so_dau = SO_DAU_MD, so_cuoi = SO_CUOI_MD)
       return COL_TODO if tag_name.nil? || tag_name == SRC_TAG
-      TAG_COLORS[tag_name] || PALETTE[tag_name.hash.abs % PALETTE.size]
+      huong, so = tach_tag(tag_name)
+      goc = MAU_GOC[huong]
+      return COL_TODO if goc.nil?
+      return goc if so.nil?     # tag cũ chưa đánh số → màu gốc
+
+      span = (so_cuoi - so_dau).to_f
+      t    = span <= 0 ? 0.0 : ((so - so_dau) / span)
+      t    = 0.0 if t < 0.0
+      t    = 1.0 if t > 1.0
+      pha  = t * NHAT_NHAT      # pha về phía trắng
+      Sketchup::Color.new(
+        (goc.red   + (255 - goc.red)   * pha).round,
+        (goc.green + (255 - goc.green) * pha).round,
+        (goc.blue  + (255 - goc.blue)  * pha).round
+      )
+    end
+
+    # Tìm hoặc TẠO tag theo hướng+số, và sơn màu cho nó luôn để bảng Tags của
+    # SketchUp cũng hiện đúng dải màu. Tạo LƯỜI — chỉ đẻ tag khi thật sự dùng
+    # tới, không nhồi sẵn 80 tag vào mọi file.
+    def self.tag_theo_so(model, huong, so, so_dau, so_cuoi)
+      ten = ten_tag(huong, so)
+      lay = find_tag(model, ten) || model.layers.add(ten)
+      # Layer#color= CHƯA có tiền lệ chạy trong repo → bọc respond_to? + rescue.
+      # Hỏng thì chỉ mất màu trong bảng Tags, overlay của tool vẫn đúng.
+      begin
+        lay.color = color_for(ten, so_dau, so_cuoi) if lay.respond_to?(:color=)
+      rescue => e
+        puts "[Chống Bay] không sơn được màu tag #{ten}: #{e.message}"
+      end
+      lay
     end
 
     def self.find_tag(model, name)
@@ -131,6 +197,182 @@ module TK
       end
     end
 
+    # ── Bảng điều khiển chạy song song với bộ quét ───────────────
+    # Khuôn dien_ten: HtmlDialog mở cùng lúc với một Tool, hai bên đồng bộ.
+    # Bảng nhắc trong khung nhìn chỉ ĐỌC được; bảng này BẤM được.
+    # Ivar riêng @panel — KHÔNG dùng chung @dlg với bảng tổng kết, kẻo thoát tool
+    # là đóng nhầm nhau.
+
+    def self.show_panel(tool)
+      @tool = tool
+      if @panel && (@panel.visible? rescue false)
+        @panel.bring_to_front
+        return
+      end
+      @panel = UI::HtmlDialog.new(
+        dialog_title:    'Chống Bay',
+        preferences_key: 'tk.chongbay.panel',
+        width: 300, height: 430, min_width: 260, min_height: 360,
+        resizable: true, style: UI::HtmlDialog::STYLE_UTILITY
+      )
+      @panel.add_action_callback('dat_huong') do |_c, i|
+        @tool.dat_huong(i.to_i) if @tool
+      end
+      @panel.add_action_callback('dat_kieu') do |_c, i|
+        @tool.dat_kieu(i.to_i) if @tool
+      end
+      @panel.add_action_callback('dat_khoang') do |_c, a, b|
+        @tool.dat_khoang(a.to_i, b.to_i) if @tool
+      end
+      # Kết thúc tool từ bảng. HOÃN qua timer: đóng tool sẽ đóng luôn chính cái
+      # dialog đang chạy callback này — làm thẳng là tự rút ghế mình đang ngồi.
+      # Khuôn hoãn: ha_nen/main.rb:66.
+      @panel.add_action_callback('xong') do |_c|
+        UI.start_timer(0, false) { @tool.ket_thuc if @tool }
+      end
+      @panel.set_html(build_panel_html)
+      @panel.show
+    end
+
+    # Lời nhắc ngắn trên bảng (vd "đã gắn rồi, Gỡ trước"). Chuỗi truyền vào
+    # KHÔNG được chứa dấu nháy đơn — nó đi thẳng vào lời gọi JS.
+    def self.nhac(msg)
+      return unless @panel && (@panel.visible? rescue false)
+      @panel.execute_script("nhac('#{msg.to_s.gsub("'", '')}')")
+    rescue => e
+      puts "[Chống Bay] không hiện được lời nhắc: #{e.message}"
+    end
+
+    def self.dong_panel
+      @tool = nil
+      begin
+        @panel.close if @panel && (@panel.visible? rescue false)
+      rescue => e
+        puts "[Chống Bay] không đóng được bảng: #{e.message}"
+      end
+      @panel = nil
+    end
+
+    # dem = [[ten_tag_hoac_nil, so_luong], ...]
+    def self.sync_panel(huong_i, kieu_i, so_dau, so_cuoi, dem)
+      return unless @panel && (@panel.visible? rescue false)
+      hang = dem.map do |ten, n|
+        mau = hex(color_for(ten, so_dau, so_cuoi))
+        "[\"#{esc_html(ten || 'chưa gắn')}\",#{n},\"#{mau}\"]"
+      end.join(',')
+      @panel.execute_script(
+        "capNhat(#{huong_i},#{kieu_i},#{so_dau},#{so_cuoi},[#{hang}])"
+      )
+    rescue => e
+      puts "[Chống Bay] không cập nhật được bảng: #{e.message}"
+    end
+
+    def self.build_panel_html
+      theme = File.exist?(THEME) ? File.read(THEME, encoding: 'UTF-8') : ''
+      <<~HTML
+        <!DOCTYPE html><html><head><meta charset="utf-8">
+        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>#{theme}
+          /* chỉ thêm phần theme chưa có: bảng đếm + chấm màu.
+             Nút bấm / ô nhập dùng nguyên class nhà (.lh-chip, .lh-input). */
+          table { width: 100%; border-collapse: collapse; font-size: 13px; }
+          td { padding: 6px 8px; border-bottom: 1px solid var(--lh-line-2); }
+          td.v { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+          .dot {
+            display: inline-block; width: 10px; height: 10px; border-radius: 3px;
+            margin-right: 7px; vertical-align: -1px;
+          }
+        </style></head>
+        <body class="lh"><div class="lh-dialog">
+          <div class="lh-eyebrow">LeHai's Decor Tools</div>
+          <h1 class="lh-title">Chống Bay</h1>
+
+          <div class="lh-field">
+            <label class="lh-label">Hướng</label>
+            <div class="lh-chips">
+              <button class="lh-chip is-active" id="h0" onclick="pick(0)">Trái</button>
+              <button class="lh-chip" id="h1" onclick="pick(1)">Phải</button>
+              <button class="lh-chip" id="h2" onclick="pick(2)">Gỡ</button>
+            </div>
+          </div>
+
+          <div class="lh-field">
+            <label class="lh-label">Kiểu quét</label>
+            <div class="lh-chips">
+              <button class="lh-chip is-active" id="k0" onclick="pickK(0)">Khung</button>
+              <button class="lh-chip" id="k1" onclick="pickK(1)">Đường</button>
+              <button class="lh-chip" id="k2" onclick="pickK(2)">Vẽ tự do</button>
+            </div>
+          </div>
+
+          <div class="lh-row lh-field">
+            <div>
+              <label class="lh-label">Đợt đầu</label>
+              <input class="lh-input" id="a" type="number" min="1" max="#{SO_TOI_DA}"
+                     value="#{SO_DAU_MD}" onchange="gui()">
+            </div>
+            <div>
+              <label class="lh-label">Đợt cuối</label>
+              <input class="lh-input" id="b" type="number" min="1" max="#{SO_TOI_DA}"
+                     value="#{SO_CUOI_MD}" onchange="gui()">
+            </div>
+          </div>
+          <div class="lh-hint">
+            Số là ĐỢT CẮT. Mỗi lượt kéo đánh lại từ đợt đầu, và chỉ nhận tối đa
+            bấy nhiêu chi tiết — dư thì kéo lượt nữa. Bên Aspire mỗi số là một
+            đường dao, nên trần là #{SO_TOI_DA} đợt.
+          </div>
+
+          <hr class="lh-divider">
+          <div class="lh-card" style="padding:6px 8px 8px">
+            <table id="dem"></table>
+          </div>
+
+          <div id="nhac" class="lh-status"></div>
+
+          <button class="lh-btn lh-btn--primary" style="margin-top:14px"
+                  onclick="sketchup.xong()">Xong</button>
+          <div class="lh-hint">
+            Chi tiết đã gắn thì không dán đè được — bấm Gỡ rồi quét lại.
+            Hoặc ESC trong khung nhìn để kết thúc.
+          </div>
+
+          <div class="lh-foot"><span>LeHai Tools</span><span>Chống Bay</span></div>
+        </div>
+        <script>
+          function pick(i){ sketchup.dat_huong(i); }
+          function pickK(i){ sketchup.dat_kieu(i); }
+          function gui(){
+            var a = parseInt(document.getElementById("a").value, 10);
+            var b = parseInt(document.getElementById("b").value, 10);
+            if (!a || !b) { return; }
+            sketchup.dat_khoang(a, b);
+          }
+          function nhac(s){
+            var e = document.getElementById("nhac");
+            e.innerHTML = s;
+            e.style.display = s ? "block" : "none";
+          }
+          function capNhat(h, k, a, b, dem){
+            for (var i = 0; i < 3; i++){
+              document.getElementById("h" + i).className =
+                (i === h) ? "lh-chip is-active" : "lh-chip";
+              document.getElementById("k" + i).className =
+                (i === k) ? "lh-chip is-active" : "lh-chip";
+            }
+            document.getElementById("a").value = a;
+            document.getElementById("b").value = b;
+            var s = "";
+            for (var j = 0; j < dem.length; j++){
+              s += "<tr><td><span class=dot style=background:" + dem[j][2] + "></span>"
+                 + dem[j][0] + "</td><td class=v>" + dem[j][1] + "</td></tr>";
+            }
+            document.getElementById("dem").innerHTML = s;
+          }
+        </script></body></html>
+      HTML
+    end
+
     # ── Bảng tổng kết khi thoát (khuôn Dim Nhanh: ESC → bảng kê) ──────
 
     def self.hex(color)
@@ -160,7 +402,7 @@ module TK
     def self.build_summary_html(trong_file, con_lai)
       da_gan = trong_file.values.inject(0) { |s, v| s + v }
 
-      rows = trong_file.keys.sort.map do |tag|
+      rows = sap_tag(trong_file.keys).map do |tag|
         mau = hex(color_for(tag))
         "<tr>" \
           "<td><span class='dot' style='background:#{mau}'></span>#{esc_html(tag)}</td>" \
@@ -212,31 +454,6 @@ module TK
           <div class="lh-foot"><span>LeHai Tools</span><span>Chống Bay</span></div>
         </div></body></html>
       HTML
-    end
-
-    # Chỉ dùng cho trường hợp hiếm: file không có tag chống bay nào và cũng không
-    # tạo sẵn được. Đường thường không chạm tới hàm này.
-    def self.create_dst_tag(model)
-      res = UI.inputbox(
-        ["Tên tag mới — gõ ĐÚNG tên đã tạo bên ABF:"],
-        [DEFAULT_DST],
-        'Chống Bay — tạo tag'
-      )
-      return nil unless res
-      name = res[0].to_s.strip
-      if name.empty?
-        UI.messagebox('Chưa nhập tên tag.')
-        return nil
-      end
-      unless name =~ DST_RE
-        ok = UI.messagebox(
-          "Tên \"#{name}\" không có chữ CHONGBAY.\n\n" \
-          "Lần sau tool sẽ không tự thấy tag này trong danh sách.\n\nVẫn tạo?",
-          MB_YESNO
-        )
-        return nil if ok != IDYES
-      end
-      model.layers.add(name)      # có sẵn thì trả về cái cũ, chưa có thì tạo
     end
 
     # ── Duyệt (khuôn tim_tam_loi/main.rb:36) ─────────────────────
@@ -330,14 +547,26 @@ module TK
     end
 
     # Trả về stats, hoặc nil nếu không có gì để đổi
-    # mode = :gan (gắn chống bay) | :go (trả về tag gốc đã ghi nhớ)
-    def self.retag(items, match, mode, dst)
+    # Mỗi chi tiết một SỐ riêng nên không gán chung một layer được nữa.
+    # cap = [[group, layer_dich], ...] — cả mẻ nằm trong MỘT bậc undo, không thì
+    # quét 5 chi tiết là 5 lần Ctrl+Z mới lùi hết.
+    def self.retag_many(cap, mode)
       model = Sketchup.active_model
       stats = { :groups => 0, :leaves => 0, :unique => 0, :unique_fail => 0 }
 
       model.start_operation('Doi tag chong bay', true)
       begin
-        apply(items, match, mode, dst, 0, stats)
+        cap.each do |grp, lay|
+          match = if mode == :go
+                    lambda { |e| tag_name(e) =~ DST_RE ? true : false }
+                  else
+                    # Gắn chỉ đụng thứ CHƯA gắn (còn ABF_cuttingLines). Không nhận
+                    # tag chống bay khác — cấm dán đè ở cả tầng entity, không chỉ
+                    # tầng group. Muốn đổi thì Gỡ trước.
+                    lambda { |e| src?(e) }
+                  end
+          apply([grp], match, mode, lay, 0, stats)
+        end
         if stats[:groups] + stats[:leaves] == 0
           model.abort_operation                 # không đổi gì → khỏi bậc undo rỗng
           return nil
@@ -359,24 +588,76 @@ module TK
       # Vòng Tab: các tag chống bay, rồi tới CHẾ ĐỘ GỠ (vị trí cuối cùng).
       # Gỡ = trả chi tiết về ABF_cuttingLines. Nhét vào cùng vòng Tab thay vì
       # thêm phím mới: Khoa đã quen Tab rồi, không phải học thêm gì.
-      def initialize(tags)
-        @tags   = tags
-        @i      = 0
-        @co_doi = false     # phiên này có đổi được gì không (quyết định hiện bảng)
+      def initialize(so_dau = TK::ChongBay::SO_DAU_MD, so_cuoi = TK::ChongBay::SO_CUOI_MD)
+        @huong_i = 0        # 0..HUONG.size-1 = hướng; == HUONG.size = chế độ GỠ
+        @so_dau  = so_dau
+        @so_cuoi = so_cuoi
+        @kieu_i  = 0        # chỉ số trong KIEU
+        @net     = []       # nét đang vẽ (toạ độ MÀN HÌNH)
+        @co_doi  = false    # phiên này có đổi được gì không (quyết định hiện bảng)
       end
 
-      def erase?   ; @i == @tags.size end
-      def dst      ; erase? ? nil : @tags[@i] end
-      def dst_name ; erase? ? TK::ChongBay::SRC_TAG : @tags[@i].name.to_s end
+      def kieu ; TK::ChongBay::KIEU[@kieu_i] end
+
+      # ---- bảng điều khiển gọi vào (HtmlDialog → Tool) ----
+      # Chỉ đổi trạng thái + vẽ lại; KHÔNG sửa model trong callback của dialog.
+
+      def dat_huong(i)
+        return unless i >= 0 && i <= TK::ChongBay::HUONG.size
+        @huong_i = i
+        bao_bang
+        Sketchup.active_model.active_view.invalidate
+      end
+
+      def dat_kieu(i)
+        return unless i >= 0 && i < TK::ChongBay::KIEU.size
+        @kieu_i = i
+        @net = []
+        bao_bang
+        Sketchup.active_model.active_view.invalidate
+      end
+
+      def dat_khoang(a, b)
+        a, b = TK::ChongBay.kep_khoang(a, b)
+        return if a.nil?
+        @so_dau, @so_cuoi = a, b
+        bao_bang
+        Sketchup.active_model.active_view.invalidate
+      end
+
+      # Nút "Xong" trên bảng gọi vào đây (finish nằm trong private).
+      def ket_thuc
+        finish(Sketchup.active_model.active_view)
+      end
+
+      # ---- Tool → bảng điều khiển ----
+      def bao_bang
+        dem = Hash.new(0)
+        @cands.each { |c| dem[c.tag] += 1 } if @cands
+        hang = TK::ChongBay.sap_tag(dem.keys.compact).map { |t| [t, dem[t]] }
+        hang << [nil, dem[nil]] if dem.key?(nil)   # chưa gắn xuống cuối
+        TK::ChongBay.sync_panel(@huong_i, @kieu_i, @so_dau, @so_cuoi, hang)
+      end
+
+      def erase?   ; @huong_i == TK::ChongBay::HUONG.size end
+      def huong    ; erase? ? nil : TK::ChongBay::HUONG[@huong_i] end
+      # Tên hiển thị: chỉ có HƯỚNG, vì số không cố định — mỗi lượt quét đánh lại
+      # từ đầu khoảng.
+      def dst_name ; erase? ? TK::ChongBay::SRC_TAG : huong end
+
+      def chu_ky ; @so_cuoi - @so_dau + 1 end
 
       def activate
         rescan
         @drag = false
         @x0 = @y0 = @x1 = @y1 = 0
+        TK::ChongBay.show_panel(self)
+        bao_bang
         Sketchup.active_model.active_view.invalidate
       end
 
       def deactivate(view)
+        TK::ChongBay.dong_panel
         view.invalidate
       end
 
@@ -391,23 +672,75 @@ module TK
       # Tab xoay vòng tag đích — khuôn dim_nhanh/main.rb:197 (key 9 = Tab)
       def onKeyDown(key, _rep, _flags, view)
         if key == 9
-          @i = (@i + 1) % (@tags.size + 1)   # +1 = ô cuối cho chế độ GỠ
+          @huong_i = (@huong_i + 1) % (TK::ChongBay::HUONG.size + 1)  # +1 = ô GỠ
+          bao_bang
           view.invalidate
+          return false
+        end
+        # Space đổi KIỂU QUÉT. Mã 32 CHƯA có tiền lệ chạy trong repo (repo mới
+        # chứng minh 27=Esc, 9=Tab) → nếu máy không ăn phím này thì vẫn đổi được
+        # bằng cách gõ "k"/"d"/"z" vào ô Measurements. Hai đường, không phụ thuộc
+        # một giả định.
+        if key == 32
+          doi_kieu(view)
           return false
         end
         finish(view) if key == 27   # Esc
         false
       end
 
+      # Gõ vào ô Measurements (VCB) để đặt KHOẢNG đợt cắt — khuôn tim_tam_loi:157.
+      #   "9"     → khoảng 1-9   (gõ mỗi số cuối cho nhanh)
+      #   "1-9"   → khoảng 1-9
+      # Khoảng này vừa là số đợt cắt, vừa là dải màu đậm→nhạt.
+      def enableVCB?
+        true
+      end
+
+      def doi_kieu(view)
+        @kieu_i = (@kieu_i + 1) % TK::ChongBay::KIEU.size
+        @net = []
+        bao_bang
+        view.invalidate
+      end
+
+      def onUserText(text, view)
+        t = text.to_s.strip.downcase
+        # đường thoát khi phím Space không ăn: gõ chữ để đổi kiểu quét
+        if t =~ /\A[kdz]\z/
+          @kieu_i = { 'k' => 0, 'd' => 1, 'z' => 2 }[t]
+          @net = []
+          view.invalidate
+          return
+        end
+        so = text.to_s.scan(/\d+/).map(&:to_i)
+        return if so.empty?
+        a, b = so.size >= 2 ? [so[0], so[1]] : [1, so[0]]
+        a, b = TK::ChongBay.kep_khoang(a, b)
+        return if a.nil?
+        @so_dau, @so_cuoi = a, b
+        bao_bang
+        view.invalidate
+      end
+
       def onLButtonDown(_flags, x, y, view)
         @drag = true
         @x0 = x; @y0 = y; @x1 = x; @y1 = y
+        @net = [[x, y]]
         view.invalidate
       end
 
       def onMouseMove(_flags, x, y, view)
         return unless @drag
         @x1 = x; @y1 = y
+        if kieu == :tu_do
+          # chỉ ghi thêm điểm khi đi đủ xa — không thì một nét ra hàng nghìn điểm
+          cx, cy = @net.last
+          b = TK::ChongBay::BUOC_NET
+          @net << [x, y] if (x - cx).abs >= b || (y - cy).abs >= b
+        else
+          @net = [[@x0, @y0], [x, y]]
+        end
         view.invalidate
       end
 
@@ -428,9 +761,36 @@ module TK
         view.invalidate
       end
 
+      # Đa giác của chi tiết ở toạ độ màn hình: lấy điểm đầu mỗi cạnh rồi xếp
+      # theo góc quanh tâm. Chi tiết nesting gần như đều là hình chữ nhật nên
+      # cách này ra đúng hình; chi tiết khuyết góc thì nền hơi "đầy" hơn thật —
+      # chỉ ảnh hưởng cái nhìn, không ảnh hưởng việc gán tag.
+      def da_giac(view, segs)
+        pts = segs.map { |a, _b| view.screen_coords(a) }
+        return [] if pts.size < 3
+        n  = pts.size.to_f
+        cx = pts.inject(0.0) { |s, p| s + p.x } / n
+        cy = pts.inject(0.0) { |s, p| s + p.y } / n
+        pts.sort_by { |p| Math.atan2(p.y - cy, p.x - cx) }
+           .map { |p| Geom::Point3d.new(p.x, p.y, 0) }
+      end
+
       def draw(view)
-        # Gom điểm theo TAG rồi vẽ mỗi tag một lệnh — mỗi tag một màu, và 50 chi
-        # tiết vẫn chỉ vài lệnh vẽ chứ không phải 50.
+        # 1. TÔ NỀN chi tiết đã gắn. Đợt sau màu nhạt, chỉ tô viền thì nhìn không
+        #    ra (Khoa 20/07) → tô cả mảng. GL_POLYGON không gộp nhiều hình vào
+        #    một lệnh được nên phải vẽ từng cái.
+        @cands.each do |c|
+          next if c.tag.nil?
+          next if (c.group.deleted? rescue true)
+          poly = da_giac(view, c.segs)
+          next if poly.size < 3
+          m = TK::ChongBay.color_for(c.tag, @so_dau, @so_cuoi)
+          view.drawing_color =
+            Sketchup::Color.new(m.red, m.green, m.blue, TK::ChongBay::FILL_ALPHA)
+          view.draw2d(GL_POLYGON, poly)
+        end
+
+        # 2. VIỀN — gộp theo màu nên 50 chi tiết vẫn chỉ vài lệnh vẽ.
         by_tag = Hash.new { |h, k| h[k] = [] }
         @cands.each do |c|
           next if (c.group.deleted? rescue true)
@@ -439,8 +799,6 @@ module TK
             pts << view.screen_coords(a) << view.screen_coords(b)
           end
         end
-
-        # chưa đổi vẽ trước (mảnh, xám) để mấy cái đã đổi nổi lên trên
         todo = by_tag.delete(nil)
         if todo && !todo.empty?
           view.drawing_color = COL_TODO
@@ -449,13 +807,12 @@ module TK
         end
         by_tag.each do |tag, pts|
           next if pts.empty?
-          view.drawing_color = TK::ChongBay.color_for(tag)
-          view.line_width    = 3
+          view.drawing_color = TK::ChongBay.color_for(tag, @so_dau, @so_cuoi)
+          view.line_width    = 2
           view.draw2d(GL_LINES, pts)
         end
 
         draw_band(view) if @drag
-        draw_banner(view)
       end
 
       private
@@ -468,6 +825,7 @@ module TK
         # make_unique thay entity cũ bằng entity mới → danh sách cũ thành rác,
         # phải quét lại từ đầu sau mỗi lần đổi.
         @cands = TK::ChongBay.collect_cands
+        bao_bang
       end
 
       # Thoát tool. Có gắn được gì trong phiên thì mở bảng tổng kết; không gắn gì
@@ -517,43 +875,108 @@ module TK
         false
       end
 
-      def apply_rect(view)
-        rect = [[@x0, @x1].min, [@y0, @y1].min, [@x0, @x1].max, [@y0, @y1].max]
+      # Nét cắt qua chi tiết ở đoạn thứ mấy? Trả về chỉ số đoạn ĐẦU TIÊN chạm,
+      # nil nếu không chạm. Chỉ số này chính là thứ tự đánh số: vẽ nét đi qua
+      # chi tiết nào trước thì nó vào đợt cắt sớm hơn.
+      def net_cham(view, segs, net)
+        return nil if net.size < 2
+        canh = segs.map { |a, b| [view.screen_coords(a), view.screen_coords(b)] }
+        net.each_cons(2).with_index do |(p1, p2), i|
+          canh.each do |pa, pb|
+            if seg_cross?(pa.x, pa.y, pb.x, pb.y, p1[0], p1[1], p2[0], p2[1])
+              return i
+            end
+          end
+        end
+        nil
+      end
 
-        # khung quá nhỏ = lỡ tay click, bỏ qua để khỏi đổi oan một chi tiết
-        return if (rect[2] - rect[0]).abs < 4 && (rect[3] - rect[1]).abs < 4
+      # Khoảng cách từ điểm bắt đầu kéo tới chi tiết (đo trên màn hình, lấy đỉnh
+      # gần nhất) — dùng để xếp thứ tự đánh số trong một nhát quét.
+      def xa_diem_dau(view, segs)
+        gan = nil
+        segs.each do |a, _b|
+          p  = view.screen_coords(a)
+          dx = p.x - @x0
+          dy = p.y - @y0
+          d  = dx * dx + dy * dy
+          gan = d if gan.nil? || d < gan
+        end
+        gan || 0
+      end
+
+      # Trả về danh sách chi tiết trúng, ĐÃ SẮP theo thứ tự đánh số.
+      #   :khung  → sắp theo khoảng cách tới điểm bắt đầu kéo
+      #   :duong / :tu_do  → sắp theo thứ tự nét đi qua (chuẩn xác hơn hẳn)
+      def tim_trung(view)
+        song = @cands.reject { |c| c.group.deleted? rescue true }
+        if kieu == :khung
+          rect = [[@x0, @x1].min, [@y0, @y1].min, [@x0, @x1].max, [@y0, @y1].max]
+          return [] if (rect[2] - rect[0]).abs < 4 && (rect[3] - rect[1]).abs < 4
+          song.select { |c| touches?(view, c.segs, rect) }
+              .sort_by { |c| xa_diem_dau(view, c.segs) }
+        else
+          return [] if @net.size < 2
+          cham = []
+          song.each do |c|
+            i = net_cham(view, c.segs, @net)
+            cham << [i, c] if i
+          end
+          cham.sort_by { |i, _c| i }.map { |_i, c| c }
+        end
+      end
+
+      def apply_rect(view)
+        trung = tim_trung(view)
+        return if trung.empty?
 
         if erase?
-          # GỠ: chỉ đụng cái đang đeo tag chống bay, trả về ABF_cuttingLines.
-          hits = @cands.select do |c|
-            next false if c.tag.nil?
-            next false if (c.group.deleted? rescue true)
-            touches?(view, c.segs, rect)
-          end
+          # GỠ: chỉ đụng cái đang đeo tag chống bay, trả về tag GỐC đã ghi nhớ.
+          hits = trung.reject { |c| c.tag.nil? }
           return if hits.empty?
-          match  = lambda { |e| TK::ChongBay.tag_name(e) =~ TK::ChongBay::DST_RE ? true : false }
-          mode   = :go
-          target = nil          # tag trả về đọc từ ghi chú trên từng entity
+          cap  = hits.map { |c| [c.group, nil] }   # layer đích đọc từ ghi chú
+          mode = :go
         else
-          # Quét trúng cái đang đeo tag khác thì ĐỔI SANG tag đích — cho phép
-          # chuyển trái ↔ phải. Chỉ bỏ qua cái đã đúng tag đích rồi.
-          hits = @cands.select do |c|
-            next false if c.tag == dst_name
-            next false if (c.group.deleted? rescue true)
-            touches?(view, c.segs, rect)
+          # KHÔNG DÁN ĐÈ. Chi tiết đã đeo tag chống bay thì bỏ qua — muốn đổi
+          # phải Gỡ trước. Trước đây quét chồng là đè im lặng: đang từ TRÁI
+          # chuyển sang PHẢI, quét trùm một cái là mất trình tự đã xếp mà không
+          # hiện dấu hiệu gì. (Khoa 20/07.)
+          hits   = trung.select { |c| c.tag.nil? }
+          bo_qua = trung.size - hits.size
+          if hits.empty?
+            TK::ChongBay.nhac(
+              "#{bo_qua} chi tiết đã gắn rồi — bấm Gỡ rồi quét lại nếu muốn đổi."
+            )
+            return
           end
-          return if hits.empty?
-          ten   = dst_name
-          match = lambda do |e|
-            n = TK::ChongBay.tag_name(e)
-            next false if n == ten
-            TK::ChongBay.src?(e) || !!(n =~ TK::ChongBay::DST_RE)
+          # MỘT LƯỢT KÉO = TỐI ĐA `chu_ky` CHI TIẾT. Quá thì CẮT BỚT phần dư,
+          # KHÔNG quay vòng. Quay vòng thì số 1 xuất hiện hai lần trong cùng một
+          # lượt: hai chi tiết khác nhau cùng màu, cùng đợt, nhìn không ra là cố ý
+          # hay lỗi (Khoa 20/07 — "trùng lặp lại phiền chết mọe").
+          # Số VẪN lặp giữa các LƯỢT khác nhau — đó mới là ý nghĩa "đợt cắt".
+          du   = hits.size - chu_ky
+          hits = hits.first(chu_ky) if du > 0
+
+          loi = []
+          loi << "Bỏ qua #{bo_qua} chi tiết đã gắn (muốn đổi thì Gỡ trước)." if bo_qua > 0
+          loi << "Chỉ nhận #{chu_ky} chi tiết mỗi lượt kéo — bỏ #{du} cái cuối, " \
+                 "kéo lượt nữa cho chúng." if du > 0
+          TK::ChongBay.nhac(loi.join(' '))
+
+          # Số là ĐỢT CẮT, không phải mã định danh. Bên Aspire layer 1 là một đường
+          # dao chạy hết mọi chi tiết mang số 1, rồi mới tới layer 2.
+          # (Bản đánh số độc nhất tăng mãi đã sai: quét 20 chi tiết ra 20 đường dao,
+          # cái ngoài rìa lại bị cắt cuối cùng. Khoa sửa 20/07.)
+          model = Sketchup.active_model
+          cap   = hits.each_with_index.map do |c, i|
+            so  = @so_dau + i
+            lay = TK::ChongBay.tag_theo_so(model, huong, so, @so_dau, @so_cuoi)
+            [c.group, lay]
           end
-          mode   = :gan
-          target = dst
+          mode = :gan
         end
 
-        stats = TK::ChongBay.retag(hits.map(&:group), match, mode, target)
+        stats = TK::ChongBay.retag_many(cap, mode)
         @co_doi = true if stats && stats[:groups] > 0
         if stats && stats[:unique_fail] > 0
           UI.messagebox(
@@ -568,90 +991,51 @@ module TK
       # ---- Bảng nhắc góc trên-trái (khuôn tim_tam_loi/main.rb:266) ----
 
       def draw_band(view)
-        r = [[@x0, @x1].min, [@y0, @y1].min, [@x0, @x1].max, [@y0, @y1].max]
-        pts = [[r[0], r[1]], [r[2], r[1]], [r[2], r[1]], [r[2], r[3]],
-               [r[2], r[3]], [r[0], r[3]], [r[0], r[3]], [r[0], r[1]]]
-              .map { |a, b| Geom::Point3d.new(a, b, 0) }
         view.drawing_color = COL_BAND
         view.line_width    = 2
-        view.draw2d(GL_LINES, pts)
-      end
-
-      def draw_banner(view)
-        chua  = @cands.count { |c| c.tag.nil? }
-        theo  = Hash.new(0)
-        @cands.each { |c| theo[c.tag] += 1 if c.tag }
-
-        line1 = if erase?
-                  "Chống Bay → GỠ về #{TK::ChongBay::SRC_TAG}    [Tab] đổi"
-                else
-                  "Chống Bay → #{dst_name}    [Tab] đổi"
-                end
-        line2 = theo.keys.sort.map { |t| "#{t} #{theo[t]}" }.join('   ·   ')
-        line2 = line2.empty? ? "chưa đổi #{chua}" : "#{line2}   ·   chưa đổi #{chua}"
-        line3 = if erase?
-                  'Quét để GỠ chống bay  ·  [Tab] về chế độ gắn  ·  ESC thoát'
-                else
-                  'Kéo chuột quét qua chi tiết  ·  [Tab] tới cuối = GỠ  ·  ESC thoát'
-                end
-
-        # Thông số bám đúng bảng nhắc của bộ (tim_tam_loi/main.rb:277): góc 18/18,
-        # bề rộng = 26 + ký_tự*9, nền (18,22,30,210), vạch màu 6px bên trái, chữ
-        # thụt x+16, dòng đầu trắng đậm 13, dòng nhắc vàng 11. Khác một điểm: bảng
-        # này 3 dòng (thêm dòng đếm theo tag) nên cao 80 thay vì 58.
-        x = 18
-        y = 18
-        w = 26 + [line1.length, line2.length, line3.length].max * 9
-        h = 80
-
-        bg = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]]
-             .map { |a, b| Geom::Point3d.new(a, b, 0) }
-        view.drawing_color = Sketchup::Color.new(18, 22, 30, 210)
-        view.draw2d(GL_POLYGON, bg)
-
-        # vạch màu bên trái = màu của tag đang quét sang (bộ dùng màu trạng thái
-        # của chính tool ở chỗ này)
-        bar = [[x, y], [x + 6, y], [x + 6, y + h], [x, y + h]]
-              .map { |a, b| Geom::Point3d.new(a, b, 0) }
-        view.drawing_color = TK::ChongBay.color_for(dst_name)
-        view.draw2d(GL_POLYGON, bar)
-
-        view.draw_text(Geom::Point3d.new(x + 16, y + 8, 0), line1,
-                       color: Sketchup::Color.new(255, 255, 255),
-                       font: 'Arial', size: 13, bold: true)
-        view.draw_text(Geom::Point3d.new(x + 16, y + 32, 0), line2,
-                       color: Sketchup::Color.new(255, 255, 255),
-                       font: 'Arial', size: 11)
-        view.draw_text(Geom::Point3d.new(x + 16, y + 54, 0), line3,
-                       color: Sketchup::Color.new(255, 210, 60),
-                       font: 'Arial', size: 11)
+        if kieu == :khung
+          r = [[@x0, @x1].min, [@y0, @y1].min, [@x0, @x1].max, [@y0, @y1].max]
+          pts = [[r[0], r[1]], [r[2], r[1]], [r[2], r[1]], [r[2], r[3]],
+                 [r[2], r[3]], [r[0], r[3]], [r[0], r[3]], [r[0], r[1]]]
+                .map { |a, b| Geom::Point3d.new(a, b, 0) }
+          view.draw2d(GL_LINES, pts)
+        else
+          return if @net.size < 2
+          pts = []
+          @net.each_cons(2) do |p1, p2|
+            pts << Geom::Point3d.new(p1[0], p1[1], 0)
+            pts << Geom::Point3d.new(p2[0], p2[1], 0)
+          end
+          view.draw2d(GL_LINES, pts)
+        end
       end
     end
 
     # ── Cổng vào ─────────────────────────────────────────────────
 
-    # Thứ tự Tab: TRAI trước, PHAI sau (theo DEFAULT_TAGS), tag tự thêm xếp cuối.
-    def self.chong_bay_tags(model)
-      all = model.layers.to_a.select { |l| l.name.to_s =~ DST_RE }
-      uu  = DEFAULT_TAGS.map { |n| all.find { |l| l.name.to_s == n } }.compact
-      uu + (all - uu).sort_by { |l| l.name.to_s }
+    # Kẹp khoảng về [1, SO_TOI_DA]. Trả [a, b] hợp lệ, hoặc [nil, nil] nếu vô nghĩa.
+    def self.kep_khoang(a, b)
+      a = a.to_i
+      b = b.to_i
+      a, b = b, a if a > b
+      a = 1 if a < 1
+      b = SO_TOI_DA if b > SO_TOI_DA
+      a = b if a > b
+      return [nil, nil] if b < 1
+      [a, b]
     end
 
-    # KHÔNG hỏi gì lúc mở — vào thẳng bộ quét, đổi tag bằng Tab ngay trong tool
-    # (khuôn Dim Nhanh). Hộp thoại chọn tag lúc mở đã bỏ: vừa xấu vừa thừa.
+    # KHÔNG hỏi gì lúc mở — vào thẳng bộ quét. Tag đánh số tạo LƯỜI khi quét tới,
+    # không nhồi sẵn tag vào file.
+    #
+    # Từng có cơ chế "nhớ khoảng của lần dùng trước" (@khoang) — ĐÃ BỎ 20/07.
+    # Nó bám vào module nên `load` không xoá, giá trị cũ 1-40 kẹt lại đè lên mặc
+    # định mới 1-9 và Khoa thấy sai ngay. Trạng thái ẩn sống dai hơn code sinh ra
+    # nó. Mở tool giờ LUÔN về mặc định, muốn khác thì gõ — đoán được, không giấu.
     def self.start
-      model = Sketchup.active_model
-      ensure_default_tags(model)
-      tags = chong_bay_tags(model)
-      if tags.empty?
-        t = create_dst_tag(model)   # gần như không xảy ra vì đã tạo sẵn 2 tag
-        return unless t
-        tags = [t]
-      end
-      model.select_tool(SweepTool.new(tags))
+      Sketchup.active_model.select_tool(SweepTool.new(SO_DAU_MD, SO_CUOI_MD))
     end
 
-    # Gỡ ngược trên vùng đang chọn (dùng khi lỡ quét nhầm cả mảng)
     def self.create_cmd
       icons = File.join(PATH, 'icons')
       cmd = UI::Command.new('Chống Bay') { TK::ChongBay.start }

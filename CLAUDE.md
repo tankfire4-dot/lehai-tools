@@ -5,7 +5,10 @@
 Đọc `C:\Users\tankf\.claude\profile\PROFILE.md` và các file liên quan trước khi làm việc.
 Cập nhật profile nếu có thông tin mới đáng lưu trong session này.
 Sau khi cập nhật bất kỳ file nào trong profile, commit LOCAL: `cd C:\Users\tankf\.claude\profile && git add . && git commit -m "update: <nội dung>"`.
-**KHÔNG push** — ghi lệnh push vào `KHOA.md` cho Khoa tự chạy (luật CONG GITHUB 16/07, xem `agent_lab_khoa/AGENTS.md`).
+**KHÔNG push — repo này là NGOẠI LỆ DUY NHẤT còn giữ chốt sau khi luật đổi 21/07.** Từ 21/07 agent
+được push lab / Company_OS / app_chi_tieu(master), **nhưng KHÔNG repo này**: đây là kho PUBLIC, thợ
+tự auto-update từ nó, push sai là **máy thợ hỏng thật** chứ không phải giấy tờ sai. Ghi lệnh push
+vào `KHOA.md` cho Khoa tự chạy (luật CONG GITHUB, xem `agent_lab_khoa/AGENTS.md`).
 
 ## Cách làm việc
 

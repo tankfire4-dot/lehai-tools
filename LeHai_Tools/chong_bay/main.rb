@@ -32,6 +32,12 @@ module TK
     # cách xếp trình tự: chi tiết nào cắt trước, chi tiết nào cắt sau khi xung
     # quanh còn nguyên để giữ ván. (Khuôn ABF moro, Khoa chốt 20/07.)
     HUONG = ['CHONGBAYTRAI', 'CHONGBAYPHAI'].freeze   # thứ tự Tab xoay
+    # HUONG[0] = bên NHỎ hơn mốc chia, HUONG[1] = bên lớn hơn. Đừng đảo thứ tự
+    # mảng này nếu không sửa luôn huong_tu_dong.
+
+    # Nhận dạng tấm ván trong cây nesting (đo thật 23/07 — xem traverse).
+    SHEET_RE  = /-sheet-\d+\z/i.freeze
+    BORDER_RE = /sheetBorder/i.freeze
 
     # Màu GỐC của từng hướng — số 1 đậm nhất, số càng lớn càng nhạt dần.
     # Nhìn cả tấm là đọc được trình tự cắt, khỏi bấm từng tag.
@@ -241,8 +247,8 @@ module TK
       @panel.add_action_callback('dat_kieu') do |_c, i|
         @tool.dat_kieu(i.to_i) if @tool
       end
-      @panel.add_action_callback('dat_so_ke') do |_c, n|
-        @tool.dat_so_ke(n.to_i) if @tool
+      @panel.add_action_callback('dat_so_ke') do |_c, i, n|
+        @tool.dat_so_ke(i.to_i, n.to_i) if @tool
       end
       # Kết thúc tool từ bảng. HOÃN qua timer: đóng tool sẽ đóng luôn chính cái
       # dialog đang chạy callback này — làm thẳng là tự rút ghế mình đang ngồi.
@@ -274,13 +280,16 @@ module TK
     end
 
     # dem = [[ten_tag_hoac_nil, so_luong], ...]
+    # so_ke = mảng đợt kế tiếp, một phần tử cho mỗi hướng trong HUONG.
     def self.sync_panel(huong_i, kieu_i, so_ke, dem)
       return unless @panel && (@panel.visible? rescue false)
       hang = dem.map do |ten, n|
         mau = hex(color_for(ten))
         "[\"#{esc_html(ten || 'chưa gắn')}\",#{n},\"#{mau}\"]"
       end.join(',')
-      @panel.execute_script("capNhat(#{huong_i},#{kieu_i},#{so_ke},[#{hang}])")
+      @panel.execute_script(
+        "capNhat(#{huong_i},#{kieu_i},[#{so_ke.join(',')}],[#{hang}])"
+      )
     rescue => e
       puts "[Chống Bay] không cập nhật được bảng: #{e.message}"
     end
@@ -308,9 +317,15 @@ module TK
           <div class="lh-field">
             <label class="lh-label">Hướng</label>
             <div class="lh-chips">
-              <button class="lh-chip is-active" id="h0" onclick="pick(0)">Trái</button>
-              <button class="lh-chip" id="h1" onclick="pick(1)">Phải</button>
-              <button class="lh-chip" id="h2" onclick="pick(2)">Gỡ</button>
+              <button class="lh-chip is-active" id="h0" onclick="pick(0)">Tự động</button>
+              <button class="lh-chip" id="h1" onclick="pick(1)">Trái</button>
+              <button class="lh-chip" id="h2" onclick="pick(2)">Phải</button>
+              <button class="lh-chip" id="h3" onclick="pick(3)">Gỡ</button>
+            </div>
+            <div class="lh-hint">
+              <b>Tự động</b> đọc vị trí chi tiết trên tấm ván — bên nào của đường
+              giữa tấm thì vào bên đó, khỏi phải nghĩ. Chi tiết nằm vắt ngang
+              đường giữa thì tính theo tâm nó; muốn khác thì bấm Trái/Phải để ép.
             </div>
           </div>
 
@@ -322,16 +337,23 @@ module TK
             </div>
           </div>
 
-          <div class="lh-field">
-            <label class="lh-label">Đợt kế tiếp</label>
-            <input class="lh-input" id="n" type="number" min="1" max="#{SO_TOI_DA}"
-                   value="1" onchange="gui()">
+          <div class="lh-row lh-field">
+            <div>
+              <label class="lh-label">Đợt kế tiếp · Trái</label>
+              <input class="lh-input" id="n0" type="number" min="1" max="#{SO_TOI_DA}"
+                     value="1" onchange="gui(0)">
+            </div>
+            <div>
+              <label class="lh-label">Đợt kế tiếp · Phải</label>
+              <input class="lh-input" id="n1" type="number" min="1" max="#{SO_TOI_DA}"
+                     value="1" onchange="gui(1)">
+            </div>
           </div>
           <div class="lh-hint">
-            Số là THỨ TỰ CẮT, mỗi chi tiết một số riêng. Quét tới đâu số chạy tiếp
-            tới đó, không reset — kéo bao nhiêu chi tiết một lượt cũng nhận hết.
-            Ô này tự dò từ file (số lớn nhất đang có + 1); gõ đè để nhảy tới đợt
-            khác. Trần #{SO_TOI_DA}.
+            Số là THỨ TỰ CẮT, mỗi chi tiết một số riêng. Hai bên đếm RIÊNG, chạy
+            song song — một nét quét vơ cả trái lẫn phải vẫn không lẫn số. Ô tự dò
+            từ file (số lớn nhất đang có + 1); gõ đè để nhảy tới đợt khác.
+            Trần #{SO_TOI_DA} mỗi bên.
           </div>
 
           <hr class="lh-divider">
@@ -353,10 +375,10 @@ module TK
         <script>
           function pick(i){ sketchup.dat_huong(i); }
           function pickK(i){ sketchup.dat_kieu(i); }
-          function gui(){
-            var n = parseInt(document.getElementById("n").value, 10);
+          function gui(i){
+            var n = parseInt(document.getElementById("n" + i).value, 10);
             if (!n) { return; }
-            sketchup.dat_so_ke(n);
+            sketchup.dat_so_ke(i, n);
           }
           function nhac(s){
             var e = document.getElementById("nhac");
@@ -368,8 +390,9 @@ module TK
           // bớt một kiểu quét là getElementById trả null, capNhat chết giữa
           // chừng và CẢ BẢNG ngừng cập nhật — hỏng ở chỗ không liên quan gì.
           // Số lấy từ Ruby, khỏi phải nhớ sửa hai nơi. (23/07)
+          // n = mảng đợt kế tiếp, một phần tử cho mỗi hướng.
           function capNhat(h, k, n, dem){
-            for (var i = 0; i < #{HUONG.size + 1}; i++){
+            for (var i = 0; i < #{HUONG.size + 2}; i++){
               document.getElementById("h" + i).className =
                 (i === h) ? "lh-chip is-active" : "lh-chip";
             }
@@ -377,7 +400,9 @@ module TK
               document.getElementById("k" + j2).className =
                 (j2 === k) ? "lh-chip is-active" : "lh-chip";
             }
-            document.getElementById("n").value = n;
+            for (var j3 = 0; j3 < #{HUONG.size}; j3++){
+              document.getElementById("n" + j3).value = n[j3];
+            }
             var s = "";
             for (var j = 0; j < dem.length; j++){
               s += "<tr><td><span class=dot style=background:" + dem[j][2] + "></span>"
@@ -474,13 +499,62 @@ module TK
 
     # ── Duyệt (khuôn tim_tam_loi/main.rb:36) ─────────────────────
 
-    def self.traverse(entities, accum_t, depth = 0, &blk)
+    # `moc` = mốc chia trái/phải của TẤM VÁN đang đi qua, [trục, giá_trị_giữa]
+    # hoặc nil khi chưa vào tấm nào. Truyền xuôi theo đệ quy chứ không đi ngược
+    # lên tìm cha: `entity.parent` trả về ComponentDefinition, mà một definition
+    # có thể nằm ở nhiều chỗ nên KHÔNG suy ra được instance nào — đo thật 23/07,
+    # cha của chi tiết đầu là `ComponentDefinition Group2799#1`.
+    def self.traverse(entities, accum_t, depth = 0, moc = nil, &blk)
       return if depth > MAX_DEPTH
       entities.each do |e|
         next unless container?(e)
-        blk.call(e, accum_t)
-        traverse(kids_of(e), accum_t * e.transformation, depth + 1, &blk)
+        t_con = accum_t * e.transformation
+        m_con = ten_container(e) =~ SHEET_RE ? moc_chia(e, accum_t) : moc
+        blk.call(e, accum_t, m_con)
+        traverse(kids_of(e), t_con, depth + 1, m_con, &blk)
       end
+    end
+
+    # Tên để nhận dạng: group đặt tên thì lấy tên, không thì lấy tên definition.
+    # Cấu trúc đo thật 23/07: `__ABF_Nesting` › `__<vật liệu>-sheet-N` › chi tiết,
+    # trong mỗi tấm có `__ABF_sheetBorder` (Curve 4 đoạn, chu vi 7320mm = tấm
+    # 1220×2440).
+    def self.ten_container(e)
+      ten = e.name.to_s
+      ten = e.definition.name.to_s if ten.empty? && e.respond_to?(:definition)
+      ten
+    end
+
+    # Mốc chia trái/phải của một tấm ván: [:x hoặc :y, giá trị giữa].
+    # Chia theo CẠNH NGẮN (1220) — đường lằn chạy dọc theo cạnh dài, đúng như
+    # hình Khoa vẽ 23/07. Lấy cạnh ngắn thay vì cứng trục X để tấm nằm ngang hay
+    # đứng đều đúng. Tấm xoay chéo thì hộp bao không còn phản ánh cạnh — nesting
+    # không xoay tấm nên chưa xử lý, nếu gặp thì phải đo lại chứ đừng đoán.
+    def self.moc_chia(grp_tam, accum_t)
+      vien = kids_of(grp_tam).find do |k|
+        container?(k) && (ten_container(k) =~ BORDER_RE || tag_name(k) =~ BORDER_RE)
+      end
+      segs = vien ? world_segments(vien, accum_t * grp_tam.transformation) : nil
+      segs = world_segments(grp_tam, accum_t) if segs.nil? || segs.empty?
+      return nil if segs.empty?
+      xs = segs.map { |a, _b| a.x }
+      ys = segs.map { |a, _b| a.y }
+      dx = xs.max - xs.min
+      dy = ys.max - ys.min
+      dx <= dy ? [:x, (xs.min + xs.max) / 2.0] : [:y, (ys.min + ys.max) / 2.0]
+    end
+
+    # Chi tiết nằm bên nào của mốc chia. nil = không biết (không thuộc tấm nào).
+    # Chi tiết VẮT QUA đường lằn thì tính theo TÂM của nó — phần nào nhiều hơn
+    # thì về bên đó. Muốn khác thì ép tay bằng nút Trái/Phải (Khoa 23/07:
+    # "chi tiết nào nằm giữa tâm đường thì được phép trái hoặc phải tùy bọn
+    # sử dụng").
+    def self.huong_tu_dong(segs, moc)
+      return nil if moc.nil? || segs.empty?
+      truc, giua = moc
+      gt = segs.map { |a, _b| truc == :x ? a.x : a.y }
+      tam = (gt.min + gt.max) / 2.0
+      tam < giua ? HUONG[0] : HUONG[1]
     end
 
     # Đoạn thẳng THẬT của chi tiết ở toạ độ thế giới → viền bám sát hình.
@@ -509,17 +583,16 @@ module TK
     # đang đeo. Gom CẢ chi tiết đã đổi sang tag chống bay KHÁC — nếu chỉ gom tag
     # đích thì mấy cái đã gắn tag khác biến mất khỏi màn hình, không nhìn thấy,
     # không sửa lại được (lỗi này đã xảy ra: quét sang PHAI thì 6 cái TRAI mất tăm).
-    Cand = Struct.new(:group, :segs, :tag)
+    # auto = hướng tính sẵn từ vị trí trên tấm ván (nil nếu không thuộc tấm nào)
+    Cand = Struct.new(:group, :segs, :tag, :auto)
 
     def self.collect_cands
       out = []
-      traverse(Sketchup.active_model.entities, Geom::Transformation.new) do |e, t|
+      traverse(Sketchup.active_model.entities, Geom::Transformation.new) do |e, t, moc|
         n = tag_name(e)
-        if src?(e)
-          out << Cand.new(e, world_segments(e, t), nil)
-        elsif n =~ DST_RE
-          out << Cand.new(e, world_segments(e, t), n)
-        end
+        next unless src?(e) || n =~ DST_RE
+        segs = world_segments(e, t)
+        out << Cand.new(e, segs, (src?(e) ? nil : n), huong_tu_dong(segs, moc))
       end
       out
     end
@@ -604,9 +677,23 @@ module TK
       # Vòng Tab: các tag chống bay, rồi tới CHẾ ĐỘ GỠ (vị trí cuối cùng).
       # Gỡ = trả chi tiết về ABF_cuttingLines. Nhét vào cùng vòng Tab thay vì
       # thêm phím mới: Khoa đã quen Tab rồi, không phải học thêm gì.
+      # Ô hướng, theo đúng thứ tự Tab xoay và thứ tự nút trên bảng:
+      #   0            = TỰ ĐỘNG (mặc định) — đọc vị trí chi tiết trên tấm ván
+      #   1 .. HUONG.size = ép tay Trái / Phải
+      #   HUONG.size+1 = GỠ
+      # Tự động đứng ĐẦU vì đó là cái thợ dùng 99% thời gian; Trái/Phải giữ lại
+      # làm đường ép cho chi tiết nằm vắt qua đường lằn (Khoa 23/07).
+      TU_DONG_I = 0
+      EP_DAU_I  = 1
+      GO_I      = TK::ChongBay::HUONG.size + 1
+      SO_O      = TK::ChongBay::HUONG.size + 2   # tổng số nút hướng
+
       def initialize
-        @huong_i = 0        # 0..HUONG.size-1 = hướng; == HUONG.size = chế độ GỠ
-        @so_ke   = 1        # đợt sẽ gán cho chi tiết kế tiếp (dò lại trong activate)
+        @huong_i = TU_DONG_I
+        # Mỗi hướng một bộ đếm RIÊNG, chạy song song: một nét quét ở chế độ tự
+        # động có thể vơ cả trái lẫn phải, mỗi bên phải giữ dãy số liền mạch của
+        # mình. Nét đi qua T,P,T,P,T ra TRAI001, PHAI001, TRAI002, PHAI002, TRAI003.
+        @so_ke   = {}       # tên hướng => đợt kế tiếp (dò lại trong activate)
         @kieu_i  = 0        # chỉ số trong KIEU
         @net     = []       # nét đang vẽ (toạ độ MÀN HÌNH)
         @co_doi  = false    # phiên này có đổi được gì không (quyết định hiện bảng)
@@ -624,12 +711,8 @@ module TK
       # Chỉ đổi trạng thái + vẽ lại; KHÔNG sửa model trong callback của dialog.
 
       def dat_huong(i)
-        return unless i >= 0 && i <= TK::ChongBay::HUONG.size
+        return unless i >= 0 && i < SO_O
         @huong_i = i
-        # Mỗi hướng có dãy số riêng → đổi hướng là phải dò lại, không mang số của
-        # hướng cũ sang. Đánh đổi: nếu vừa gõ tay một số rồi Tab đổi hướng thì mất
-        # số đó — chấp nhận, vì dò lại đúng nhiều hơn là sai.
-        @so_ke = so_ke_tu_model unless erase?
         bao_bang
         Sketchup.active_model.active_view.invalidate
       end
@@ -642,10 +725,12 @@ module TK
         Sketchup.active_model.active_view.invalidate
       end
 
-      def dat_so_ke(n)
+      # i = chỉ số trong HUONG (0 = Trái, 1 = Phải) — bảng có một ô cho mỗi bên.
+      def dat_so_ke(i, n)
+        h = TK::ChongBay::HUONG[i.to_i]
         n = TK::ChongBay.kep_so(n)
-        return if n.nil?
-        @so_ke = n
+        return if h.nil? || n.nil?
+        @so_ke[h] = n
         bao_bang
         Sketchup.active_model.active_view.invalidate
       end
@@ -661,21 +746,24 @@ module TK
         @cands.each { |c| dem[c.tag] += 1 } if @cands
         hang = TK::ChongBay.sap_tag(dem.keys.compact).map { |t| [t, dem[t]] }
         hang << [nil, dem[nil]] if dem.key?(nil)   # chưa gắn xuống cuối
-        TK::ChongBay.sync_panel(@huong_i, @kieu_i, @so_ke, hang)
+        so = TK::ChongBay::HUONG.map { |h| @so_ke[h] || 1 }
+        TK::ChongBay.sync_panel(@huong_i, @kieu_i, so, hang)
       end
 
-      def erase?   ; @huong_i == TK::ChongBay::HUONG.size end
-      def huong    ; erase? ? nil : TK::ChongBay::HUONG[@huong_i] end
-      # Tên hiển thị: chỉ có HƯỚNG, vì số không cố định — mỗi lượt quét đánh lại
-      # từ đầu khoảng.
-      def dst_name ; erase? ? TK::ChongBay::SRC_TAG : huong end
+      def erase?   ; @huong_i == GO_I end
+      def tu_dong? ; @huong_i == TU_DONG_I end
+      # Hướng ÉP TAY. nil khi đang tự động hoặc đang gỡ — lúc đó hướng của từng
+      # chi tiết lấy từ `Cand#auto`, không phải từ nút.
+      def huong
+        return nil if erase? || tu_dong?
+        TK::ChongBay::HUONG[@huong_i - EP_DAU_I]
+      end
 
       # Đợt kế tiếp = số lớn nhất của HƯỚNG NÀY đang có trong file, + 1.
       # Đọc từ model chứ không nhớ trong tool: đóng tool mở lại, Gỡ rồi quét lại,
       # hay `load` lại file lúc dev — vẫn ra đúng. Trạng thái nhớ trong module đã
       # từng kẹt giá trị cũ và đè lên mặc định mới (bỏ 20/07, xem ChongBay.start).
-      def so_ke_tu_model
-        h = huong
+      def so_ke_tu_model(h)
         return 1 if h.nil?
         lon_nhat = 0
         (@cands || []).each do |c|
@@ -689,9 +777,15 @@ module TK
         lon_nhat + 1
       end
 
+      # Dò lại CẢ HAI bộ đếm từ file. Gọi lúc mở tool và sau khi Gỡ — hai lúc mà
+      # số lớn nhất trong file có thể khác với cái tool đang nhớ.
+      def do_lai_so_ke
+        TK::ChongBay::HUONG.each { |h| @so_ke[h] = so_ke_tu_model(h) }
+      end
+
       def activate
         rescan
-        @so_ke = so_ke_tu_model
+        do_lai_so_ke
         @drag = false
         @x0 = @y0 = @x1 = @y1 = 0
         TK::ChongBay.show_panel(self)
@@ -734,7 +828,7 @@ module TK
       # Tab xoay vòng tag đích — khuôn dim_nhanh/main.rb:197 (key 9 = Tab)
       def onKeyDown(key, _rep, _flags, view)
         if key == 9
-          @huong_i = (@huong_i + 1) % (TK::ChongBay::HUONG.size + 1)  # +1 = ô GỠ
+          @huong_i = (@huong_i + 1) % SO_O   # Tự động → Trái → Phải → Gỡ → …
           bao_bang
           view.invalidate
           return false
@@ -782,7 +876,15 @@ module TK
         return if so.empty?
         n = TK::ChongBay.kep_so(so.first)
         return if n.nil?
-        @so_ke = n
+        # Gõ số trong khung nhìn đặt cho hướng ĐANG ÉP. Đang ở chế độ tự động thì
+        # không biết đặt cho bên nào — bắt gõ vào đúng ô Trái/Phải trên bảng, hơn
+        # là đoán rồi sửa ngầm một bên.
+        h = huong
+        if h.nil?
+          TK::ChongBay.nhac('Đang ở chế độ Tự động — gõ số vào ô Trái hoặc Phải trên bảng.')
+          return
+        end
+        @so_ke[h] = n
         bao_bang
         view.invalidate
       end
@@ -1130,48 +1232,65 @@ module TK
             )
             return
           end
-          # KHÔNG còn trần chi tiết mỗi lượt (bỏ 23/07). Trần duy nhất còn lại là
-          # trần SỐ: hết dải 100 thì mới cắt bớt. Vẽ một nét qua 30 chi tiết là
-          # nhận đủ 30, số chạy tiếp từ @so_ke.
-          con  = TK::ChongBay::SO_TOI_DA - @so_ke + 1
-          if con <= 0
+          # Hướng của TỪNG chi tiết: ép tay thì cả lượt theo nút, tự động thì mỗi
+          # cái đọc vị trí của nó trên tấm ván (Cand#auto, tính lúc quét).
+          ep = huong
+          lac = 0
+          if ep.nil?
+            truoc = hits.size
+            hits  = hits.select { |c| !c.auto.nil? }
+            lac   = truoc - hits.size    # không nằm trong tấm nào → không đoán bừa
+          end
+          if hits.empty?
             TK::ChongBay.nhac(
-              "Hết dải #{TK::ChongBay::SO_TOI_DA} đợt — gỡ bớt hoặc gõ số nhỏ " \
-              "hơn vào ô Đợt kế tiếp."
+              "#{lac} chi tiết không nằm trong tấm ván nào — bấm Trái hoặc Phải " \
+              "để ép tay."
             )
             return
           end
-          du   = hits.size - con
-          hits = hits.first(con) if du > 0
+
+          # KHÔNG còn trần chi tiết mỗi lượt (bỏ 23/07). Trần duy nhất còn lại là
+          # trần SỐ, và giờ đếm RIÊNG cho mỗi bên: nét vơ 30 cái trái + 20 cái
+          # phải thì hai dãy số chạy độc lập, không bên nào ăn dải của bên kia.
+          model   = Sketchup.active_model
+          ten_moi = []
+          cap     = []
+          het     = 0
+          luu     = @so_ke.dup   # gán hỏng thì trả lại, đừng để thủng dải số
+          hits.each do |c|
+            h  = ep || c.auto
+            so = @so_ke[h] || 1
+            if so > TK::ChongBay::SO_TOI_DA
+              het += 1
+              next
+            end
+            lay = TK::ChongBay.tag_theo_so(model, h, so)
+            @so_ke[h] = so + 1
+            ten_moi << lay.name.to_s
+            cap << [c.group, lay]
+          end
 
           loi = []
           loi << "Bỏ qua #{bo_qua} chi tiết đã gắn (muốn đổi thì Gỡ trước)." if bo_qua > 0
-          loi << "Chỉ còn #{con} đợt trong dải — bỏ #{du} cái cuối, gỡ bớt hoặc " \
-                 "gõ số nhỏ hơn vào ô Đợt kế tiếp." if du > 0
+          loi << "#{lac} chi tiết không nằm trong tấm ván nào — ép tay bằng nút " \
+                 "Trái/Phải." if lac > 0
+          loi << "Hết dải #{TK::ChongBay::SO_TOI_DA} đợt cho #{het} chi tiết — gỡ " \
+                 "bớt hoặc gõ số nhỏ hơn vào ô Đợt kế tiếp." if het > 0
           TK::ChongBay.nhac(loi.join(' '))
-
-          # MỖI CHI TIẾT MỘT SỐ RIÊNG, số chạy tiếp qua các lượt kéo (Khoa 23/07).
-          # Bản cũ gộp nhiều chi tiết vào một đợt: bên Aspire một layer là một
-          # đường dao chạy hết mọi chi tiết mang số đó, nên trong cùng đợt thì
-          # KHÔNG biết máy cắt cái nào trước — đúng cái mình đang muốn kiểm soát.
-          # Thứ tự giờ do NÉT VẼ quyết định (kiểu :tu_do, xem tim_trung),
-          # nên không tái phát lỗi 20/07 (máy tự chọn thứ tự, cái ngoài rìa cắt cuối).
-          model   = Sketchup.active_model
-          ten_moi = []
-          cap     = hits.each_with_index.map do |c, i|
-            lay = TK::ChongBay.tag_theo_so(model, huong, @so_ke + i)
-            ten_moi << lay.name.to_s
-            [c.group, lay]
-          end
+          return if cap.empty?
           mode = :gan
         end
 
         stats = TK::ChongBay.retag_many(cap, mode)
-        # Chỉ nhích số / ghi sổ phiên khi đổi được THẬT. Gán hỏng mà vẫn nhích là
-        # để thủng một khoảng số trống không ai giải thích được.
-        if stats && mode == :gan
-          @so_ke += cap.size          # được phép thành 101 = hết dải, xem so_ke_tu_model
-          ten_moi.each { |t| @tag_phien[t] = true }
+        # Số đã nhích sẵn trong vòng lặp trên (phải nhích ngay để hai bên không
+        # giẫm số nhau). Gán hỏng thì TRẢ LẠI — nhích mà không gắn được là để
+        # thủng một khoảng số trống không ai giải thích được.
+        if mode == :gan
+          if stats
+            ten_moi.each { |t| @tag_phien[t] = true }
+          else
+            @so_ke = luu
+          end
         end
         @co_doi = true if stats && stats[:groups] > 0
         if stats && stats[:unique_fail] > 0
@@ -1184,7 +1303,7 @@ module TK
         rescan
         # Gỡ xong thì số lớn nhất trong file tụt xuống → dò lại, nếu không thì
         # quét tiếp sẽ nhảy qua đúng những số vừa gỡ và để lỗ.
-        @so_ke = so_ke_tu_model if mode == :go
+        do_lai_so_ke if mode == :go
         bao_bang
       end
 

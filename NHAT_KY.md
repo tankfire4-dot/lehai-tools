@@ -12,6 +12,26 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-23 (chiều) — Chống Bay: bỏ kiểu quét "Đường"
+
+**Quyết định:** ba kiểu quét còn hai — **Khung** và **Vẽ tự do**. Khoa: *"xài kiểu vẽ khung và tự do
+đủ rồi"*. Vẽ tự do làm được mọi thứ đường thẳng làm được; kiểu thứ ba chỉ tốn thêm một nút phải nhìn
+qua mỗi lần chọn. Phím tắt `d` bỏ theo, `k`/`z` giữ nguyên.
+
+**Bẫy suýt dính — vòng lặp JS dùng chung cho hai nhóm nút khác cỡ.** `capNhat` chạy một vòng
+`i < 3` để tô cả 3 chip Hướng lẫn 3 chip Kiểu. Bỏ một chip Kiểu là `getElementById("k2")` trả
+`null`, hàm chết ngay dòng đó — và hậu quả **không phải** "mất nút Đường" mà là **cả bảng ngừng cập
+nhật**: Trái/Phải/Gỡ không đổi màu, bảng đếm đứng im, ô Đợt kế tiếp không nhảy. Nhìn như tool hỏng
+nặng, gỡ mãi không ra vì chỗ hỏng chẳng liên quan gì tới cái vừa sửa.
+
+Nay tách hai vòng riêng, số lượng nội suy thẳng từ Ruby (`HUONG.size + 1`, `KIEU.size`).
+
+**Bài học:** **hai danh sách khác nhau thì đừng dùng chung một bộ đếm, dù hôm nay chúng dài bằng
+nhau.** Chỗ bằng nhau đó là trùng hợp, không phải ràng buộc — và khi nó thôi trùng hợp thì lỗi nổ ở
+nơi khác hẳn nguyên nhân. Số lượng lấy từ nguồn sinh ra nó, đừng chép thành hằng số trong JS.
+
+---
+
 ## 2026-07-23 — Chống Bay: trần 9 → 100, mỗi chi tiết một đợt riêng
 
 **Vấn đề:** Khoa đặt đợt đầu 1 / đợt cuối 1 rồi quét 10 chi tiết — tool chỉ nhận **1 cái**, cắt bỏ

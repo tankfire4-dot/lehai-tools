@@ -12,6 +12,68 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-23 — Chống Bay: trần 9 → 100, mỗi chi tiết một đợt riêng
+
+**Vấn đề:** Khoa đặt đợt đầu 1 / đợt cuối 1 rồi quét 10 chi tiết — tool chỉ nhận **1 cái**, cắt bỏ
+9 cái kèm câu nhắc "chỉ nhận 1 chi tiết mỗi lượt kéo". Không phải lỗi lạ: `chu_ky` (= đợt cuối −
+đợt đầu + 1) **gánh hai nghĩa cùng lúc** — vừa là dải số để rải, vừa là **trần số chi tiết mỗi lượt
+kéo**. Nghĩa thứ hai sinh ra hôm 20/07 để chặn quay vòng, không ai cố ý đặt nó lên đó.
+
+**Vì sao không chữa bằng "1-1 = gán tất cả vào đợt 1":** đó là đề xuất đầu tiên và Khoa bác đúng —
+*"10 tấm đều layer 1 thì éo biết máy sẽ cắt từ tấm nào"*. Bên Aspire một layer là **một** đường dao
+chạy hết mọi chi tiết mang số đó; gộp nhiều chi tiết vào một đợt là vứt đi đúng cái mình muốn kiểm
+soát.
+
+**Quyết định:** mỗi chi tiết **một đợt riêng**, trần **100**, thứ tự do **nét vẽ tay** quyết định
+(kiểu quét :duong / :tu_do vốn đã đánh số theo thứ tự nét đi qua — chức năng có sẵn từ 20/07, chỉ
+bị trần 9 bóp).
+
+- Bỏ ô "đợt đầu – đợt cuối", thay bằng **"đợt kế tiếp"**: tự dò từ file (số lớn nhất của hướng đó
+  + 1), quét tới đâu chạy tiếp tới đó, gõ đè để nhảy tới đợt khác.
+- **Tên tag đệm 0 ba chữ số** — `CHONGBAYTRAI001`…`100`. Bắt buộc, xem mục 20/07: Aspire sắp tên
+  bằng chuỗi.
+- **Bỏ hẳn dải màu đậm→nhạt.** Mỗi hướng một màu dịu (nền alpha 120 → 70), chỉ để nói "đã gắn,
+  hướng nào". Khoa: *"đã đánh số rồi thì không cần màu"* — đúng, và bản trung gian còn tệ hơn: tao
+  làm màu lặp chu kỳ 10, tức nền vẫn tranh chú ý với chính con số mà không nói thêm được gì.
+- **Số nằm trong HUY HIỆU tròn** — đĩa đặc màu hướng, vành trắng, chữ trắng đậm. Bản đầu vẽ số đen
+  Arial đứng trần và **lẫn vào nhãn ABF** trên cùng bản vẽ (cũng đen, cũng nhỏ). Khoa nhìn ảnh chạy
+  thật bắt được: số của plugin phải nhìn ra là **của plugin**, không phải một nhãn bản vẽ nữa.
+- Cảnh báo lúc mở tool nếu file còn tag kiểu cũ chưa đệm 0.
+
+**Vì sao 100 sống được, còn 20/07 thì không:** hôm đó trần 9 có hai lý do. Lý do "mỗi số là một
+đường dao dựng tay bên Aspire" — Khoa 23/07: **chỉ set dao mẫu một lần rồi tái dùng**, nên 100
+layer không đội việc lên 100 lần. Lý do "khai lại tên bên ABF" — Khoa 23/07: **tag chống bay không
+phụ thuộc ABF**, tool tự tạo tag trong SketchUp. Ghi chú cũ trong `chong_bay/main.rb` viết ngược
+lại điều này và suýt chặn cả việc nâng trần; đã sửa ghi chú.
+
+- **Bỏ tô nền cho chi tiết LÕM.** `GL_POLYGON` chỉ tô đúng đa giác lồi; chi tiết cong (lưỡi liềm,
+  cung tròn) sắp đỉnh theo góc quanh tâm thì ra hình sao, OpenGL xoè thành nan quạt **tràn ra ngoài
+  chi tiết**. Khoa bắt qua ảnh chạy thật: *"loè hết màu ra"*. Nay kiểm lồi trước khi tô; lõm thì chỉ
+  viền (viền vẽ theo cạnh thật nên luôn đúng) + huy hiệu số.
+  **Đã cân nhắc tô cả hình lõm rồi bỏ:** probe 23/07 cho thấy chi tiết nesting **0 face / 55 edge**
+  (778 chi tiết) → không mượn được tam giác của SketchUp, phải tự nối chu tuyến + tam giác hoá
+  ~80 dòng. Không đáng đổi rủi ro đó lấy màu nền, khi viền + số đã đọc được. Khoa chốt để nguyên.
+
+**Đã chạy thật 23/07:** Khoa `load` trong Ruby Console, quét vẽ tự do trên file đã nest — số chạy
+1…20 đúng thứ tự nét, huy hiệu tròn đọc được, Gỡ trả đúng 778 chi tiết về "chưa gắn" và ô đợt kế
+tiếp tự về 1. **Cả ba vòng sửa (bỏ dải màu → huy hiệu số → lỗi loè nền) đều do Khoa nhìn màn hình
+mà ra, không vòng nào test bắt được** — và cái loè đã nằm đó từ 20/07, im lặng suốt vì file thử
+hôm ấy toàn chi tiết chữ nhật.
+
+**Bài học/Rủi ro:**
+1. **Một hằng số gánh hai nghĩa là quả bom hẹn giờ.** `chu_ky` đúng ở cả hai vai khi dải rộng, chỉ
+   lộ mặt khi Khoa thu dải về 1. Loại lỗi này không bắt được bằng test — chỉ bắt được khi có người
+   dùng thật đi tới cạnh miền giá trị.
+2. **Ghi chú sai nguy hiểm hơn code sai.** Dòng "phải khai đúng tên bên ABF" đã đứng đó ba ngày,
+   đúng lúc cân nhắc nâng trần thì nó là lý do mạnh nhất để KHÔNG làm. Code sai thì chạy là lộ;
+   ghi chú sai thì âm thầm lái quyết định. Hỏi lại người dùng thật trước khi tin ghi chú của chính
+   mình.
+3. **Rủi ro còn lại:** file làm dở bằng bản ≤1.9.48 có tag chưa đệm 0. Trộn hai kiểu là Aspire sắp
+   `…001` trước `…1` → sai thứ tự cắt mà nhìn màn hình không thấy gì. Tool nhắc lúc mở, nhưng cách
+   an toàn là **gỡ hết rồi gắn lại**.
+
+---
+
 ## 2026-07-20 — Chống Bay v1.9.48: một chữ số, và mỗi lượt kéo đúng 9 cái
 
 **Vấn đề:** Khoa xuất DXF sang Aspire, danh sách layer hiện `...1, ...10, ...11, ...12, ...2, ...3`.

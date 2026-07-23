@@ -40,18 +40,25 @@ module TK
       'CHONGBAYPHAI' => Sketchup::Color.new(210, 90, 0)      # cam đậm
     }.freeze
 
-    SO_DAU_MD  = 1
-    SO_CUOI_MD = 9      # mặc định
-    # TRẦN CỨNG **9** — Khoa chốt 20/07 (đổi từ 12 xuống).
-    # Hai lý do, lý do sau mới là lý do thật:
-    #   1. Mỗi số là một tag VÀ một đường dao phải dựng tay bên Aspire — gõ nhầm
-    #      40 là đẻ ra 40 đường dao, dọn rất mệt.
-    #   2. MỘT CHỮ SỐ thì sắp CHUỖI trùng sắp SỐ. Aspire sắp tên layer bằng chuỗi
-    #      và không phải code mình để vá: hễ có số 2 chữ số là "TRAI10" chen lên
-    #      trước "TRAI2", sai thứ tự cắt. Trần 9 làm lỗi đó không tồn tại được.
-    # Đổi trần lên >9 thì BẮT BUỘC đệm 0 trong ten_tag, nếu không là tái phát.
-    SO_TOI_DA  = 9
-    NHAT_NHAT  = 0.72   # số cuối nhạt tới đâu (0 = giữ nguyên, 1 = trắng hẳn)
+    # TRẦN **100** — Khoa chốt 23/07 (nâng từ 9; cân nhắc 200 rồi hạ xuống 100:
+    # "không bao giờ một tấm ván cộng cả trái phải hơn 200 chi tiết").
+    # Vì sao 9 không còn đủ: trần 9 vừa là số ĐỢT vừa là trần SỐ CHI TIẾT mỗi lượt
+    # kéo (`hits.first(chu_ky)` cũ) — vẽ một nét qua 30 chi tiết thì nhận 9 cái,
+    # cắt 21 cái mà nhìn không ra. Và gộp nhiều chi tiết vào cùng một đợt thì máy
+    # không biết cắt cái nào trước trong đợt đó. Nay MỖI CHI TIẾT MỘT ĐỢT RIÊNG,
+    # thứ tự do nét vẽ tay quyết định.
+    #
+    # Hai lý do của trần 9 cũ, và vì sao 100 vẫn sống:
+    #   1. "Mỗi số là một đường dao dựng tay bên Aspire" — Khoa 23/07: chỉ set dao
+    #      MẪU một lần rồi tái dùng, nên 100 layer không đội việc lên 100 lần.
+    #   2. Aspire sắp tên layer bằng CHUỖI → "TRAI10" chen trước "TRAI2". Cái này
+    #      vẫn đúng và vẫn nguy hiểm → ĐỆM 0 BA CHỮ SỐ trong ten_tag (bắt buộc,
+    #      xem ten_tag). Bỏ đệm là tái phát ngay.
+    SO_TOI_DA  = 100
+    # KHÔNG còn dải màu đậm→nhạt (bỏ 23/07, Khoa: "đã đánh số rồi thì không cần
+    # màu"). Đã có số thì màu chỉ còn một việc: nói cho biết chi tiết nào ĐÃ gắn
+    # và gắn hướng nào. Một màu dịu cho mỗi hướng là đủ; dải nhạt dần chỉ làm
+    # nền tranh nhau với con số, mà 100 mức thì mắt vẫn không đọc ra thứ tự.
 
     # ── Kiểu quét ────────────────────────────────────────────────
     # :khung = kéo hình chữ nhật, trúng cả cụm (nhanh, thứ tự theo hướng kéo)
@@ -62,15 +69,27 @@ module TK
     KIEU     = [:khung, :duong, :tu_do].freeze
     BUOC_NET = 4        # nét tự do chỉ ghi thêm điểm khi chuột đi quá 4px
 
-    # Tô NỀN chi tiết thay vì chỉ tô viền: đợt sau màu nhạt, viền mảnh nhìn không
-    # ra (Khoa 20/07). Khuôn alpha: tim_tam_loi/main.rb:211.
-    FILL_ALPHA = 120
+    # Tô NỀN chi tiết thay vì chỉ tô viền: viền mảnh nhìn không ra (Khoa 20/07).
+    # Khuôn alpha: tim_tam_loi/main.rb:211.
+    # 120 → 70 (23/07): nền giờ chỉ để biết "đã gắn", con số mới là thứ phải đọc.
+    # Nền đậm bằng số thì mắt không biết bám vào cái nào.
+    FILL_ALPHA = 70
 
     MAX_DEPTH = 12
 
     COL_DONE  = Sketchup::Color.new(0, 190, 80)      # xanh lá = đã đổi
     COL_TODO  = Sketchup::Color.new(150, 150, 150)   # xám    = chưa đổi
     COL_BAND  = Sketchup::Color.new(255, 20, 200)    # hồng   = khung đang quét
+    # ── Huy hiệu số ──────────────────────────────────────────────
+    # Số của tool phải KHÁC HẲN nhãn ABF trên cùng bản vẽ (Khoa 23/07, nhìn ảnh
+    # chạy thật: chữ đen Arial của tool lẫn vào đám nhãn ABF cũng đen, cũng nhỏ).
+    # Nên số không đứng trần mà nằm trong một ĐĨA TRÒN đặc màu hướng, chữ trắng,
+    # viền trắng — ABF không vẽ gì có hình dạng đó, nhìn phát biết là của mình.
+    COL_CHU_SO = Sketchup::Color.new(255, 255, 255)  # chữ số: trắng
+    COL_VANH   = Sketchup::Color.new(255, 255, 255)  # vành ngoài huy hiệu: trắng
+    CO_CHU_SO  = 13                                  # cỡ chữ số đợt
+    BK_HUY_HIEU = 12.0                               # bán kính đĩa (px màn hình)
+    CANH_TRON   = 16                                 # số cạnh xấp xỉ hình tròn
 
     # ── Helper đọc ───────────────────────────────────────────────
 
@@ -98,10 +117,10 @@ module TK
     # nhiều  → cho chọn.  0 cái → bảo Khoa tạo bên ABF trước.
 
     # Danh sách Layer bên ABF KHÔNG phải tag SketchUp — đó là danh sách riêng của
-    # ABF (đo thật 19/07: model có 8 tag, hộp thoại ABF liệt kê 31 layer). ABF chỉ
-    # đẻ tag SketchUp thật khi có hình được gán vào. Nên tag tạo ở đây phải đặt
-    # ĐÚNG tên đã khai bên ABF thì hai bên mới khớp — lệch tên là ABF không nhận
-    # mà chẳng báo lỗi gì.
+    # ABF (đo thật 19/07: model có 8 tag, hộp thoại ABF liệt kê 31 layer).
+    # **Tag chống bay KHÔNG phụ thuộc ABF** (Khoa 23/07): tool tự tạo tag trong
+    # SketchUp, xuất DXF là Aspire đọc được, không phải khai trước bên ABF. Ghi
+    # chú cũ ở đây viết ngược lại và suýt chặn việc nâng trần — đã sửa.
     # Tách tên tag thành [hướng, số]. Tag cũ chưa đánh số → số nil.
     def self.tach_tag(ten)
       m = ten.to_s.match(/\A(CHONGBAY(?:TRAI|PHAI))(\d*)\z/i)
@@ -109,12 +128,24 @@ module TK
       [m[1].upcase, (m[2].empty? ? nil : m[2].to_i)]
     end
 
-    # KHÔNG đệm 0: tên giữ nguyên "CHONGBAYTRAI1"… "CHONGBAYTRAI9" như đã khai
-    # bên ABF. Đệm 0 chỉ cần khi trần >9 (xem SO_TOI_DA) — với trần 9 thì thừa,
-    # mà đổi tên là phải khai lại toàn bộ bên ABF, lệch một ký tự là ABF im lặng
-    # không nhận.
+    # ĐỆM 0 BA CHỮ SỐ — "CHONGBAYTRAI001" … "CHONGBAYTRAI100".
+    # Bắt buộc từ lúc trần vượt 9 (23/07): Aspire sắp tên layer bằng chuỗi, không
+    # đệm thì "TRAI10" chen lên trước "TRAI2" và sai thứ tự đường dao — lỗi nằm
+    # bên Aspire, không vá được từ đây. BA chữ số chứ không phải hai: trần 100 có
+    # số 100, mà "10" đệm hai chữ số là "10" — hụt một ký tự là sai lại từ đầu.
+    # Đổi trần lên >999 thì phải nới đệm, nếu không là tái phát đúng lỗi cũ.
     def self.ten_tag(huong, so)
-      format('%s%d', huong, so.to_i)
+      format('%s%03d', huong, so.to_i)
+    end
+
+    # Tag đánh số KIỂU CŨ (chưa đệm 0): "CHONGBAYTRAI1" thay vì "…001".
+    # File làm dở từ bản ≤1.9.48 sẽ có loại này. Trộn hai kiểu trong một file là
+    # hỏng THỨ TỰ CẮT mà không báo gì: Aspire sắp chuỗi nên "…001" đứng trước
+    # "…1", tức chi tiết số 1 cũ bị đẩy xuống sau cả trăm cái. Phải gỡ hết rồi
+    # gắn lại — nên tool phải nói ra ngay lúc mở, đừng để phát hiện ở máy cắt.
+    def self.tag_cu?(ten)
+      m = ten.to_s.match(/\ACHONGBAY(?:TRAI|PHAI)(\d+)\z/i)
+      !m.nil? && m[1].length != 3
     end
 
     # Sắp tên tag theo [hướng, SỐ THẬT] — KHÔNG sắp bằng chuỗi.
@@ -129,37 +160,24 @@ module TK
       end
     end
 
-    # Màu overlay: số 1 đậm nhất, số càng lớn càng pha trắng nhiều.
-    # so_cuoi truyền vào để dải màu co giãn theo khoảng Khoa đang đặt.
-    def self.color_for(tag_name, so_dau = SO_DAU_MD, so_cuoi = SO_CUOI_MD)
+    # MỘT màu cho mỗi hướng, không phụ thuộc số nữa. Dùng cho viền chi tiết, nền
+    # huy hiệu số, và chấm màu trong hai bảng.
+    def self.color_for(tag_name)
       return COL_TODO if tag_name.nil? || tag_name == SRC_TAG
-      huong, so = tach_tag(tag_name)
-      goc = MAU_GOC[huong]
-      return COL_TODO if goc.nil?
-      return goc if so.nil?     # tag cũ chưa đánh số → màu gốc
-
-      span = (so_cuoi - so_dau).to_f
-      t    = span <= 0 ? 0.0 : ((so - so_dau) / span)
-      t    = 0.0 if t < 0.0
-      t    = 1.0 if t > 1.0
-      pha  = t * NHAT_NHAT      # pha về phía trắng
-      Sketchup::Color.new(
-        (goc.red   + (255 - goc.red)   * pha).round,
-        (goc.green + (255 - goc.green) * pha).round,
-        (goc.blue  + (255 - goc.blue)  * pha).round
-      )
+      huong, _so = tach_tag(tag_name)
+      MAU_GOC[huong] || COL_TODO
     end
 
     # Tìm hoặc TẠO tag theo hướng+số, và sơn màu cho nó luôn để bảng Tags của
     # SketchUp cũng hiện đúng dải màu. Tạo LƯỜI — chỉ đẻ tag khi thật sự dùng
     # tới, không nhồi sẵn 80 tag vào mọi file.
-    def self.tag_theo_so(model, huong, so, so_dau, so_cuoi)
+    def self.tag_theo_so(model, huong, so)
       ten = ten_tag(huong, so)
       lay = find_tag(model, ten) || model.layers.add(ten)
       # Layer#color= CHƯA có tiền lệ chạy trong repo → bọc respond_to? + rescue.
       # Hỏng thì chỉ mất màu trong bảng Tags, overlay của tool vẫn đúng.
       begin
-        lay.color = color_for(ten, so_dau, so_cuoi) if lay.respond_to?(:color=)
+        lay.color = color_for(ten) if lay.respond_to?(:color=)
       rescue => e
         puts "[Chống Bay] không sơn được màu tag #{ten}: #{e.message}"
       end
@@ -221,8 +239,8 @@ module TK
       @panel.add_action_callback('dat_kieu') do |_c, i|
         @tool.dat_kieu(i.to_i) if @tool
       end
-      @panel.add_action_callback('dat_khoang') do |_c, a, b|
-        @tool.dat_khoang(a.to_i, b.to_i) if @tool
+      @panel.add_action_callback('dat_so_ke') do |_c, n|
+        @tool.dat_so_ke(n.to_i) if @tool
       end
       # Kết thúc tool từ bảng. HOÃN qua timer: đóng tool sẽ đóng luôn chính cái
       # dialog đang chạy callback này — làm thẳng là tự rút ghế mình đang ngồi.
@@ -254,15 +272,13 @@ module TK
     end
 
     # dem = [[ten_tag_hoac_nil, so_luong], ...]
-    def self.sync_panel(huong_i, kieu_i, so_dau, so_cuoi, dem)
+    def self.sync_panel(huong_i, kieu_i, so_ke, dem)
       return unless @panel && (@panel.visible? rescue false)
       hang = dem.map do |ten, n|
-        mau = hex(color_for(ten, so_dau, so_cuoi))
+        mau = hex(color_for(ten))
         "[\"#{esc_html(ten || 'chưa gắn')}\",#{n},\"#{mau}\"]"
       end.join(',')
-      @panel.execute_script(
-        "capNhat(#{huong_i},#{kieu_i},#{so_dau},#{so_cuoi},[#{hang}])"
-      )
+      @panel.execute_script("capNhat(#{huong_i},#{kieu_i},#{so_ke},[#{hang}])")
     rescue => e
       puts "[Chống Bay] không cập nhật được bảng: #{e.message}"
     end
@@ -305,22 +321,16 @@ module TK
             </div>
           </div>
 
-          <div class="lh-row lh-field">
-            <div>
-              <label class="lh-label">Đợt đầu</label>
-              <input class="lh-input" id="a" type="number" min="1" max="#{SO_TOI_DA}"
-                     value="#{SO_DAU_MD}" onchange="gui()">
-            </div>
-            <div>
-              <label class="lh-label">Đợt cuối</label>
-              <input class="lh-input" id="b" type="number" min="1" max="#{SO_TOI_DA}"
-                     value="#{SO_CUOI_MD}" onchange="gui()">
-            </div>
+          <div class="lh-field">
+            <label class="lh-label">Đợt kế tiếp</label>
+            <input class="lh-input" id="n" type="number" min="1" max="#{SO_TOI_DA}"
+                   value="1" onchange="gui()">
           </div>
           <div class="lh-hint">
-            Số là ĐỢT CẮT. Mỗi lượt kéo đánh lại từ đợt đầu, và chỉ nhận tối đa
-            bấy nhiêu chi tiết — dư thì kéo lượt nữa. Bên Aspire mỗi số là một
-            đường dao, nên trần là #{SO_TOI_DA} đợt.
+            Số là THỨ TỰ CẮT, mỗi chi tiết một số riêng. Quét tới đâu số chạy tiếp
+            tới đó, không reset — kéo bao nhiêu chi tiết một lượt cũng nhận hết.
+            Ô này tự dò từ file (số lớn nhất đang có + 1); gõ đè để nhảy tới đợt
+            khác. Trần #{SO_TOI_DA}.
           </div>
 
           <hr class="lh-divider">
@@ -343,25 +353,23 @@ module TK
           function pick(i){ sketchup.dat_huong(i); }
           function pickK(i){ sketchup.dat_kieu(i); }
           function gui(){
-            var a = parseInt(document.getElementById("a").value, 10);
-            var b = parseInt(document.getElementById("b").value, 10);
-            if (!a || !b) { return; }
-            sketchup.dat_khoang(a, b);
+            var n = parseInt(document.getElementById("n").value, 10);
+            if (!n) { return; }
+            sketchup.dat_so_ke(n);
           }
           function nhac(s){
             var e = document.getElementById("nhac");
             e.innerHTML = s;
             e.style.display = s ? "block" : "none";
           }
-          function capNhat(h, k, a, b, dem){
+          function capNhat(h, k, n, dem){
             for (var i = 0; i < 3; i++){
               document.getElementById("h" + i).className =
                 (i === h) ? "lh-chip is-active" : "lh-chip";
               document.getElementById("k" + i).className =
                 (i === k) ? "lh-chip is-active" : "lh-chip";
             }
-            document.getElementById("a").value = a;
-            document.getElementById("b").value = b;
+            document.getElementById("n").value = n;
             var s = "";
             for (var j = 0; j < dem.length; j++){
               s += "<tr><td><span class=dot style=background:" + dem[j][2] + "></span>"
@@ -444,8 +452,8 @@ module TK
             <b>#{da_gan}</b>
           </div>
           <div class="lh-hint">
-            Nhớ khai đúng tên tag bên ABF (mục Layer) thì khâu xuất DXF mới nhận —
-            hai bên là hai danh sách riêng, chỉ dính nhau qua tên.
+            Tên tag đệm 0 ba chữ số (…001, …002) để Aspire sắp đúng thứ tự đường
+            dao — Aspire sắp bằng chuỗi, không đệm là "10" chen trước "2".
           </div>
           <div style="margin-top:14px;text-align:right">
             <button class="lh-btn lh-btn--primary lh-copybtn"
@@ -588,13 +596,18 @@ module TK
       # Vòng Tab: các tag chống bay, rồi tới CHẾ ĐỘ GỠ (vị trí cuối cùng).
       # Gỡ = trả chi tiết về ABF_cuttingLines. Nhét vào cùng vòng Tab thay vì
       # thêm phím mới: Khoa đã quen Tab rồi, không phải học thêm gì.
-      def initialize(so_dau = TK::ChongBay::SO_DAU_MD, so_cuoi = TK::ChongBay::SO_CUOI_MD)
+      def initialize
         @huong_i = 0        # 0..HUONG.size-1 = hướng; == HUONG.size = chế độ GỠ
-        @so_dau  = so_dau
-        @so_cuoi = so_cuoi
+        @so_ke   = 1        # đợt sẽ gán cho chi tiết kế tiếp (dò lại trong activate)
         @kieu_i  = 0        # chỉ số trong KIEU
         @net     = []       # nét đang vẽ (toạ độ MÀN HÌNH)
         @co_doi  = false    # phiên này có đổi được gì không (quyết định hiện bảng)
+        # Tag gắn TRONG PHIÊN NÀY → chỉ những cái này mới vẽ số lên màn hình
+        # (Khoa 23/07). Lưu theo TÊN TAG chứ không theo group: make_unique thay
+        # entity nên tham chiếu group chết sau mỗi lần rescan, còn tên tag thì
+        # sống. Mỗi số chỉ một chi tiết nên tên tag đủ để trỏ đúng một cái.
+        @tag_phien = {}
+        @do_chu    = nil   # nil = chưa thử text_bounds, false = máy không có
       end
 
       def kieu ; TK::ChongBay::KIEU[@kieu_i] end
@@ -605,6 +618,10 @@ module TK
       def dat_huong(i)
         return unless i >= 0 && i <= TK::ChongBay::HUONG.size
         @huong_i = i
+        # Mỗi hướng có dãy số riêng → đổi hướng là phải dò lại, không mang số của
+        # hướng cũ sang. Đánh đổi: nếu vừa gõ tay một số rồi Tab đổi hướng thì mất
+        # số đó — chấp nhận, vì dò lại đúng nhiều hơn là sai.
+        @so_ke = so_ke_tu_model unless erase?
         bao_bang
         Sketchup.active_model.active_view.invalidate
       end
@@ -617,10 +634,10 @@ module TK
         Sketchup.active_model.active_view.invalidate
       end
 
-      def dat_khoang(a, b)
-        a, b = TK::ChongBay.kep_khoang(a, b)
-        return if a.nil?
-        @so_dau, @so_cuoi = a, b
+      def dat_so_ke(n)
+        n = TK::ChongBay.kep_so(n)
+        return if n.nil?
+        @so_ke = n
         bao_bang
         Sketchup.active_model.active_view.invalidate
       end
@@ -636,7 +653,7 @@ module TK
         @cands.each { |c| dem[c.tag] += 1 } if @cands
         hang = TK::ChongBay.sap_tag(dem.keys.compact).map { |t| [t, dem[t]] }
         hang << [nil, dem[nil]] if dem.key?(nil)   # chưa gắn xuống cuối
-        TK::ChongBay.sync_panel(@huong_i, @kieu_i, @so_dau, @so_cuoi, hang)
+        TK::ChongBay.sync_panel(@huong_i, @kieu_i, @so_ke, hang)
       end
 
       def erase?   ; @huong_i == TK::ChongBay::HUONG.size end
@@ -645,15 +662,52 @@ module TK
       # từ đầu khoảng.
       def dst_name ; erase? ? TK::ChongBay::SRC_TAG : huong end
 
-      def chu_ky ; @so_cuoi - @so_dau + 1 end
+      # Đợt kế tiếp = số lớn nhất của HƯỚNG NÀY đang có trong file, + 1.
+      # Đọc từ model chứ không nhớ trong tool: đóng tool mở lại, Gỡ rồi quét lại,
+      # hay `load` lại file lúc dev — vẫn ra đúng. Trạng thái nhớ trong module đã
+      # từng kẹt giá trị cũ và đè lên mặc định mới (bỏ 20/07, xem ChongBay.start).
+      def so_ke_tu_model
+        h = huong
+        return 1 if h.nil?
+        lon_nhat = 0
+        (@cands || []).each do |c|
+          hg, so = TK::ChongBay.tach_tag(c.tag)
+          next if so.nil? || hg != h
+          lon_nhat = so if so > lon_nhat
+        end
+        # CỐ Ý cho phép vượt trần một bậc (101 khi file đã dùng hết 100): đó là
+        # trạng thái "hết dải", để apply_rect chặn thẳng. Kẹp về 100 thì lượt sau
+        # gán đè trùng lên đúng số 100 mà không ai thấy.
+        lon_nhat + 1
+      end
 
       def activate
         rescan
+        @so_ke = so_ke_tu_model
         @drag = false
         @x0 = @y0 = @x1 = @y1 = 0
         TK::ChongBay.show_panel(self)
         bao_bang
+        canh_bao_tag_cu
         Sketchup.active_model.active_view.invalidate
+      end
+
+      # Nói ngay lúc mở, không đợi tới lúc xuất DXF. Tag kiểu cũ trộn với tag mới
+      # là sai thứ tự cắt mà nhìn màn hình không thấy gì — đúng loại lỗi chỉ lộ ra
+      # ở máy cắt (bài học 19/07: tách 18 container dùng chung).
+      # HOÃN qua timer: bảng vừa mới `show`, bắn execute_script ngay lúc này thì
+      # HTML có thể chưa nạp xong và lời nhắc rơi vào chỗ không có ai nghe. Lời
+      # nhắc này chỉ bắn MỘT lần nên không có lượt sau vá cho — khác bao_bang.
+      # Khuôn hoãn: ha_nen/main.rb:66.
+      def canh_bao_tag_cu
+        n = (@cands || []).count { |c| TK::ChongBay.tag_cu?(c.tag) }
+        return if n.zero?
+        UI.start_timer(0.4, false) do
+          TK::ChongBay.nhac(
+            "File có #{n} chi tiết đeo tag kiểu cũ (chưa đệm 0). Gỡ hết rồi gắn " \
+            "lại, để lẫn hai kiểu là Aspire sắp sai thứ tự cắt."
+          )
+        end
       end
 
       def deactivate(view)
@@ -689,10 +743,11 @@ module TK
         false
       end
 
-      # Gõ vào ô Measurements (VCB) để đặt KHOẢNG đợt cắt — khuôn tim_tam_loi:157.
-      #   "9"     → khoảng 1-9   (gõ mỗi số cuối cho nhanh)
-      #   "1-9"   → khoảng 1-9
-      # Khoảng này vừa là số đợt cắt, vừa là dải màu đậm→nhạt.
+      # Gõ vào ô Measurements (VCB) để NHẢY TỚI một đợt — khuôn tim_tam_loi:157.
+      #   "50"  → chi tiết quét tiếp theo mang số 50, rồi 51, 52…
+      # Trước đây ô này nhận một KHOẢNG (đợt đầu–đợt cuối); khoảng đã bỏ 23/07 vì
+      # nó vừa là dải số vừa là trần chi tiết mỗi lượt — đặt 1-1 là quét 10 cái chỉ
+      # nhận 1, cắt 9 cái không nói gì.
       def enableVCB?
         true
       end
@@ -715,10 +770,9 @@ module TK
         end
         so = text.to_s.scan(/\d+/).map(&:to_i)
         return if so.empty?
-        a, b = so.size >= 2 ? [so[0], so[1]] : [1, so[0]]
-        a, b = TK::ChongBay.kep_khoang(a, b)
-        return if a.nil?
-        @so_dau, @so_cuoi = a, b
+        n = TK::ChongBay.kep_so(so.first)
+        return if n.nil?
+        @so_ke = n
         bao_bang
         view.invalidate
       end
@@ -765,6 +819,8 @@ module TK
       # theo góc quanh tâm. Chi tiết nesting gần như đều là hình chữ nhật nên
       # cách này ra đúng hình; chi tiết khuyết góc thì nền hơi "đầy" hơn thật —
       # chỉ ảnh hưởng cái nhìn, không ảnh hưởng việc gán tag.
+      #
+      # 23/07 — chỗ "hơi đầy hơn thật" hoá ra nặng hơn tưởng: xem `loi?`.
       def da_giac(view, segs)
         pts = segs.map { |a, _b| view.screen_coords(a) }
         return [] if pts.size < 3
@@ -773,6 +829,35 @@ module TK
         cy = pts.inject(0.0) { |s, p| s + p.y } / n
         pts.sort_by { |p| Math.atan2(p.y - cy, p.x - cx) }
            .map { |p| Geom::Point3d.new(p.x, p.y, 0) }
+      end
+
+      # GL_POLYGON chỉ tô đúng đa giác LỒI. Chi tiết CONG/LÕM (lưỡi liềm, cung
+      # tròn) sắp điểm theo góc quanh tâm thì ra hình sao, OpenGL tô thành nan
+      # quạt xoè TRÀN RA NGOÀI chi tiết — Khoa bắt được qua ảnh chạy thật 23/07
+      # ("loè hết màu ra"). Lỗi này đã có từ 20/07, chỉ không ai nhìn ra vì file
+      # thử trước đó toàn chi tiết chữ nhật.
+      #
+      # Không tô nền cho loại lõm. Viền vẽ theo CẠNH THẬT nên luôn đúng, cộng
+      # huy hiệu số là đủ nhận ra — thà thiếu nền còn hơn bôi màu ra chỗ không
+      # có chi tiết, vì cái loè đó trông y như một chi tiết đã gắn.
+      #
+      # Ngưỡng 0.5 (px²) để bỏ qua ba điểm gần thẳng hàng: chi tiết cong được
+      # xấp xỉ bằng cả trăm đoạn ngắn, không lọc thì nhiễu làm dấu đảo lung tung.
+      def loi?(poly)
+        n = poly.size
+        return false if n < 3
+        dau = 0
+        n.times do |i|
+          a = poly[i]
+          b = poly[(i + 1) % n]
+          c = poly[(i + 2) % n]
+          z = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x)
+          next if z.abs < 0.5
+          d = z > 0 ? 1 : -1
+          return false if dau != 0 && d != dau
+          dau = d
+        end
+        true
       end
 
       def draw(view)
@@ -784,7 +869,8 @@ module TK
           next if (c.group.deleted? rescue true)
           poly = da_giac(view, c.segs)
           next if poly.size < 3
-          m = TK::ChongBay.color_for(c.tag, @so_dau, @so_cuoi)
+          next unless loi?(poly)      # lõm thì bỏ nền, xem loi?
+          m = TK::ChongBay.color_for(c.tag)
           view.drawing_color =
             Sketchup::Color.new(m.red, m.green, m.blue, TK::ChongBay::FILL_ALPHA)
           view.draw2d(GL_POLYGON, poly)
@@ -807,10 +893,16 @@ module TK
         end
         by_tag.each do |tag, pts|
           next if pts.empty?
-          view.drawing_color = TK::ChongBay.color_for(tag, @so_dau, @so_cuoi)
+          view.drawing_color = TK::ChongBay.color_for(tag)
           view.line_width    = 2
           view.draw2d(GL_LINES, pts)
         end
+
+        # 3. HUY HIỆU SỐ ĐỢT. Chỉ vẽ cái gắn TRONG PHIÊN NÀY (Khoa 23/07) — file
+        #    đã gắn sẵn cả trăm cái mà vẽ hết thì màn hình đặc chữ, không đọc
+        #    được cái mình vừa làm. Đây là chỗ ĐỌC THỨ TỰ; nền màu chỉ còn nói
+        #    "đã gắn, hướng nào".
+        ve_so(view)
 
         draw_band(view) if @drag
       end
@@ -820,6 +912,85 @@ module TK
       COL_DONE = TK::ChongBay::COL_DONE
       COL_TODO = TK::ChongBay::COL_TODO
       COL_BAND = TK::ChongBay::COL_BAND
+      COL_CHU_SO = TK::ChongBay::COL_CHU_SO
+      COL_VANH   = TK::ChongBay::COL_VANH
+
+      # Đĩa tròn ở toạ độ màn hình. GL_LINE_LOOP có tiền lệ trong repo (3 chỗ).
+      def dia_tron(cx, cy, r)
+        (0...TK::ChongBay::CANH_TRON).map do |i|
+          g = 2 * Math::PI * i / TK::ChongBay::CANH_TRON
+          Geom::Point3d.new(cx + r * Math.cos(g), cy + r * Math.sin(g), 0)
+        end
+      end
+
+      # Vẽ HUY HIỆU SỐ ĐỢT lên giữa chi tiết — chỉ những tag gắn trong phiên này.
+      # Đĩa đặc màu hướng + vành trắng + số trắng: đọc được trên mọi nền, và
+      # không lẫn với nhãn ABF (chữ đen trần trong khung mũi tên).
+      # Bỏ qua chi tiết quá bé trên màn hình: zoom xa thì huy hiệu chồng nhau
+      # thành vệt, thà không vẽ còn hơn vẽ ra thứ không đọc được.
+      # Khuôn draw_text (keyword options, SketchUp 2016+): dim_nhanh/main.rb:485.
+      def ve_so(view)
+        return if @tag_phien.nil? || @tag_phien.empty?
+        @cands.each do |c|
+          next if c.tag.nil? || !@tag_phien[c.tag]
+          next if (c.group.deleted? rescue true)
+          _h, so = TK::ChongBay.tach_tag(c.tag)
+          next if so.nil?
+          pts = c.segs.map { |a, _b| view.screen_coords(a) }
+          next if pts.empty?
+          xs = pts.map { |p| p.x }
+          ys = pts.map { |p| p.y }
+          # Ẩn theo chiều DÀI, không theo chiều ngắn (sửa 23/07 — Khoa: "phải zoom
+          # lên mới thấy số"). Chi tiết nesting phần lớn là thanh dài mà mỏng:
+          # dài 150px, cao 20px. Bắt cả hai chiều phải đủ rộng là ẩn mất đúng
+          # loại phổ biến nhất, dù thừa chỗ đặt huy hiệu theo chiều dài.
+          # Huy hiệu tràn nhẹ ra khỏi thanh mỏng thì vẫn đọc được và vẫn thấy rõ
+          # nó thuộc thanh nào — mất hẳn số mới là cái không chữa được bằng mắt.
+          dai = [xs.max - xs.min, ys.max - ys.min].max
+          next if dai < 20
+          s  = so.to_s
+          cx = (xs.min + xs.max) / 2.0
+          cy = (ys.min + ys.max) / 2.0
+          # Chi tiết ngắn → huy hiệu nhỏ lại cho đỡ che nhau; số 3 chữ số cần đĩa
+          # rộng hơn, nếu không chữ chạm mép.
+          bk  = dai < 34 ? 8.0 : TK::ChongBay::BK_HUY_HIEU
+          bk += 3.0 if s.length >= 3
+          co  = bk >= 11.0 ? TK::ChongBay::CO_CHU_SO : 10
+          vong = dia_tron(cx, cy, bk)
+
+          view.drawing_color = TK::ChongBay.color_for(c.tag)
+          view.draw2d(GL_POLYGON, vong)
+          view.drawing_color = COL_VANH
+          view.line_width    = 2
+          view.draw2d(GL_LINE_LOOP, vong)
+          opt = { color: COL_CHU_SO, font: 'Arial', size: co, bold: true }
+          view.draw_text(neo_chu(view, cx, cy, s, opt), s, opt)
+        end
+      end
+
+      # Điểm neo để chữ nằm ĐÚNG TÂM đĩa. `draw_text` neo vào góc trên-trái của
+      # chữ, nên phải tự lùi lại nửa bề rộng/bề cao — mà "nửa bề rộng" đoán bằng
+      # số ký tự thì sai (Khoa 23/07: số lệch tâm vòng tròn). `view.text_bounds`
+      # đo hộp chữ thật nên căn đúng cho mọi cỡ chữ và mọi độ dài số.
+      #
+      # API này CHƯA có tiền lệ chạy trong repo → thử một lần, hỏng thì lùi về
+      # ước lượng tay và **nhớ là đã hỏng**. Không nhớ thì mỗi khung hình lại ném
+      # một dòng lỗi ra Ruby Console, vẽ 20 huy hiệu là 20 dòng mỗi lần rê chuột.
+      def neo_chu(view, cx, cy, s, opt)
+        unless @do_chu == false
+          begin
+            b = view.text_bounds(Geom::Point3d.new(cx, cy, 0), s, opt)
+            @do_chu = true
+            return Geom::Point3d.new(cx - b.width / 2.0, cy - b.height / 2.0, 0)
+          rescue => e
+            if @do_chu.nil?
+              @do_chu = false
+              puts "[Chống Bay] text_bounds không dùng được, căn chữ bằng ước lượng: #{e.message}"
+            end
+          end
+        end
+        Geom::Point3d.new(cx - s.length * 3.8, cy - 9, 0)
+      end
 
       def rescan
         # make_unique thay entity cũ bằng entity mới → danh sách cũ thành rác,
@@ -949,34 +1120,49 @@ module TK
             )
             return
           end
-          # MỘT LƯỢT KÉO = TỐI ĐA `chu_ky` CHI TIẾT. Quá thì CẮT BỚT phần dư,
-          # KHÔNG quay vòng. Quay vòng thì số 1 xuất hiện hai lần trong cùng một
-          # lượt: hai chi tiết khác nhau cùng màu, cùng đợt, nhìn không ra là cố ý
-          # hay lỗi (Khoa 20/07 — "trùng lặp lại phiền chết mọe").
-          # Số VẪN lặp giữa các LƯỢT khác nhau — đó mới là ý nghĩa "đợt cắt".
-          du   = hits.size - chu_ky
-          hits = hits.first(chu_ky) if du > 0
+          # KHÔNG còn trần chi tiết mỗi lượt (bỏ 23/07). Trần duy nhất còn lại là
+          # trần SỐ: hết dải 100 thì mới cắt bớt. Vẽ một nét qua 30 chi tiết là
+          # nhận đủ 30, số chạy tiếp từ @so_ke.
+          con  = TK::ChongBay::SO_TOI_DA - @so_ke + 1
+          if con <= 0
+            TK::ChongBay.nhac(
+              "Hết dải #{TK::ChongBay::SO_TOI_DA} đợt — gỡ bớt hoặc gõ số nhỏ " \
+              "hơn vào ô Đợt kế tiếp."
+            )
+            return
+          end
+          du   = hits.size - con
+          hits = hits.first(con) if du > 0
 
           loi = []
           loi << "Bỏ qua #{bo_qua} chi tiết đã gắn (muốn đổi thì Gỡ trước)." if bo_qua > 0
-          loi << "Chỉ nhận #{chu_ky} chi tiết mỗi lượt kéo — bỏ #{du} cái cuối, " \
-                 "kéo lượt nữa cho chúng." if du > 0
+          loi << "Chỉ còn #{con} đợt trong dải — bỏ #{du} cái cuối, gỡ bớt hoặc " \
+                 "gõ số nhỏ hơn vào ô Đợt kế tiếp." if du > 0
           TK::ChongBay.nhac(loi.join(' '))
 
-          # Số là ĐỢT CẮT, không phải mã định danh. Bên Aspire layer 1 là một đường
-          # dao chạy hết mọi chi tiết mang số 1, rồi mới tới layer 2.
-          # (Bản đánh số độc nhất tăng mãi đã sai: quét 20 chi tiết ra 20 đường dao,
-          # cái ngoài rìa lại bị cắt cuối cùng. Khoa sửa 20/07.)
-          model = Sketchup.active_model
-          cap   = hits.each_with_index.map do |c, i|
-            so  = @so_dau + i
-            lay = TK::ChongBay.tag_theo_so(model, huong, so, @so_dau, @so_cuoi)
+          # MỖI CHI TIẾT MỘT SỐ RIÊNG, số chạy tiếp qua các lượt kéo (Khoa 23/07).
+          # Bản cũ gộp nhiều chi tiết vào một đợt: bên Aspire một layer là một
+          # đường dao chạy hết mọi chi tiết mang số đó, nên trong cùng đợt thì
+          # KHÔNG biết máy cắt cái nào trước — đúng cái mình đang muốn kiểm soát.
+          # Thứ tự giờ do NÉT VẼ quyết định (kiểu :duong / :tu_do, xem tim_trung),
+          # nên không tái phát lỗi 20/07 (máy tự chọn thứ tự, cái ngoài rìa cắt cuối).
+          model   = Sketchup.active_model
+          ten_moi = []
+          cap     = hits.each_with_index.map do |c, i|
+            lay = TK::ChongBay.tag_theo_so(model, huong, @so_ke + i)
+            ten_moi << lay.name.to_s
             [c.group, lay]
           end
           mode = :gan
         end
 
         stats = TK::ChongBay.retag_many(cap, mode)
+        # Chỉ nhích số / ghi sổ phiên khi đổi được THẬT. Gán hỏng mà vẫn nhích là
+        # để thủng một khoảng số trống không ai giải thích được.
+        if stats && mode == :gan
+          @so_ke += cap.size          # được phép thành 101 = hết dải, xem so_ke_tu_model
+          ten_moi.each { |t| @tag_phien[t] = true }
+        end
         @co_doi = true if stats && stats[:groups] > 0
         if stats && stats[:unique_fail] > 0
           UI.messagebox(
@@ -986,6 +1172,10 @@ module TK
           )
         end
         rescan
+        # Gỡ xong thì số lớn nhất trong file tụt xuống → dò lại, nếu không thì
+        # quét tiếp sẽ nhảy qua đúng những số vừa gỡ và để lỗ.
+        @so_ke = so_ke_tu_model if mode == :go
+        bao_bang
       end
 
       # ---- Bảng nhắc góc trên-trái (khuôn tim_tam_loi/main.rb:266) ----
@@ -1013,16 +1203,11 @@ module TK
 
     # ── Cổng vào ─────────────────────────────────────────────────
 
-    # Kẹp khoảng về [1, SO_TOI_DA]. Trả [a, b] hợp lệ, hoặc [nil, nil] nếu vô nghĩa.
-    def self.kep_khoang(a, b)
-      a = a.to_i
-      b = b.to_i
-      a, b = b, a if a > b
-      a = 1 if a < 1
-      b = SO_TOI_DA if b > SO_TOI_DA
-      a = b if a > b
-      return [nil, nil] if b < 1
-      [a, b]
+    # Kẹp một số đợt về [1, SO_TOI_DA]. Trả nil nếu gõ vào thứ vô nghĩa.
+    def self.kep_so(n)
+      n = n.to_i
+      return nil if n < 1
+      n > SO_TOI_DA ? SO_TOI_DA : n
     end
 
     # KHÔNG hỏi gì lúc mở — vào thẳng bộ quét. Tag đánh số tạo LƯỜI khi quét tới,
@@ -1030,10 +1215,11 @@ module TK
     #
     # Từng có cơ chế "nhớ khoảng của lần dùng trước" (@khoang) — ĐÃ BỎ 20/07.
     # Nó bám vào module nên `load` không xoá, giá trị cũ 1-40 kẹt lại đè lên mặc
-    # định mới 1-9 và Khoa thấy sai ngay. Trạng thái ẩn sống dai hơn code sinh ra
-    # nó. Mở tool giờ LUÔN về mặc định, muốn khác thì gõ — đoán được, không giấu.
+    # định mới và Khoa thấy sai ngay. Trạng thái ẩn sống dai hơn code sinh ra nó.
+    # Nay "đợt kế tiếp" cũng không nhớ trong module — nó ĐỌC TỪ FILE mỗi lần mở
+    # (SweepTool#so_ke_tu_model), nên không có gì kẹt lại được.
     def self.start
-      Sketchup.active_model.select_tool(SweepTool.new(SO_DAU_MD, SO_CUOI_MD))
+      Sketchup.active_model.select_tool(SweepTool.new)
     end
 
     def self.create_cmd

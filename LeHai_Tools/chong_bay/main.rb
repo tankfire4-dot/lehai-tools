@@ -62,11 +62,13 @@ module TK
 
     # ── Kiểu quét ────────────────────────────────────────────────
     # :khung = kéo hình chữ nhật, trúng cả cụm (nhanh, thứ tự theo hướng kéo)
-    # :duong = kéo một đường thẳng, đánh số theo thứ tự đường cắt qua
     # :tu_do = vẽ tay tự do, đánh số theo đúng thứ tự nét đi qua
     #          (trước gọi "zigzag" — Khoa 20/07: nét là do mình vẽ chứ không phải
     #           hình zigzag đều, gọi "vẽ tự do" đúng hơn)
-    KIEU     = [:khung, :duong, :tu_do].freeze
+    # Từng có kiểu thứ ba :duong (kéo một đường thẳng) — BỎ 23/07, Khoa: "khung
+    # với tự do đủ rồi". Vẽ tự do làm được mọi thứ đường thẳng làm được, chỉ tốn
+    # thêm cái nút phải nhìn qua mỗi lần chọn.
+    KIEU     = [:khung, :tu_do].freeze
     BUOC_NET = 4        # nét tự do chỉ ghi thêm điểm khi chuột đi quá 4px
 
     # Tô NỀN chi tiết thay vì chỉ tô viền: viền mảnh nhìn không ra (Khoa 20/07).
@@ -316,8 +318,7 @@ module TK
             <label class="lh-label">Kiểu quét</label>
             <div class="lh-chips">
               <button class="lh-chip is-active" id="k0" onclick="pickK(0)">Khung</button>
-              <button class="lh-chip" id="k1" onclick="pickK(1)">Đường</button>
-              <button class="lh-chip" id="k2" onclick="pickK(2)">Vẽ tự do</button>
+              <button class="lh-chip" id="k1" onclick="pickK(1)">Vẽ tự do</button>
             </div>
           </div>
 
@@ -362,12 +363,19 @@ module TK
             e.innerHTML = s;
             e.style.display = s ? "block" : "none";
           }
+          // Hai vòng RIÊNG: số chip hướng và số chip kiểu không bằng nhau, và
+          // không có gì bảo đảm chúng sẽ bằng nhau. Dùng chung một vòng thì bỏ
+          // bớt một kiểu quét là getElementById trả null, capNhat chết giữa
+          // chừng và CẢ BẢNG ngừng cập nhật — hỏng ở chỗ không liên quan gì.
+          // Số lấy từ Ruby, khỏi phải nhớ sửa hai nơi. (23/07)
           function capNhat(h, k, n, dem){
-            for (var i = 0; i < 3; i++){
+            for (var i = 0; i < #{HUONG.size + 1}; i++){
               document.getElementById("h" + i).className =
                 (i === h) ? "lh-chip is-active" : "lh-chip";
-              document.getElementById("k" + i).className =
-                (i === k) ? "lh-chip is-active" : "lh-chip";
+            }
+            for (var j2 = 0; j2 < #{KIEU.size}; j2++){
+              document.getElementById("k" + j2).className =
+                (j2 === k) ? "lh-chip is-active" : "lh-chip";
             }
             document.getElementById("n").value = n;
             var s = "";
@@ -762,9 +770,11 @@ module TK
       def onUserText(text, view)
         t = text.to_s.strip.downcase
         # đường thoát khi phím Space không ăn: gõ chữ để đổi kiểu quét
-        if t =~ /\A[kdz]\z/
-          @kieu_i = { 'k' => 0, 'd' => 1, 'z' => 2 }[t]
+        # ('d' = kiểu Đường, đã bỏ 23/07)
+        if t =~ /\A[kz]\z/
+          @kieu_i = { 'k' => 0, 'z' => 1 }[t]
           @net = []
+          bao_bang
           view.invalidate
           return
         end
@@ -1078,7 +1088,7 @@ module TK
 
       # Trả về danh sách chi tiết trúng, ĐÃ SẮP theo thứ tự đánh số.
       #   :khung  → sắp theo khoảng cách tới điểm bắt đầu kéo
-      #   :duong / :tu_do  → sắp theo thứ tự nét đi qua (chuẩn xác hơn hẳn)
+      #   :tu_do  → sắp theo thứ tự nét đi qua (chuẩn xác hơn hẳn)
       def tim_trung(view)
         song = @cands.reject { |c| c.group.deleted? rescue true }
         if kieu == :khung
@@ -1144,7 +1154,7 @@ module TK
           # Bản cũ gộp nhiều chi tiết vào một đợt: bên Aspire một layer là một
           # đường dao chạy hết mọi chi tiết mang số đó, nên trong cùng đợt thì
           # KHÔNG biết máy cắt cái nào trước — đúng cái mình đang muốn kiểm soát.
-          # Thứ tự giờ do NÉT VẼ quyết định (kiểu :duong / :tu_do, xem tim_trung),
+          # Thứ tự giờ do NÉT VẼ quyết định (kiểu :tu_do, xem tim_trung),
           # nên không tái phát lỗi 20/07 (máy tự chọn thứ tự, cái ngoài rìa cắt cuối).
           model   = Sketchup.active_model
           ten_moi = []

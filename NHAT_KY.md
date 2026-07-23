@@ -12,6 +12,46 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-23 (tối) — Chống Bay: tự chia trái/phải theo vị trí trên tấm ván
+
+**Vấn đề Khoa nêu:** *"nếu đã mặc định trái phải, sao không tính trước cho người dùng luôn, mắc gì
+bắt nó phải suy nghĩ về trái với phải"*. Đúng: trái/phải **không phải lựa chọn** — nó là sự thật đọc
+được từ vị trí chi tiết trên tấm ván. Bắt thợ khai lại thứ máy tự biết là thiết kế lười.
+
+**Đo trước khi làm (probe 23/07)** — cấu trúc nesting hoá ra đã dọn sẵn:
+
+```
+__ABF_Nesting
+├── __A03_Pink_Ember-sheet-1     ← mỗi tấm ván LÀ MỘT GROUP riêng
+│   ├── __ABF_sheetBorder        ← Curve 4 đoạn, chu vi 7320mm = tấm 1220×2440
+│   └── (chi tiết của tấm này)
+└── __17.5mm-sheet-2 … -sheet-5
+```
+
+Chi tiết nằm sẵn trong group tấm của nó → **5 tấm là 5 đường lằn riêng**, không phải một đường chung
+cho cả file.
+
+**Quyết định:** thêm ô **Tự động** (mặc định, đứng đầu vòng Tab), giữ Trái/Phải làm nút **ép tay**.
+
+- Mốc chia lấy từ `__ABF_sheetBorder` của chính tấm đó, **chia theo cạnh NGẮN** (1220) chứ không
+  cứng trục X — tấm đứng hay nằm đều đúng.
+- Chi tiết **vắt ngang** đường lằn → theo tâm nó (phần nào nhiều hơn thì về bên đó); muốn khác thì
+  ép. Khoa: *"nằm giữa tâm đường thì được phép trái hoặc phải tùy bọn sử dụng"*.
+- Chi tiết **không thuộc tấm nào** → KHÔNG đoán bừa, bỏ qua và nhắc ép tay.
+- **Hai bộ đếm chạy song song.** Một nét quét ở chế độ tự động vơ cả hai bên, mỗi bên phải giữ dãy
+  số liền mạch: T,P,T,P,T ra `TRAI001, PHAI001, TRAI002, PHAI002, TRAI003`. Bảng có hai ô số.
+
+**Vì sao truyền mốc XUÔI theo đệ quy chứ không đi ngược lên tìm cha:** `entity.parent` trả về
+**ComponentDefinition**, mà một definition nằm được ở nhiều chỗ nên KHÔNG suy ra instance nào —
+đo thật: cha của chi tiết đầu là `ComponentDefinition Group2799#1`. Đi ngược là ngõ cụt; lúc duyệt
+xuôi thì đang ở trong tấm nào là biết ngay.
+
+**Bài học:** **trước khi bắt người dùng chọn, hỏi xem dữ liệu đã trả lời sẵn chưa.** Ba ngày nay
+tool bắt Khoa bấm Trái/Phải mỗi lượt quét, trong khi câu trả lời nằm ngay trong toạ độ chi tiết và
+cấu trúc file ABF đã nhóm sẵn theo tấm. Cái nút đó tồn tại chỉ vì lần đầu không ai đi hỏi dữ liệu.
+
+---
+
 ## 2026-07-23 (chiều) — Chống Bay: bỏ kiểu quét "Đường"
 
 **Quyết định:** ba kiểu quét còn hai — **Khung** và **Vẽ tự do**. Khoa: *"xài kiểu vẽ khung và tự do

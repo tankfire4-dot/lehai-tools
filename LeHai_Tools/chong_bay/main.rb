@@ -317,9 +317,10 @@ module TK
               <button class="lh-chip" id="c1" onclick="pick(1)">Gỡ</button>
             </div>
             <div class="lh-hint">
-              <b>Gắn</b>: quét tới đâu đánh số cắt tới đó, một dãy liền cho mỗi
-              tấm — nên <b>quét từ phải qua trái</b>. <b>Gỡ</b>: quét lại chỗ gắn
-              nhầm để trả về tag gốc. Tab đổi qua lại hai chế độ.
+              <b>Gắn</b>: đánh số thứ tự cắt cho mỗi chi tiết, một dãy liền cho mỗi
+              tấm. Kiểu <b>Khung</b> tự sắp theo cột dọc, quét <b>phải qua trái</b>;
+              kiểu <b>Vẽ tự do</b> đánh theo đúng nét mình vẽ. <b>Gỡ</b>: quét lại
+              chỗ gắn nhầm để trả về tag gốc. Tab đổi qua lại hai chế độ.
             </div>
           </div>
 
@@ -1129,30 +1130,59 @@ module TK
         nil
       end
 
-      # Khoảng cách từ điểm bắt đầu kéo tới chi tiết (đo trên màn hình, lấy đỉnh
-      # gần nhất) — dùng để xếp thứ tự đánh số trong một nhát quét.
-      def xa_diem_dau(view, segs)
-        gan = nil
-        segs.each do |a, _b|
-          p  = view.screen_coords(a)
-          dx = p.x - @x0
-          dy = p.y - @y0
-          d  = dx * dx + dy * dy
-          gan = d if gan.nil? || d < gan
+      # Sắp chi tiết trúng khung theo CỘT DỌC, quét PHẢI→TRÁI (Khoa chốt 24/07,
+      # thay cho "khoảng cách tới điểm bắt đầu kéo" — thứ tự cũ đổi theo chỗ nhấp
+      # chuột nên kéo lệch tay là số chạy khác). Luật: đi HẾT một cột từ trên
+      # xuống rồi mới sang cột bên trái; bắt đầu ở cột phải nhất.
+      #
+      # Vì sao phải GOM CỘT chứ không sort thẳng [x giảm, y tăng]: chi tiết trong
+      # cùng một cột lệch tâm x đôi chút (bề rộng khác nhau, đặt so le). Sort thẳng
+      # thì hai cái cùng cột bị 1-2px chênh x đẩy thành sai thứ tự DỌC. Nên gom các
+      # tâm x gần nhau thành MỘT cột rồi trong cột mới sắp trên→xuống.
+      #
+      # Dung sai gộp = 3/4 bề rộng TRUNG VỊ, tối thiểu 12px, CỐ Ý rộng tay: kéo
+      # khung trúng đúng MỘT cột là ca hay gặp nhất — dung sai hẹp sẽ tách cột đó
+      # thành nhiều "cột" một-chi-tiết rồi sắp theo x gần-như-ngẫu-nhiên trong cột,
+      # làm hỏng chính chiều trên→xuống. Gộp nhầm hai cột (sắp trên→xuống xuyên cả
+      # hai) nhẹ hơn nhiều so với đảo loạn một cột — nên nghiêng về gộp.
+      def sap_cot(view, cands)
+        info = cands.map do |c|
+          pts = c.segs.map { |a, _b| view.screen_coords(a) }
+          if pts.empty?
+            [c, 0.0, 0.0, 0.0]
+          else
+            xs = pts.map { |p| p.x }
+            ys = pts.map { |p| p.y }
+            [c, (xs.min + xs.max) / 2.0, (ys.min + ys.max) / 2.0, xs.max - xs.min]
+          end
         end
-        gan || 0
+        ws  = info.map { |_c, _cx, _cy, w| w }.sort
+        med = ws.empty? ? 0.0 : ws[ws.size / 2]
+        tol = [med * 0.75, 12.0].max
+
+        cot = []                       # mỗi cột: [x_moc, [item, item, ...]]
+        info.sort_by { |_c, cx, _cy, _w| -cx }.each do |item|
+          cx = item[1]
+          if cot.empty? || (cot.last[0] - cx).abs > tol
+            cot << [cx, [item]]        # cột mới, mốc = tâm cái phải nhất trong cột
+          else
+            cot.last[1] << item        # cùng cột (giữ nguyên mốc cho ổn định)
+          end
+        end
+        cot.flat_map do |_x_moc, items|
+          items.sort_by { |_c, _cx, cy, _w| cy }.map { |it| it[0] }
+        end
       end
 
       # Trả về danh sách chi tiết trúng, ĐÃ SẮP theo thứ tự đánh số.
-      #   :khung  → sắp theo khoảng cách tới điểm bắt đầu kéo
+      #   :khung  → theo CỘT DỌC, quét phải→trái, trong cột trên→xuống (sap_cot)
       #   :tu_do  → sắp theo thứ tự nét đi qua (chuẩn xác hơn hẳn)
       def tim_trung(view)
         song = @cands.reject { |c| c.group.deleted? rescue true }
         if kieu == :khung
           rect = [[@x0, @x1].min, [@y0, @y1].min, [@x0, @x1].max, [@y0, @y1].max]
           return [] if (rect[2] - rect[0]).abs < 4 && (rect[3] - rect[1]).abs < 4
-          song.select { |c| touches?(view, c.segs, rect) }
-              .sort_by { |c| xa_diem_dau(view, c.segs) }
+          sap_cot(view, song.select { |c| touches?(view, c.segs, rect) })
         else
           return [] if @net.size < 2
           cham = []

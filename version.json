@@ -1,5 +1,5 @@
 {
-  "version": "1.9.52",
+  "version": "1.9.53",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -10,6 +10,9 @@
     "LeHai_Tools/canh_cnc/main.rb",
     "LeHai_Tools/canh_cnc/icons/canh_cnc_16.png",
     "LeHai_Tools/canh_cnc/icons/canh_cnc_24.png",
+    "LeHai_Tools/chia_lam/main.rb",
+    "LeHai_Tools/chia_lam/icons/chia_lam_16.png",
+    "LeHai_Tools/chia_lam/icons/chia_lam_24.png",
     "LeHai_Tools/chong_bay/main.rb",
     "LeHai_Tools/chong_bay/icons/chong_bay_16.png",
     "LeHai_Tools/chong_bay/icons/chong_bay_24.png",

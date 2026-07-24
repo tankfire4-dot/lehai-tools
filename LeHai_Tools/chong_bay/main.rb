@@ -26,45 +26,42 @@ module TK
     DST_RE      = /chongbay/i.freeze         # nhận DIỆN mọi tag chống bay (kể cả
                                              # tag cũ chưa đánh số, để gỡ được)
 
-    # ── Tag = HƯỚNG + SỐ THỨ TỰ CẮT ──────────────────────────────
+    # ── Tag = SỐ THỨ TỰ CẮT ──────────────────────────────────────
     # Số không phải để đánh dấu — nó là THỨ TỰ CẮT. Mỗi số thành một tag riêng
     # → bên Aspire thành một đường dao riêng, máy chạy lần lượt. Chống bay bằng
     # cách xếp trình tự: chi tiết nào cắt trước, chi tiết nào cắt sau khi xung
     # quanh còn nguyên để giữ ván. (Khuôn ABF moro, Khoa chốt 20/07.)
-    HUONG = ['CHONGBAYTRAI', 'CHONGBAYPHAI'].freeze   # thứ tự Tab xoay
-    # HUONG[0] = bên NHỎ hơn mốc chia, HUONG[1] = bên lớn hơn. Đừng đảo thứ tự
-    # mảng này nếu không sửa luôn huong_tu_dong.
+    #
+    # MỘT họ tag duy nhất — bỏ chia trái/phải 24/07. Trước đây một tấm bị đường
+    # giữa chia đôi, mỗi nửa đếm riêng (TRAI### / PHAI###), Aspire cắt hết nửa
+    # trái rồi phóng ngược lên đầu nửa phải cắt lại — Khoa: "nhìn nó ngu ngu, sao
+    # không chạy tiếp mà phải chạy ngược". Nay quét tới đâu đánh số tới đó, một
+    # dãy liền cho mỗi tấm. Cái chống bay THẬT nằm ở con số = thứ tự cắt, một dãy
+    # liền vẫn giữ nguyên tác dụng; chia đôi chưa bao giờ có lý do chống bay (lục
+    # nhật ký 19/07 + 23/07: không dòng nào). Giữ tên có chữ "PHAI" để khỏi đụng
+    # template dao mẫu bên Aspire — "PHAI" giờ là di sản, không còn nghĩa bên.
+    TAG_HO = 'CHONGBAYPHAI'.freeze
+
+    # Hai chế độ, Tab xoay qua lại (thay cho Tự động/Trái/Phải/Gỡ cũ).
+    CHE_DO = ['Gắn', 'Gỡ'].freeze
 
     # Nhận dạng tấm ván trong cây nesting (đo thật 23/07 — xem traverse).
     SHEET_RE  = /-sheet-\d+\z/i.freeze
-    BORDER_RE = /sheetBorder/i.freeze
 
-    # Màu GỐC của từng hướng — số 1 đậm nhất, số càng lớn càng nhạt dần.
-    # Nhìn cả tấm là đọc được trình tự cắt, khỏi bấm từng tag.
-    MAU_GOC = {
-      'CHONGBAYTRAI' => Sketchup::Color.new(0, 150, 60),     # xanh lá đậm
-      'CHONGBAYPHAI' => Sketchup::Color.new(210, 90, 0)      # cam đậm
-    }.freeze
+    # MỘT màu cho cả tool (số đã nói thứ tự, màu chỉ còn việc "đã gắn").
+    MAU_CB = Sketchup::Color.new(210, 90, 0)   # cam đậm
 
-    # TRẦN **100** — Khoa chốt 23/07 (nâng từ 9; cân nhắc 200 rồi hạ xuống 100:
-    # "không bao giờ một tấm ván cộng cả trái phải hơn 200 chi tiết").
-    # Vì sao 9 không còn đủ: trần 9 vừa là số ĐỢT vừa là trần SỐ CHI TIẾT mỗi lượt
-    # kéo (`hits.first(chu_ky)` cũ) — vẽ một nét qua 30 chi tiết thì nhận 9 cái,
-    # cắt 21 cái mà nhìn không ra. Và gộp nhiều chi tiết vào cùng một đợt thì máy
-    # không biết cắt cái nào trước trong đợt đó. Nay MỖI CHI TIẾT MỘT ĐỢT RIÊNG,
-    # thứ tự do nét vẽ tay quyết định.
-    #
-    # Hai lý do của trần 9 cũ, và vì sao 100 vẫn sống:
-    #   1. "Mỗi số là một đường dao dựng tay bên Aspire" — Khoa 23/07: chỉ set dao
-    #      MẪU một lần rồi tái dùng, nên 100 layer không đội việc lên 100 lần.
-    #   2. Aspire sắp tên layer bằng CHUỖI → "TRAI10" chen trước "TRAI2". Cái này
-    #      vẫn đúng và vẫn nguy hiểm → ĐỆM 0 BA CHỮ SỐ trong ten_tag (bắt buộc,
-    #      xem ten_tag). Bỏ đệm là tái phát ngay.
-    SO_TOI_DA  = 100
-    # KHÔNG còn dải màu đậm→nhạt (bỏ 23/07, Khoa: "đã đánh số rồi thì không cần
-    # màu"). Đã có số thì màu chỉ còn một việc: nói cho biết chi tiết nào ĐÃ gắn
-    # và gắn hướng nào. Một màu dịu cho mỗi hướng là đủ; dải nhạt dần chỉ làm
-    # nền tranh nhau với con số, mà 100 mức thì mắt vẫn không đọc ra thứ tự.
+    # TRẦN **200** — Khoa chốt 24/07 (nâng từ 100 khi bỏ chia trái/phải: trần cũ
+    # 100 là "mỗi BÊN 100", nay một dãy liền nên gộp thành 200). Đệm %03d vẫn đủ
+    # tới 999 nên không phải đụng; đổi trần >999 mới phải nới đệm (xem ten_tag).
+    # Vì sao từng là 9: trần 9 vừa là số ĐỢT vừa là trần SỐ CHI TIẾT mỗi lượt kéo
+    # (`hits.first(chu_ky)` cũ) — vẽ một nét qua 30 chi tiết thì nhận 9 cái, cắt
+    # 21 cái mà nhìn không ra. Nay MỖI CHI TIẾT MỘT ĐỢT RIÊNG, thứ tự do nét vẽ
+    # tay quyết định. "Mỗi số là một đường dao dựng tay bên Aspire" — Khoa 23/07:
+    # chỉ set dao MẪU một lần rồi tái dùng, nên 200 layer không đội việc lên.
+    SO_TOI_DA  = 200
+    # KHÔNG có dải màu đậm→nhạt: đã có số thì màu chỉ còn một việc — nói cho biết
+    # chi tiết nào ĐÃ gắn. Một màu dịu là đủ; dải nhạt dần chỉ tranh chỗ với số.
 
     # ── Kiểu quét ────────────────────────────────────────────────
     # :khung = kéo hình chữ nhật, trúng cả cụm (nhanh, thứ tự theo hướng kéo)
@@ -91,7 +88,7 @@ module TK
     # ── Huy hiệu số ──────────────────────────────────────────────
     # Số của tool phải KHÁC HẲN nhãn ABF trên cùng bản vẽ (Khoa 23/07, nhìn ảnh
     # chạy thật: chữ đen Arial của tool lẫn vào đám nhãn ABF cũng đen, cũng nhỏ).
-    # Nên số không đứng trần mà nằm trong một ĐĨA TRÒN đặc màu hướng, chữ trắng,
+    # Nên số không đứng trần mà nằm trong một ĐĨA TRÒN đặc màu tool, chữ trắng,
     # viền trắng — ABF không vẽ gì có hình dạng đó, nhìn phát biết là của mình.
     COL_CHU_SO = Sketchup::Color.new(255, 255, 255)  # chữ số: trắng
     COL_VANH   = Sketchup::Color.new(255, 255, 255)  # vành ngoài huy hiệu: trắng
@@ -136,14 +133,13 @@ module TK
       [m[1].upcase, (m[2].empty? ? nil : m[2].to_i)]
     end
 
-    # ĐỆM 0 BA CHỮ SỐ — "CHONGBAYTRAI001" … "CHONGBAYTRAI100".
+    # ĐỆM 0 BA CHỮ SỐ — "CHONGBAYPHAI001" … "CHONGBAYPHAI200".
     # Bắt buộc từ lúc trần vượt 9 (23/07): Aspire sắp tên layer bằng chuỗi, không
-    # đệm thì "TRAI10" chen lên trước "TRAI2" và sai thứ tự đường dao — lỗi nằm
-    # bên Aspire, không vá được từ đây. BA chữ số chứ không phải hai: trần 100 có
-    # số 100, mà "10" đệm hai chữ số là "10" — hụt một ký tự là sai lại từ đầu.
+    # đệm thì "PHAI10" chen lên trước "PHAI2" và sai thứ tự đường dao — lỗi nằm
+    # bên Aspire, không vá được từ đây. BA chữ số phủ tới 999, đủ cho trần 200.
     # Đổi trần lên >999 thì phải nới đệm, nếu không là tái phát đúng lỗi cũ.
-    def self.ten_tag(huong, so)
-      format('%s%03d', huong, so.to_i)
+    def self.ten_tag(so)
+      format('%s%03d', TAG_HO, so.to_i)
     end
 
     # Tag đánh số KIỂU CŨ (chưa đệm 0): "CHONGBAYTRAI1" thay vì "…001".
@@ -168,19 +164,17 @@ module TK
       end
     end
 
-    # MỘT màu cho mỗi hướng, không phụ thuộc số nữa. Dùng cho viền chi tiết, nền
-    # huy hiệu số, và chấm màu trong hai bảng.
+    # MỘT màu cho cả tool. Dùng cho viền chi tiết, nền huy hiệu số, chấm màu bảng.
     def self.color_for(tag_name)
       return COL_TODO if tag_name.nil? || tag_name == SRC_TAG
-      huong, _so = tach_tag(tag_name)
-      MAU_GOC[huong] || COL_TODO
+      MAU_CB
     end
 
-    # Tìm hoặc TẠO tag theo hướng+số, và sơn màu cho nó luôn để bảng Tags của
-    # SketchUp cũng hiện đúng dải màu. Tạo LƯỜI — chỉ đẻ tag khi thật sự dùng
-    # tới, không nhồi sẵn 80 tag vào mọi file.
-    def self.tag_theo_so(model, huong, so)
-      ten = ten_tag(huong, so)
+    # Tìm hoặc TẠO tag theo số, và sơn màu cho nó luôn để bảng Tags của SketchUp
+    # cũng hiện đúng màu. Tạo LƯỜI — chỉ đẻ tag khi thật sự dùng tới, không nhồi
+    # sẵn tag vào mọi file.
+    def self.tag_theo_so(model, so)
+      ten = ten_tag(so)
       lay = find_tag(model, ten) || model.layers.add(ten)
       # Layer#color= CHƯA có tiền lệ chạy trong repo → bọc respond_to? + rescue.
       # Hỏng thì chỉ mất màu trong bảng Tags, overlay của tool vẫn đúng.
@@ -241,14 +235,14 @@ module TK
         width: 300, height: 430, min_width: 260, min_height: 360,
         resizable: true, style: UI::HtmlDialog::STYLE_UTILITY
       )
-      @panel.add_action_callback('dat_huong') do |_c, i|
-        @tool.dat_huong(i.to_i) if @tool
+      @panel.add_action_callback('dat_che_do') do |_c, i|
+        @tool.dat_che_do(i.to_i) if @tool
       end
       @panel.add_action_callback('dat_kieu') do |_c, i|
         @tool.dat_kieu(i.to_i) if @tool
       end
-      @panel.add_action_callback('dat_so_ke') do |_c, i, n|
-        @tool.dat_so_ke(i.to_i, n.to_i) if @tool
+      @panel.add_action_callback('dat_so_ke') do |_c, n|
+        @tool.dat_so_ke(n.to_i) if @tool
       end
       # Kết thúc tool từ bảng. HOÃN qua timer: đóng tool sẽ đóng luôn chính cái
       # dialog đang chạy callback này — làm thẳng là tự rút ghế mình đang ngồi.
@@ -280,16 +274,16 @@ module TK
     end
 
     # dem = [[ten_tag_hoac_nil, so_luong], ...]
-    # so_ke = mảng đợt kế tiếp, một phần tử cho mỗi hướng trong HUONG.
-    # tam   = tên tấm ván mà hai ô số đang nói tới.
-    def self.sync_panel(huong_i, kieu_i, so_ke, tam, dem)
+    # tam = tên tấm ván mà ô số đang nói tới.
+    # che_do_i = 0 Gắn / 1 Gỡ. so = đợt kế tiếp của tấm đang hiện (một số).
+    def self.sync_panel(che_do_i, kieu_i, so, tam, dem)
       return unless @panel && (@panel.visible? rescue false)
       hang = dem.map do |ten, n|
         mau = hex(color_for(ten))
         "[\"#{esc_html(ten || 'chưa gắn')}\",#{n},\"#{mau}\"]"
       end.join(',')
       @panel.execute_script(
-        "capNhat(#{huong_i},#{kieu_i},[#{so_ke.join(',')}]," \
+        "capNhat(#{che_do_i},#{kieu_i},#{so.to_i}," \
         "\"#{esc_html(tam)}\",[#{hang}])"
       )
     rescue => e
@@ -317,17 +311,15 @@ module TK
           <h1 class="lh-title">Chống Bay</h1>
 
           <div class="lh-field">
-            <label class="lh-label">Hướng</label>
+            <label class="lh-label">Chế độ</label>
             <div class="lh-chips">
-              <button class="lh-chip is-active" id="h0" onclick="pick(0)">Tự động</button>
-              <button class="lh-chip" id="h1" onclick="pick(1)">Trái</button>
-              <button class="lh-chip" id="h2" onclick="pick(2)">Phải</button>
-              <button class="lh-chip" id="h3" onclick="pick(3)">Gỡ</button>
+              <button class="lh-chip is-active" id="c0" onclick="pick(0)">Gắn</button>
+              <button class="lh-chip" id="c1" onclick="pick(1)">Gỡ</button>
             </div>
             <div class="lh-hint">
-              <b>Tự động</b> đọc vị trí chi tiết trên tấm ván — bên nào của đường
-              giữa tấm thì vào bên đó, khỏi phải nghĩ. Chi tiết nằm vắt ngang
-              đường giữa thì tính theo tâm nó; muốn khác thì bấm Trái/Phải để ép.
+              <b>Gắn</b>: quét tới đâu đánh số cắt tới đó, một dãy liền cho mỗi
+              tấm — nên <b>quét từ phải qua trái</b>. <b>Gỡ</b>: quét lại chỗ gắn
+              nhầm để trả về tag gốc. Tab đổi qua lại hai chế độ.
             </div>
           </div>
 
@@ -341,25 +333,14 @@ module TK
 
           <div class="lh-field">
             <label class="lh-label">Đợt kế tiếp — <span id="tam">…</span></label>
-            <div class="lh-row">
-              <div>
-                <label class="lh-label" style="font-weight:400">Trái</label>
-                <input class="lh-input" id="n0" type="number" min="1" max="#{SO_TOI_DA}"
-                       value="1" onchange="gui(0)">
-              </div>
-              <div>
-                <label class="lh-label" style="font-weight:400">Phải</label>
-                <input class="lh-input" id="n1" type="number" min="1" max="#{SO_TOI_DA}"
-                       value="1" onchange="gui(1)">
-              </div>
-            </div>
+            <input class="lh-input" id="n0" type="number" min="1" max="#{SO_TOI_DA}"
+                   value="1" onchange="gui()">
           </div>
           <div class="lh-hint">
             Số là THỨ TỰ CẮT, mỗi chi tiết một số riêng. Đếm RIÊNG cho <b>từng tấm
-            ván</b> và từng bên — mỗi tấm là một lần chạy máy, nên quét sang tấm
-            khác là số bắt đầu lại. Hai ô này nói về tấm vừa quét. Tự dò từ file
-            (số lớn nhất đang có + 1); gõ đè để nhảy tới đợt khác.
-            Trần #{SO_TOI_DA} mỗi bên, mỗi tấm.
+            ván</b> — mỗi tấm là một lần chạy máy, nên quét sang tấm khác là số bắt
+            đầu lại. Ô này nói về tấm vừa quét. Tự dò từ file (số lớn nhất đang có
+            + 1); gõ đè để nhảy tới đợt khác. Trần #{SO_TOI_DA} mỗi tấm.
           </div>
 
           <hr class="lh-divider">
@@ -379,37 +360,35 @@ module TK
           <div class="lh-foot"><span>LeHai Tools</span><span>Chống Bay</span></div>
         </div>
         <script>
-          function pick(i){ sketchup.dat_huong(i); }
+          function pick(i){ sketchup.dat_che_do(i); }
           function pickK(i){ sketchup.dat_kieu(i); }
-          function gui(i){
-            var n = parseInt(document.getElementById("n" + i).value, 10);
+          function gui(){
+            var n = parseInt(document.getElementById("n0").value, 10);
             if (!n) { return; }
-            sketchup.dat_so_ke(i, n);
+            sketchup.dat_so_ke(n);
           }
           function nhac(s){
             var e = document.getElementById("nhac");
             e.innerHTML = s;
             e.style.display = s ? "block" : "none";
           }
-          // Hai vòng RIÊNG: số chip hướng và số chip kiểu không bằng nhau, và
+          // Hai vòng RIÊNG: số chip chế độ và số chip kiểu không bằng nhau, và
           // không có gì bảo đảm chúng sẽ bằng nhau. Dùng chung một vòng thì bỏ
           // bớt một kiểu quét là getElementById trả null, capNhat chết giữa
           // chừng và CẢ BẢNG ngừng cập nhật — hỏng ở chỗ không liên quan gì.
           // Số lấy từ Ruby, khỏi phải nhớ sửa hai nơi. (23/07)
-          // n = mảng đợt kế tiếp (một phần tử mỗi hướng), tam = tên tấm ván mà
-          // hai ô số đang nói tới.
-          function capNhat(h, k, n, tam, dem){
-            for (var i = 0; i < #{HUONG.size + 2}; i++){
-              document.getElementById("h" + i).className =
-                (i === h) ? "lh-chip is-active" : "lh-chip";
+          // cd = chế độ (0 Gắn / 1 Gỡ), k = kiểu quét, so = đợt kế tiếp (một số),
+          // tam = tên tấm ván ô số đang nói tới.
+          function capNhat(cd, k, so, tam, dem){
+            for (var i = 0; i < #{CHE_DO.size}; i++){
+              document.getElementById("c" + i).className =
+                (i === cd) ? "lh-chip is-active" : "lh-chip";
             }
             for (var j2 = 0; j2 < #{KIEU.size}; j2++){
               document.getElementById("k" + j2).className =
                 (j2 === k) ? "lh-chip is-active" : "lh-chip";
             }
-            for (var j3 = 0; j3 < #{HUONG.size}; j3++){
-              document.getElementById("n" + j3).value = n[j3];
-            }
+            document.getElementById("n0").value = so;
             document.getElementById("tam").textContent = tam;
             var s = "";
             for (var j = 0; j < dem.length; j++){
@@ -507,25 +486,19 @@ module TK
 
     # ── Duyệt (khuôn tim_tam_loi/main.rb:36) ─────────────────────
 
-    # `moc` = [trục, giá_trị_giữa, tên_tấm] của TẤM VÁN đang đi qua, nil khi chưa
-    # vào tấm nào. Tên tấm nằm trong mốc vì **mỗi tấm đếm số RIÊNG** — xem
-    # SweepTool#khoa_dem. Truyền xuôi theo đệ quy chứ không đi ngược
-    # lên tìm cha: `entity.parent` trả về ComponentDefinition, mà một definition
-    # có thể nằm ở nhiều chỗ nên KHÔNG suy ra được instance nào — đo thật 23/07,
-    # cha của chi tiết đầu là `ComponentDefinition Group2799#1`.
-    def self.traverse(entities, accum_t, depth = 0, moc = nil, &blk)
+    # `tam` = tên tấm ván đang đi qua ("sheet-3"), nil khi chưa vào tấm nào — vì
+    # **mỗi tấm đếm số RIÊNG** (mỗi tấm là một lần chạy máy). Truyền xuôi theo đệ
+    # quy chứ không đi ngược lên tìm cha: `entity.parent` trả về ComponentDefinition,
+    # mà một definition có thể nằm ở nhiều chỗ nên KHÔNG suy ra được instance nào —
+    # đo thật 23/07, cha của chi tiết đầu là `ComponentDefinition Group2799#1`.
+    def self.traverse(entities, accum_t, depth = 0, tam = nil, &blk)
       return if depth > MAX_DEPTH
       entities.each do |e|
         next unless container?(e)
-        t_con = accum_t * e.transformation
-        if ten_container(e) =~ SHEET_RE
-          mc    = moc_chia(e, accum_t)
-          m_con = mc && (mc + [ten_tam(ten_container(e))])
-        else
-          m_con = moc
-        end
-        blk.call(e, accum_t, m_con)
-        traverse(kids_of(e), t_con, depth + 1, m_con, &blk)
+        t_con   = accum_t * e.transformation
+        tam_con = (ten_container(e) =~ SHEET_RE) ? ten_tam(ten_container(e)) : tam
+        blk.call(e, accum_t, tam_con)
+        traverse(kids_of(e), t_con, depth + 1, tam_con, &blk)
       end
     end
 
@@ -543,38 +516,6 @@ module TK
     def self.ten_tam(ten_group)
       m = ten_group.to_s.match(/(sheet-\d+)\z/i)
       m ? m[1] : ten_group.to_s
-    end
-
-    # Mốc chia trái/phải của một tấm ván: [:x hoặc :y, giá trị giữa].
-    # Chia theo CẠNH NGẮN (1220) — đường lằn chạy dọc theo cạnh dài, đúng như
-    # hình Khoa vẽ 23/07. Lấy cạnh ngắn thay vì cứng trục X để tấm nằm ngang hay
-    # đứng đều đúng. Tấm xoay chéo thì hộp bao không còn phản ánh cạnh — nesting
-    # không xoay tấm nên chưa xử lý, nếu gặp thì phải đo lại chứ đừng đoán.
-    def self.moc_chia(grp_tam, accum_t)
-      vien = kids_of(grp_tam).find do |k|
-        container?(k) && (ten_container(k) =~ BORDER_RE || tag_name(k) =~ BORDER_RE)
-      end
-      segs = vien ? world_segments(vien, accum_t * grp_tam.transformation) : nil
-      segs = world_segments(grp_tam, accum_t) if segs.nil? || segs.empty?
-      return nil if segs.empty?
-      xs = segs.map { |a, _b| a.x }
-      ys = segs.map { |a, _b| a.y }
-      dx = xs.max - xs.min
-      dy = ys.max - ys.min
-      dx <= dy ? [:x, (xs.min + xs.max) / 2.0] : [:y, (ys.min + ys.max) / 2.0]
-    end
-
-    # Chi tiết nằm bên nào của mốc chia. nil = không biết (không thuộc tấm nào).
-    # Chi tiết VẮT QUA đường lằn thì tính theo TÂM của nó — phần nào nhiều hơn
-    # thì về bên đó. Muốn khác thì ép tay bằng nút Trái/Phải (Khoa 23/07:
-    # "chi tiết nào nằm giữa tâm đường thì được phép trái hoặc phải tùy bọn
-    # sử dụng").
-    def self.huong_tu_dong(segs, moc)
-      return nil if moc.nil? || segs.empty?
-      truc, giua = moc
-      gt = segs.map { |a, _b| truc == :x ? a.x : a.y }
-      tam = (gt.min + gt.max) / 2.0
-      tam < giua ? HUONG[0] : HUONG[1]
     end
 
     # Đoạn thẳng THẬT của chi tiết ở toạ độ thế giới → viền bám sát hình.
@@ -600,21 +541,19 @@ module TK
     # ── Ứng viên để quét ─────────────────────────────────────────
 
     # tag = nil nếu chưa đổi (còn ABF_cuttingLines), ngược lại là tên tag chống bay
-    # đang đeo. Gom CẢ chi tiết đã đổi sang tag chống bay KHÁC — nếu chỉ gom tag
-    # đích thì mấy cái đã gắn tag khác biến mất khỏi màn hình, không nhìn thấy,
-    # không sửa lại được (lỗi này đã xảy ra: quét sang PHAI thì 6 cái TRAI mất tăm).
-    # auto = hướng tính sẵn từ vị trí trên tấm ván (nil nếu không thuộc tấm nào)
-    # tam  = tên tấm ván chứa nó ("sheet-3"), nil nếu nằm ngoài mọi tấm
-    Cand = Struct.new(:group, :segs, :tag, :auto, :tam)
+    # đang đeo. Gom CẢ chi tiết đã đổi sang tag chống bay khác — nếu chỉ gom tag
+    # đích thì mấy cái đã gắn biến mất khỏi màn hình, không nhìn thấy, không sửa
+    # lại được (lỗi này đã xảy ra một lần với file trộn nhiều họ tag).
+    # tam = tên tấm ván chứa nó ("sheet-3"), nil nếu nằm ngoài mọi tấm.
+    Cand = Struct.new(:group, :segs, :tag, :tam)
 
     def self.collect_cands
       out = []
-      traverse(Sketchup.active_model.entities, Geom::Transformation.new) do |e, t, moc|
+      traverse(Sketchup.active_model.entities, Geom::Transformation.new) do |e, t, tam|
         n = tag_name(e)
         next unless src?(e) || n =~ DST_RE
         segs = world_segments(e, t)
-        out << Cand.new(e, segs, (src?(e) ? nil : n),
-                        huong_tu_dong(segs, moc), moc && moc[2])
+        out << Cand.new(e, segs, (src?(e) ? nil : n), tam)
       end
       out
     end
@@ -695,31 +634,21 @@ module TK
 
     class SweepTool
 
-      # tags = danh sách tag chống bay, Tab xoay vòng qua chúng
-      # Vòng Tab: các tag chống bay, rồi tới CHẾ ĐỘ GỠ (vị trí cuối cùng).
-      # Gỡ = trả chi tiết về ABF_cuttingLines. Nhét vào cùng vòng Tab thay vì
-      # thêm phím mới: Khoa đã quen Tab rồi, không phải học thêm gì.
-      # Ô hướng, theo đúng thứ tự Tab xoay và thứ tự nút trên bảng:
-      #   0            = TỰ ĐỘNG (mặc định) — đọc vị trí chi tiết trên tấm ván
-      #   1 .. HUONG.size = ép tay Trái / Phải
-      #   HUONG.size+1 = GỠ
-      # Tự động đứng ĐẦU vì đó là cái thợ dùng 99% thời gian; Trái/Phải giữ lại
-      # làm đường ép cho chi tiết nằm vắt qua đường lằn (Khoa 23/07).
-      TU_DONG_I = 0
-      EP_DAU_I  = 1
-      GO_I      = TK::ChongBay::HUONG.size + 1
-      SO_O      = TK::ChongBay::HUONG.size + 2   # tổng số nút hướng
+      # Hai chế độ, Tab xoay qua lại (thay cho vòng Tự động/Trái/Phải/Gỡ cũ):
+      #   0 = GẮN (mặc định) — quét tới đâu đánh số cắt tới đó
+      #   1 = GỠ            — trả chi tiết về tag gốc đã ghi nhớ
+      # Gỡ nằm cùng vòng Tab thay vì thêm phím mới: Khoa đã quen Tab rồi.
+      GAN_I = 0
+      GO_I  = 1
+      SO_O  = TK::ChongBay::CHE_DO.size   # tổng số nút chế độ
 
       def initialize
-        @huong_i = TU_DONG_I
-        # Bộ đếm riêng cho mỗi cặp [TẤM VÁN, HƯỚNG].
-        #   - Riêng theo HƯỚNG: một nét ở chế độ tự động vơ cả trái lẫn phải, mỗi
-        #     bên phải giữ dãy liền mạch — T,P,T,P,T ra TRAI001, PHAI001, TRAI002…
-        #   - Riêng theo TẤM: **mỗi tấm ván là một lần chạy máy riêng**, thứ tự cắt
-        #     chỉ có nghĩa trong phạm vi tấm đó. Bản đầu đếm chung cả file nên quét
-        #     sang sheet-3 số chạy tiếp 59, 60, 61 thay vì bắt đầu lại (Khoa 23/07).
-        @so_ke   = {}       # [tấm, hướng] => đợt kế tiếp (dò lại trong activate)
-        @tam_hien = nil     # tấm vừa quét — hai ô số trên bảng nói về tấm này
+        @che_do_i = GAN_I   # chỉ số chế độ (GAN_I / GO_I)
+        # Bộ đếm riêng cho MỖI TẤM VÁN: **mỗi tấm là một lần chạy máy riêng**, thứ
+        # tự cắt chỉ có nghĩa trong phạm vi một tấm. Bản đầu đếm chung cả file nên
+        # quét sang sheet-3 số chạy tiếp 59, 60, 61 thay vì bắt đầu lại (Khoa 23/07).
+        @so_ke   = {}       # tấm => đợt kế tiếp (dò lại trong activate)
+        @tam_hien = nil     # tấm vừa quét — ô số trên bảng nói về tấm này
         @kieu_i  = 0        # chỉ số trong KIEU
         @net     = []       # nét đang vẽ (toạ độ MÀN HÌNH)
         @co_doi  = false    # phiên này có đổi được gì không (quyết định hiện bảng)
@@ -736,9 +665,9 @@ module TK
       # ---- bảng điều khiển gọi vào (HtmlDialog → Tool) ----
       # Chỉ đổi trạng thái + vẽ lại; KHÔNG sửa model trong callback của dialog.
 
-      def dat_huong(i)
+      def dat_che_do(i)
         return unless i >= 0 && i < SO_O
-        @huong_i = i
+        @che_do_i = i
         bao_bang
         Sketchup.active_model.active_view.invalidate
       end
@@ -751,13 +680,11 @@ module TK
         Sketchup.active_model.active_view.invalidate
       end
 
-      # i = chỉ số trong HUONG (0 = Trái, 1 = Phải) — bảng có một ô cho mỗi bên.
-      # Ép cho TẤM ĐANG HIỆN trên bảng (@tam_hien) — hai ô số luôn nói về một tấm.
-      def dat_so_ke(i, n)
-        h = TK::ChongBay::HUONG[i.to_i]
+      # Đặt đợt kế tiếp cho TẤM ĐANG HIỆN trên bảng (@tam_hien).
+      def dat_so_ke(n)
         n = TK::ChongBay.kep_so(n)
-        return if h.nil? || n.nil?
-        @so_ke[[@tam_hien, h]] = n
+        return if n.nil?
+        @so_ke[@tam_hien] = n
         bao_bang
         Sketchup.active_model.active_view.invalidate
       end
@@ -773,46 +700,37 @@ module TK
         @cands.each { |c| dem[c.tag] += 1 } if @cands
         hang = TK::ChongBay.sap_tag(dem.keys.compact).map { |t| [t, dem[t]] }
         hang << [nil, dem[nil]] if dem.key?(nil)   # chưa gắn xuống cuối
-        so = TK::ChongBay::HUONG.map { |h| so_ke_cua(@tam_hien, h) }
-        TK::ChongBay.sync_panel(@huong_i, @kieu_i, so,
+        so = so_ke_cua(@tam_hien)
+        TK::ChongBay.sync_panel(@che_do_i, @kieu_i, so,
                                 @tam_hien || 'ngoài tấm', hang)
       end
 
-      def erase?   ; @huong_i == GO_I end
-      def tu_dong? ; @huong_i == TU_DONG_I end
-      # Hướng ÉP TAY. nil khi đang tự động hoặc đang gỡ — lúc đó hướng của từng
-      # chi tiết lấy từ `Cand#auto`, không phải từ nút.
-      def huong
-        return nil if erase? || tu_dong?
-        TK::ChongBay::HUONG[@huong_i - EP_DAU_I]
-      end
+      def erase? ; @che_do_i == GO_I end
 
-      # Đợt kế tiếp = số lớn nhất của HƯỚNG NÀY đang có trong file, + 1.
-      # Đọc từ model chứ không nhớ trong tool: đóng tool mở lại, Gỡ rồi quét lại,
-      # hay `load` lại file lúc dev — vẫn ra đúng. Trạng thái nhớ trong module đã
-      # từng kẹt giá trị cũ và đè lên mặc định mới (bỏ 20/07, xem ChongBay.start).
-      def so_ke_tu_model(tam, h)
-        return 1 if h.nil?
+      # Đợt kế tiếp của một tấm = số lớn nhất đang có trong tấm đó, + 1. Đọc từ
+      # model chứ không nhớ trong tool: đóng mở lại, Gỡ rồi quét lại, hay `load`
+      # lại file lúc dev — vẫn ra đúng. Trạng thái nhớ trong module đã từng kẹt
+      # giá trị cũ và đè lên mặc định mới (bỏ 20/07, xem ChongBay.start). Đếm mọi
+      # tag chống bay trong tấm (kể cả TRAI cũ nếu file còn) để số mới không giẫm.
+      def so_ke_tu_model(tam)
         lon_nhat = 0
         (@cands || []).each do |c|
           next if c.tam != tam            # chỉ đếm trong CÙNG tấm ván
-          hg, so = TK::ChongBay.tach_tag(c.tag)
-          next if so.nil? || hg != h
+          _h, so = TK::ChongBay.tach_tag(c.tag)
+          next if so.nil?
           lon_nhat = so if so > lon_nhat
         end
-        # CỐ Ý cho phép vượt trần một bậc (101 khi file đã dùng hết 100): đó là
-        # trạng thái "hết dải", để apply_rect chặn thẳng. Kẹp về 100 thì lượt sau
-        # gán đè trùng lên đúng số 100 mà không ai thấy.
+        # CỐ Ý cho phép vượt trần một bậc (201 khi đã dùng hết 200): đó là trạng
+        # thái "hết dải", để apply_rect chặn thẳng. Kẹp về 200 thì lượt sau gán đè
+        # trùng lên đúng số 200 mà không ai thấy.
         lon_nhat + 1
       end
 
-      # Dò lại MỌI bộ đếm từ file — mỗi tấm × mỗi hướng. Gọi lúc mở tool và sau
+      # Dò lại MỌI bộ đếm từ file — một bộ cho mỗi tấm. Gọi lúc mở tool và sau
       # khi Gỡ, hai lúc mà số lớn nhất trong file có thể khác cái tool đang nhớ.
       def do_lai_so_ke
         @so_ke = {}
-        cac_tam.each do |t|
-          TK::ChongBay::HUONG.each { |h| @so_ke[[t, h]] = so_ke_tu_model(t, h) }
-        end
+        cac_tam.each { |t| @so_ke[t] = so_ke_tu_model(t) }
         @tam_hien = cac_tam.first unless cac_tam.include?(@tam_hien)
       end
 
@@ -823,8 +741,8 @@ module TK
         ds.compact.sort + (ds.include?(nil) ? [nil] : [])
       end
 
-      def so_ke_cua(tam, h)
-        @so_ke[[tam, h]] ||= so_ke_tu_model(tam, h)
+      def so_ke_cua(tam)
+        @so_ke[tam] ||= so_ke_tu_model(tam)
       end
 
       def activate
@@ -872,7 +790,7 @@ module TK
       # Tab xoay vòng tag đích — khuôn dim_nhanh/main.rb:197 (key 9 = Tab)
       def onKeyDown(key, _rep, _flags, view)
         if key == 9
-          @huong_i = (@huong_i + 1) % SO_O   # Tự động → Trái → Phải → Gỡ → …
+          @che_do_i = (@che_do_i + 1) % SO_O   # Gắn ↔ Gỡ
           bao_bang
           view.invalidate
           return false
@@ -920,15 +838,8 @@ module TK
         return if so.empty?
         n = TK::ChongBay.kep_so(so.first)
         return if n.nil?
-        # Gõ số trong khung nhìn đặt cho hướng ĐANG ÉP. Đang ở chế độ tự động thì
-        # không biết đặt cho bên nào — bắt gõ vào đúng ô Trái/Phải trên bảng, hơn
-        # là đoán rồi sửa ngầm một bên.
-        h = huong
-        if h.nil?
-          TK::ChongBay.nhac('Đang ở chế độ Tự động — gõ số vào ô Trái hoặc Phải trên bảng.')
-          return
-        end
-        @so_ke[[@tam_hien, h]] = n
+        # Gõ số trong khung nhìn = đặt đợt kế tiếp cho tấm đang hiện.
+        @so_ke[@tam_hien] = n
         bao_bang
         view.invalidate
       end
@@ -1057,7 +968,7 @@ module TK
         # 3. HUY HIỆU SỐ ĐỢT. Chỉ vẽ cái gắn TRONG PHIÊN NÀY (Khoa 23/07) — file
         #    đã gắn sẵn cả trăm cái mà vẽ hết thì màn hình đặc chữ, không đọc
         #    được cái mình vừa làm. Đây là chỗ ĐỌC THỨ TỰ; nền màu chỉ còn nói
-        #    "đã gắn, hướng nào".
+        #    "đã gắn".
         ve_so(view)
 
         draw_band(view) if @drag
@@ -1080,7 +991,7 @@ module TK
       end
 
       # Vẽ HUY HIỆU SỐ ĐỢT lên giữa chi tiết — chỉ những tag gắn trong phiên này.
-      # Đĩa đặc màu hướng + vành trắng + số trắng: đọc được trên mọi nền, và
+      # Đĩa đặc màu tool + vành trắng + số trắng: đọc được trên mọi nền, và
       # không lẫn với nhãn ABF (chữ đen trần trong khung mũi tên).
       # Bỏ qua chi tiết quá bé trên màn hình: zoom xa thì huy hiệu chồng nhau
       # thành vệt, thà không vẽ còn hơn vẽ ra thứ không đọc được.
@@ -1264,10 +1175,9 @@ module TK
           cap  = hits.map { |c| [c.group, nil] }   # layer đích đọc từ ghi chú
           mode = :go
         else
-          # KHÔNG DÁN ĐÈ. Chi tiết đã đeo tag chống bay thì bỏ qua — muốn đổi
-          # phải Gỡ trước. Trước đây quét chồng là đè im lặng: đang từ TRÁI
-          # chuyển sang PHẢI, quét trùm một cái là mất trình tự đã xếp mà không
-          # hiện dấu hiệu gì. (Khoa 20/07.)
+          # KHÔNG DÁN ĐÈ. Chi tiết đã đeo tag chống bay thì bỏ qua — muốn đổi phải
+          # Gỡ trước. Trước đây quét chồng là đè im lặng, mất trình tự đã xếp mà
+          # không hiện dấu hiệu gì. (Khoa 20/07.)
           hits   = trung.select { |c| c.tag.nil? }
           bo_qua = trung.size - hits.size
           if hits.empty?
@@ -1276,50 +1186,30 @@ module TK
             )
             return
           end
-          # Hướng của TỪNG chi tiết: ép tay thì cả lượt theo nút, tự động thì mỗi
-          # cái đọc vị trí của nó trên tấm ván (Cand#auto, tính lúc quét).
-          ep = huong
-          lac = 0
-          if ep.nil?
-            truoc = hits.size
-            hits  = hits.select { |c| !c.auto.nil? }
-            lac   = truoc - hits.size    # không nằm trong tấm nào → không đoán bừa
-          end
-          if hits.empty?
-            TK::ChongBay.nhac(
-              "#{lac} chi tiết không nằm trong tấm ván nào — bấm Trái hoặc Phải " \
-              "để ép tay."
-            )
-            return
-          end
 
-          # KHÔNG còn trần chi tiết mỗi lượt (bỏ 23/07). Trần duy nhất còn lại là
-          # trần SỐ, và giờ đếm RIÊNG cho mỗi bên: nét vơ 30 cái trái + 20 cái
-          # phải thì hai dãy số chạy độc lập, không bên nào ăn dải của bên kia.
+          # Mỗi chi tiết lấy số kế tiếp của TẤM chứa nó (một dãy liền cho mỗi tấm).
+          # Trần duy nhất còn lại là trần SỐ (SO_TOI_DA) tính riêng từng tấm.
           model   = Sketchup.active_model
           ten_moi = []
           cap     = []
           het     = 0
           luu     = @so_ke.dup   # gán hỏng thì trả lại, đừng để thủng dải số
           hits.each do |c|
-            h  = ep || c.auto
-            so = so_ke_cua(c.tam, h)          # số riêng của TẤM chứa chi tiết này
+            so = so_ke_cua(c.tam)             # số riêng của TẤM chứa chi tiết này
             if so > TK::ChongBay::SO_TOI_DA
               het += 1
               next
             end
-            lay = TK::ChongBay.tag_theo_so(model, h, so)
-            @so_ke[[c.tam, h]] = so + 1
+            lay = TK::ChongBay.tag_theo_so(model, so)
+            @so_ke[c.tam] = so + 1
             ten_moi << lay.name.to_s
             cap << [c.group, lay]
           end
-          # Bảng nói về tấm vừa quét — quét sang tấm khác là hai ô số đổi theo.
+          # Bảng nói về tấm vừa quét — quét sang tấm khác là ô số đổi theo.
           @tam_hien = hits.first.tam
 
           loi = []
           loi << "Bỏ qua #{bo_qua} chi tiết đã gắn (muốn đổi thì Gỡ trước)." if bo_qua > 0
-          loi << "#{lac} chi tiết không nằm trong tấm ván nào — ép tay bằng nút " \
-                 "Trái/Phải." if lac > 0
           loi << "Hết dải #{TK::ChongBay::SO_TOI_DA} đợt cho #{het} chi tiết — gỡ " \
                  "bớt hoặc gõ số nhỏ hơn vào ô Đợt kế tiếp." if het > 0
           TK::ChongBay.nhac(loi.join(' '))

@@ -9,6 +9,7 @@ module LeHai
         File.join(path, 'updater'),
         File.join(path, 'auto_dan_canh', 'main'),
         File.join(path, 'canh_cnc',      'main'),
+        File.join(path, 'chia_lam',      'main'),
         File.join(path, 'tam_go',        'main'),
         File.join(path, 'ha_nen',        'main'),
         File.join(path, 'dien_ten',      'main'),
@@ -38,6 +39,7 @@ module LeHai
       # Diagnostic: in ra console để debug
       puts "[LeHai_Tools] Defined? MyStudio::AutoEdgeBand = #{defined?(::MyStudio::AutoEdgeBand).inspect}"
       puts "[LeHai_Tools] Defined? CanhCNC               = #{defined?(::CanhCNC).inspect}"
+      puts "[LeHai_Tools] Defined? TK::ChiaLam            = #{defined?(::TK::ChiaLam).inspect}"
       puts "[LeHai_Tools] Defined? Lehai::TamGoGen        = #{defined?(::Lehai::TamGoGen).inspect}"
       puts "[LeHai_Tools] Defined? LeHaiDecor::HaNen      = #{defined?(::LeHaiDecor::HaNen).inspect}"
       puts "[LeHai_Tools] Defined? TuDong::DienTen        = #{defined?(::TuDong::DienTen).inspect}"
@@ -64,6 +66,7 @@ module LeHai
         # ── Cụm 1: Dựng hình ──
         [defined?(::Lehai::TamGoGen),       -> { ::Lehai::TamGoGen.create_cmd }],
         [defined?(::CanhCNC),               -> { ::CanhCNC.create_cmd }],
+        [defined?(::TK::ChiaLam),           -> { ::TK::ChiaLam.create_cmd }],
         # CẤT 19/07/2026 — bên thiết kế phản ánh không dùng Hạ Nền Uốn Cong nữa.
         # Chỉ gỡ NÚT, KHÔNG xoá code: module vẫn `require` bên trên nên gọi được
         # từ Ruby Console (`LeHaiDecor::HaNen.show`). Muốn trả nút lại thì bỏ dấu

@@ -12,6 +12,47 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-24 — Chống Bay: BỎ chia trái/phải, một dãy số liền, trần 200
+
+**Vấn đề Khoa nêu:** *"thực ra chỉ cần làm bên phải thôi — ván chạy hết một nửa thì cũng còn
+một nửa, sao không chạy tiếp mà phải chạy ngược lại, nhìn nó ngu ngu."* Cơ chế cũ (v1.9.51,
+làm 23/07 tối): mỗi tấm bị đường giữa chia đôi, nửa trái đếm riêng `TRAI###`, nửa phải
+`PHAI###`. Aspire sắp tag bằng chuỗi → cắt HẾT nửa trái (từ trên xuống) rồi dao phóng NGƯỢC
+lên đầu nửa phải cắt lại từ đầu. Cú phóng ngược đó là chỗ Khoa thấy "ngu ngu".
+
+**Quyết định:** bỏ hẳn chia trái/phải. Quét tới đâu đánh số cắt tới đó — **một dãy liền cho
+mỗi tấm**. Bảng còn hai chế độ **Gắn / Gỡ** (Tab đổi, thay cho vòng Tự động/Trái/Phải/Gỡ),
+một ô "Đợt kế tiếp". Trần **9→100→200** (một dãy liền nên gộp hai trần bên cũ; đệm `%03d`
+phủ tới 999, chưa phải nới). Giữ tên tag **`CHONGBAYPHAI###`** cho cả tool — Khoa chốt giữ
+chữ "PHAI" để **khỏi phải sửa template dao mẫu bên Aspire**; "PHAI" giờ là di sản, không còn
+nghĩa bên.
+
+**Vì sao chia đôi là thừa:** cái chống bay THẬT nằm ở **con số = thứ tự cắt** (cắt cái nào
+trước để xung quanh còn giữ ván) — một dãy liền giữ nguyên tác dụng đó. Lục lại nhật ký
+19/07 (ngày đẻ tool) và 23/07 (ngày thêm auto-split): **không dòng nào** nói hai nửa giúp
+chống bay. Mục 23/07 chỉ tự động hoá việc "đọc chi tiết nằm nửa nào" — tức là tô trơn một
+cái split vốn **đã bị mặc định là đúng mà chưa ai hỏi để làm gì**. Khoa hỏi đúng câu chưa
+ai hỏi, một ngày sau khi tự dựng nó.
+
+**Gỡ được gì (code):** `moc_chia` + `huong_tu_dong` (dò đường giữa tấm) xoá hẳn; `traverse`
+chỉ còn truyền tên tấm; `Cand#auto` bỏ; bộ đếm hai khoá `[tấm, hướng]` → một khoá `[tấm]`;
+`HUONG`/`MAU_GOC` (hai hướng, hai màu) → `TAG_HO`/`MAU_CB` (một họ, một màu); bốn nút hướng
+→ hai chế độ. **Cố ý GIỮ** khả năng nhận diện chữ "TRAI" trong `tach_tag`/`DST_RE` để file
+cũ đã lỡ gắn TRAI vẫn **gỡ** ra được — chỉ không bao giờ *tạo* tag TRAI mới nữa.
+
+**Ràng buộc còn nguyên:** đếm riêng từng tấm chỉ đúng khi **xuất DXF từng tấm riêng** (Khoa
+xác nhận 23/07). Đổi sang xuất chung nhiều tấm một file là hỏng cách đếm này.
+
+**Bài học:** một tính năng có thể sống ba ngày, được tự động hoá cẩn thận, chạy thật 7 vòng
+ĐẠT — mà vẫn là **thừa từ gốc** vì lần đầu không ai hỏi "cái split này để làm gì". Auto-hoá
+một giả định chưa kiểm chỉ làm giả định đó khó gỡ hơn. Trước khi *tô trơn* một bước, hỏi lại
+bước đó có cần tồn tại không.
+
+**Chưa kiểm được:** máy không có Ruby nên chưa `ruby -c`. Cần Khoa `load` trong Ruby Console
++ chạy thử trước khi release (xem `KHOA.md` P1).
+
+---
+
 ## 2026-07-23 (tối) — Chống Bay: tự chia trái/phải theo vị trí trên tấm ván
 
 **Vấn đề Khoa nêu:** *"nếu đã mặc định trái phải, sao không tính trước cho người dùng luôn, mắc gì
@@ -45,6 +86,17 @@ cho cả file.
 **ComponentDefinition**, mà một definition nằm được ở nhiều chỗ nên KHÔNG suy ra instance nào —
 đo thật: cha của chi tiết đầu là `ComponentDefinition Group2799#1`. Đi ngược là ngõ cụt; lúc duyệt
 xuôi thì đang ở trong tấm nào là biết ngay.
+
+**Vòng sửa ngay sau đó (v1.9.52) — mỗi TẤM đếm số riêng.** Bản đầu đếm chung cả file, nên quét sang
+`sheet-3` số chạy tiếp 59, 60, 61 thay vì bắt đầu lại. Khoa bắt được khi thử quét qua tấm khác.
+**Mỗi tấm ván là một lần chạy máy riêng** — thứ tự cắt chỉ có nghĩa trong phạm vi một tấm. Bộ đếm
+nay khoá theo `[tấm, hướng]`, bảng hiện tên tấm mà hai ô số đang nói tới.
+
+Điều kiện làm cho cách này hợp lệ, **Khoa xác nhận 23/07**: xuất DXF **từng tấm riêng**. Nhờ vậy
+`CHONGBAYTRAI001` tuy có mặt ở cả 5 tấm nhưng mỗi file DXF chỉ chứa đúng một chi tiết mang tên đó —
+số trùng chỉ nhìn thấy trong SketchUp, không đi ra tới máy. **Nếu sau này đổi sang xuất chung một
+DXF cho nhiều tấm thì cách đếm này hỏng ngay** (một đường dao sẽ nhảy qua lại giữa các tấm), lúc đó
+phải đếm chung cả file trở lại hoặc nhét mã tấm vào tên tag.
 
 **Bài học:** **trước khi bắt người dùng chọn, hỏi xem dữ liệu đã trả lời sẵn chưa.** Ba ngày nay
 tool bắt Khoa bấm Trái/Phải mỗi lượt quét, trong khi câu trả lời nằm ngay trong toạ độ chi tiết và

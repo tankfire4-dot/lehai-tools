@@ -12,6 +12,35 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-27 — Rãnh Hậu báo đỏ OAN: ABF giờ chỉ đẻ một tag `ABF_Groove`
+
+**Vấn đề:** Khoa mở file đã phay rãnh hậu bằng ABF, dashboard vẫn báo đỏ *"2 tấm đâm xuyên chưa
+khoét (chưa ABF, chưa khấu tay)"*. Ông chụp Entity Info của chính cái dấu đó: `_ABF_Intersect`,
+tag `ABF_Groove`.
+
+**Đo trước khi sửa** (`probes/tag_intersect_probe.rb`, viết riêng cho ca này): **4/4 dấu
+`_ABF_Intersect` đeo đúng một tag `ABF_Groove`**, ở group LẪN ở edge. Không còn `PHAYRANHHAU`,
+không còn `NGAM`. Mà `register_intersect` chỉ nhận `:ranhhau` khi tag khớp `/phayranhhau/i` →
+mọi dấu rơi vào `:other` → tool kết luận chưa ai phay.
+
+**Vì sao KHÔNG vá kiểu "thấy ABF_Groove thì coi như có rãnh hậu":** nếu ABF dùng chung tag đó cho
+cả ngàm lẫn rãnh led, nới mù kiểu ấy làm tool **im lặng cả khi thiếu thật**. Bỏ sót nguy hơn báo
+thừa — nên phải chạy probe đọc dữ liệu thật trước, không đoán.
+
+**Quyết định:** tag không phân loại được → `:chung`, đi vào **cả hai rổ** rãnh hậu và ngàm. Không
+mất độ chặt, vì **loại mối đã biết chắc từ ĐỘ ĂN SÂU** (`classify`: 8–12,5mm rãnh hậu · 15–20mm
+ngàm) — dấu ABF chỉ còn phải trả lời "chỗ này đã phay chưa". Tag có chữ `led` thì loại hẳn.
+
+**Bài học (đã chép vào `sketchup-api.md`):** tag ABF là **dữ liệu của phần mềm khác, nó đổi mà
+không báo ai**. Chốt hành vi tool vào cái đo được từ hình học; chỉ dùng tag cho câu hỏi có/không.
+Kèm theo, ghi chép cũ 19/07 "tag nằm ở EDGE, group vỏ đeo Layer0" **không đúng cho mọi file** —
+đã sửa lại cẩm nang.
+
+**Nợ để lại:** `kiem_tra_led` vẫn dò `/phayled/` nên trên file kiểu này nó **còn mù**. Chưa vá vì
+chưa có file thật nào chứng minh rãnh led đeo `ABF_Groove` — vá mù là làm dòng Rãnh Led xanh sai.
+
+---
+
 ## 2026-07-27 — Check Chốt Sản Xuất: thêm dòng ĐỎ "Đợt Chắn Bản Lề"
 
 **Vấn đề Khoa nêu:** *"làm bản lề mà bên trong lại có tấm đợt chắn ngang bản lề thì sao mà lắp"* —

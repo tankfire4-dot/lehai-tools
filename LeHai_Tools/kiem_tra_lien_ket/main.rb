@@ -1,9 +1,24 @@
 # encoding: UTF-8
 # Kiểm Tra Liên Kết (rãnh hậu + ngàm): trên MÔ HÌNH 3D, khi 2 tấm ăn/chồng vào
 # nhau ở độ sâu đặc trưng thì người dựng đang MUỐN làm liên kết bằng ABF:
-#   - ăn ~10mm  → rãnh hậu  → phải có group con "_ABF_Intersect" tag "...PHAYRANHHAU..."
-#   - ăn ~17.5mm → ngàm     → phải có group con "_ABF_Intersect" tag "...NGAM..."
+#   - ăn ~10mm  → rãnh hậu  → phải có group con "_ABF_Intersect" gần đó
+#   - ăn ~17.5mm → ngàm     → phải có group con "_ABF_Intersect" gần đó
 # Cặp ăn đúng độ sâu mà THIẾU group liên kết tương ứng → báo lỗi (phôi sẽ phế).
+#
+# ── ABF MỘT TAG (đo thật 27/07/2026 — sửa giả định cũ) ────────────────
+# Bản đầu đòi tag phải chứa "PHAYRANHHAU" / "NGAM" thì mới tính là đã phay.
+# Đo bằng `probes/tag_intersect_probe.rb` trên file thật của Khoa: **cả 4 dấu
+# `_ABF_Intersect` đều đeo đúng một tag `ABF_Groove`**, ở group LẪN ở edge —
+# ABF không phân loại rãnh bằng tag nữa. Hậu quả: file đã phay rãnh hậu tử tế
+# vẫn bị báo đỏ "chưa ABF, chưa khấu tay".
+#
+# Sửa: tag nào không phân loại được thì coi là **dấu CHUNG**, dùng cho cả rãnh
+# hậu lẫn ngàm. Không mất độ chặt, vì LOẠI mối đã biết chắc từ ĐỘ ĂN SÂU
+# (`classify`) — dấu ABF chỉ còn phải trả lời "chỗ này đã phay chưa".
+#
+# ⚠️ Hở còn lại: nếu một ngày rãnh LED cũng đeo `ABF_Groove` và nằm lọt trong
+# vùng giao của hai tấm chưa phay, mối đó sẽ bị coi nhầm là đã làm. File đo
+# 27/07 không có ca đó. Rãnh led có tag riêng (`...LED...`) thì đã loại sẵn.
 #
 # Cách dò: mỗi tấm là hộp bao trục (AABB) ở tọa độ thế giới (tủ thẳng trục).
 # Độ ăn sâu = chiều NHỎ NHẤT của khối giao. Chặn nhầm "chồng mặt lớn" (trùng
@@ -125,8 +140,11 @@ module TK
     #  TÌM MỌI MỐI LIÊN KẾT (đã làm + thiếu)
     # =========================================================
     def self.find_joints(planks, inters)
-      rh = inters.select { |x| x[:kind] == :ranhhau }
-      ng = inters.select { |x| x[:kind] == :ngam }
+      # Dấu tag chung đi vào CẢ HAI rổ: loại mối đã biết chắc từ ĐỘ ĂN SÂU
+      # (`classify`), dấu ABF chỉ cần trả lời "chỗ này đã phay chưa".
+      chung = inters.select { |x| x[:kind] == :chung }
+      rh = inters.select { |x| x[:kind] == :ranhhau } + chung
+      ng = inters.select { |x| x[:kind] == :ngam }    + chung
       planks = planks.sort_by { |p| p[:aabb][0] }   # sweep theo minX
       n = planks.size
       out  = []
@@ -320,9 +338,13 @@ module TK
       ab = world_aabb(ents, te)
       return unless ab
       tag  = (e.layer.name rescue '')
+      # Tag KHÔNG phân loại được → :chung, dùng cho CẢ rãnh hậu lẫn ngàm (xem
+      # ghi chú "ABF một tag" ở đầu file). Rãnh led có tag riêng thì loại hẳn,
+      # kẻo nó đứng gần mối nào lại làm mối đó thành "đã phay".
       kind = if tag =~ /phayranhhau/i then :ranhhau
              elsif tag =~ /ngam/i      then :ngam
-             else :other end
+             elsif tag =~ /led/i       then :led
+             else :chung end
       inters << { kind: kind, c: [(ab[0] + ab[3]) / 2, (ab[1] + ab[4]) / 2, (ab[2] + ab[5]) / 2] }
     end
 

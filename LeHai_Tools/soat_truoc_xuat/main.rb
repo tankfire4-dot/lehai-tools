@@ -18,7 +18,7 @@ module TK
     THEME = File.join(PATH, '..', 'shared', 'lehai_theme.css').freeze
 
     # Nạp các check phụ thuộc — rescue để 1 tool lỗi không chặn dashboard.
-    %w[kiem_tra_do_day kiem_tra_khoang_cach trung_tam kiem_tra_ban_le kiem_tra_lien_ket kiem_tra_led kiem_tra_ten kiem_tra_dan_canh].each do |folder|
+    %w[kiem_tra_do_day kiem_tra_khoang_cach trung_tam kiem_tra_ban_le kiem_tra_lien_ket kiem_tra_led kiem_tra_ten kiem_tra_dan_canh kiem_tra_r100].each do |folder|
       begin
         require File.join(PATH, '..', folder, 'main')
       rescue LoadError, StandardError => e
@@ -38,7 +38,9 @@ module TK
         { key: 'led',     name: 'Rãnh Led',         mod: mod_of(:LedCheck) },
         { key: 'ngam',    name: 'Ngàm',             mod: mod_of(:JointCheck), kind: :ngam },
         { key: 'banle',   name: 'Bản Lề Cánh',      mod: mod_of(:HingeCheck) },
-        { key: 'khoang',  name: 'Khoảng Cách 7mm',  mod: mod_of(:SpacingCheck) }
+        { key: 'khoang',  name: 'Khoảng Cách 7mm',  mod: mod_of(:SpacingCheck) },
+        # Cuối bảng: nhắc người xác nhận, không phải chốt chặn (vàng, không đỏ).
+        { key: 'r100',    name: 'Cung R100',        mod: mod_of(:RadiusCheck) }
       ]
     end
     private_class_method :checks

@@ -200,7 +200,7 @@ toolbar rỗng tên `X` mà SketchUp nhớ — gỡ ở **View → Toolbars → 
 
 **Đọc kỹ cột "Nút" — hai cách đếm khác nhau, đừng trộn.** Số module ≠ số nút trên toolbar.
 Có module **không có nút riêng**: nó chạy từ trong dashboard Check Chốt Sản Xuất (icon khiên cuối
-hàng). Tính tới 19/07/2026: **20 module, 13 nút** (Hạ Nền đã cất — code còn, nút gỡ).
+hàng). Tính tới 27/07/2026: **21 module, 13 nút** (Hạ Nền đã cất — code còn, nút gỡ).
 
 Nguồn sự thật cho từng cột: cột Module = thư mục trong `LeHai_Tools/`; cột Nút = mảng `groups`
 trong `LeHai_Tools/main.rb` (chỗ DUY NHẤT quyết định nút nào lên toolbar và theo thứ tự nào).
@@ -232,6 +232,7 @@ là danh sách nút. Muốn biết đủ module thì `ls LeHai_Tools/*/`.
 | Kiểm Tra LED | `TK::LedCheck` | — chạy trong dashboard |
 | Kiểm Tra Đặt Tên | `TK::NameCheck` | — chạy trong dashboard |
 | Kiểm Tra Dán Cạnh | `TK::EdgeBandCheck` | — chạy trong dashboard |
+| Cung R100 (cảnh báo vàng: bo góc hay R tấm đợt?) | `TK::RadiusCheck` | — chạy trong dashboard |
 
 > Thứ tự dòng trong bảng = thứ tự nút trên toolbar (nhóm theo cụm), rồi tới nhóm không có nút.
 

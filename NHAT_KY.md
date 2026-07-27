@@ -12,6 +12,33 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-27 — Check Chốt Sản Xuất: thêm dòng vàng "Cung R100"
+
+**Vấn đề Khoa nêu:** trong file có cung bán kính 100mm thì **nhìn không biết nó là gì** — bo góc
+trang trí (R bo) hay đường cong của một tấm đợt thường. Hai thứ ra hai đường dao khác nhau, mà
+tới lúc phát hiện thì tấm đã cắt rồi.
+
+**Quyết định:** thêm module `TK::RadiusCheck` (`kiem_tra_r100/`) làm **dòng thứ 10** của dashboard,
+mức **CẢNH BÁO VÀNG** — không chặn xuất DXF, chỉ nhặt ra cho người nhìn rồi tự quyết. Bấm "Xem"
+lướt từng cung (← → đổi, gõ số để nhảy, ESC thoát) như khuôn Kiểm Tra LED.
+
+**Vì sao chỉ 100mm, không phải mọi R** (Khoa chốt): các bán kính khác đủ rõ nghĩa khi nhìn.
+Riêng 100 lẫn giữa hai nghĩa nên mới đáng một dòng. Bắt hết mọi R thì dòng này lúc nào cũng vàng
+→ thợ quen mắt bỏ qua, mất luôn tác dụng. Sai số ±0,5mm.
+
+**Vì sao bỏ qua vòng tròn KÍN:** vòng kín là lỗ khoan — bên Dim Nhanh nó ghi nhãn `D` (đường kính)
+chứ không phải `R`. Lỗ Ø200 mà đi báo "R100" là báo nhầm cả nghìn lỗ mỗi file.
+
+**Nợ cố ý:** ba hàm đo (`radius_of`, `full_circle?`, `circumradius`) **chép nguyên** từ Dim Nhanh
+(`dim_nhanh/main.rb:248`) chứ không gọi lại — bên đó chúng là method của class `DimTool`, phải dựng
+một tool mới gọi được. Đổi cách đo một bên thì **phải đổi cả hai**, kẻo hai tool nói lệch số nhau
+trên cùng một cung. Đã ghi rõ nguồn ở đầu cả hai chỗ chép.
+
+**Chưa chạy trong SketchUp** (máy soạn code không có SketchUp lẫn Ruby): mới kiểm tĩnh — quét
+gọi-vs-định-nghĩa (0 hàm rơi), không BOM, mọi API dùng đều có bản đã chạy trong repo.
+
+---
+
 ## 2026-07-24 — Chống Bay: BỎ chia trái/phải, một dãy số liền, trần 200
 
 **Vấn đề Khoa nêu:** *"thực ra chỉ cần làm bên phải thôi — ván chạy hết một nửa thì cũng còn

@@ -1,16 +1,28 @@
 # encoding: UTF-8
 # Kiểm Tra Dán Cạnh (CẢNH BÁO vàng, mức THÔ — không chặn cứng):
 #
-# Dấu ABF để lại khi đã dán cạnh: group con "_ABF_edgeBanding" (mỗi cái = 1 cạnh
-# đã dán). Dò từ file thật (dan_canh_probe): file ĐÃ dán có N dấu này (403 trong
-# file mẫu, nằm bên trong nhánh __ABF_Nesting); file CHƯA dán thì KHÔNG có.
+# ── NGUỒN CHÍNH: attribute trên MÔ HÌNH 3D (đổi 27/07/2026) ───────────
+# Khoa hỏi: "sao bấm Xem nó zoom tới bản 2D nesting, ABF biết đường đâu mà trải
+# ra?". Đo lại bằng `probes/dan_canh_3d_probe.rb` + `abf_attr_full.rb` thì lòi ra:
+#
+#   FACE nào được dán cạnh mang attribute  ABF / edge-band-id
+#   → face đó chính là MẶT CẠNH của tấm (kích thước luôn <dài> × 17,5 × 0)
+#
+# Đây mới là CÁI GỐC. Group "_ABF_edgeBanding" chỉ sinh ra lúc nesting (đo thật:
+# **0 cái** ở khu 3D, 13 cái trong `__ABF_Nesting`) — nó là CÁI BÓNG. Đếm bóng thì
+# file đã đánh dấu dán cạnh xong mà CHƯA nesting sẽ bị báo nhầm "chưa dán", và
+# "Xem" không thể chỉ tới cạnh trên tủ.
+#
+# ⚠️ KHÔNG dùng `edge-band-types` làm bằng chứng đã dán. Nó là CẤU HÌNH loại chỉ
+# của tấm, không phải dấu đã dán: đo thật 16 tấm mang key đó nhưng **4 tấm trong
+# số đó không có face nào được dán**. Dùng nó là báo nhầm 4 tấm.
+#
+# Vẫn giữ hai nguồn phụ, xếp sau: dấu 2D `_ABF_edgeBanding` (file cũ chỉ còn bản
+# nesting) và material "Hung_Show_ABF_..." của tool Auto Dán Cạnh nhà mình.
 #
 # Mức thô theo yêu cầu Khoa: chỉ xét "cả file đã có ai dán cạnh chưa" — vì quy
-# tắc cạnh nào phải dán rất phức tạp (đế phải dán dù không lộ...), không suy từ
-# hình học được. 0 dấu → cảnh báo; có dấu → coi như đã làm.
-#
-# Đếm dấu BẤT KỂ nằm đâu (dấu nằm ở bản nesting phẳng, không phải tủ 3D) → check
-# ngầm hiểu file đã nesting, đúng bối cảnh "chốt trước khi xuất DXF".
+# tắc cạnh nào PHẢI dán rất phức tạp (đế phải dán dù không lộ...), không suy từ
+# hình học được. Không thấy dấu nào → cảnh báo; có dấu → coi như đã làm.
 #
 # CHỈ ĐỌC. Dashboard (TK::PreExportCheck) gọi qua audit/review.
 
@@ -43,8 +55,60 @@ module TK
       n
     end
 
-    # Thu vị trí từng dấu để "Xem" lướt được — trước 27/07 dòng này chỉ hiện
-    # messagebox rồi thôi, là dòng DUY NHẤT trong dashboard không dẫn đi đâu.
+    # ── NGUỒN CHÍNH: cạnh đã dán trên MÔ HÌNH 3D ───────────────
+    # Mỗi FACE mang attribute ABF/edge-band-id = một cạnh đã dán. Face đó là mặt
+    # cạnh thật của tấm nên "Xem" chỉ đúng vào dải chỉ trên tủ, không phải bản 2D.
+    def self.collect_marks_3d
+      out = []
+      walk(Sketchup.active_model.entities, Geom::Transformation.new, 0, '', false) do |e, t, owner, nest|
+        next if nest                       # khu 3D thôi — bản trải phẳng để nguồn phụ lo
+        sub = ents_of(e)
+        next unless sub
+        te  = t * e.transformation
+        ten = ten_hoac(e, owner)
+        sub.grep(Sketchup::Face).each do |f|
+          next unless banded_face?(f)
+          pts = f.outer_loop.vertices.map { |v| te * v.position }   # khuôn chia_lam/main.rb:184
+          next if pts.size < 3
+          out << Mark.new(ten, false, loop_segs(pts), tam_diem(pts))
+        end
+      end
+      out
+    end
+
+    def self.banded_face?(f)
+      d = f.attribute_dictionary('ABF')
+      !d.nil? && d.keys.include?('edge-band-id')
+    rescue StandardError
+      # nuốt được: helper thuần đọc, không có dict thì false là kết quả hợp lệ
+      false
+    end
+
+    # viền khép kín của mặt cạnh — dựng toạ độ thủ công, KHÔNG splat Point3d
+    # (Point3d#to_a chưa có tiền lệ chạy thật nào trong repo)
+    def self.loop_segs(pts)
+      segs = []
+      pts.each_with_index do |p, i|
+        q = pts[(i + 1) % pts.size]
+        segs << [[p.x, p.y, p.z], [q.x, q.y, q.z]]
+      end
+      segs
+    end
+
+    def self.tam_diem(pts)
+      n = pts.size
+      Geom::Point3d.new(pts.inject(0.0) { |s, p| s + p.x } / n,
+                        pts.inject(0.0) { |s, p| s + p.y } / n,
+                        pts.inject(0.0) { |s, p| s + p.z } / n)
+    end
+
+    def self.ents_of(e)
+      if e.is_a?(Sketchup::Group)                then e.entities
+      elsif e.is_a?(Sketchup::ComponentInstance) then e.definition.entities
+      end
+    end
+
+    # ── NGUỒN PHỤ: dấu `_ABF_edgeBanding` (chỉ có ở bản trải phẳng) ──
     def self.collect_marks
       out = []
       walk(Sketchup.active_model.entities, Geom::Transformation.new, 0, '', false) do |e, t, owner, nest|
@@ -110,17 +174,24 @@ module TK
 
     # ── Adapter cho dashboard ──────────────────────────────────
     def self.audit
+      m3 = collect_marks_3d
+      unless m3.empty?
+        return { status: :pass, count: m3.size,
+                 message: "Đã dán #{m3.size} cạnh trên #{m3.map(&:owner).uniq.size} tấm (mô hình 3D)." }
+      end
       n = count
-      return { status: :pass, count: n, message: "Đã dán #{n} cạnh (ABF)." } if n.positive?
+      return { status: :pass, count: n,
+               message: "Đã dán #{n} cạnh (dấu ở bản trải phẳng)." } if n.positive?
       return { status: :pass, count: 0, message: 'Đã dán cạnh (Auto Dán Cạnh).' } if auto_banded?
       { status: :warn, count: 0,
         message: 'Chưa thấy cạnh nào được dán — kiểm tra file đã chạy dán cạnh chưa.' }
     end
 
     def self.review
-      marks = collect_marks
+      # Ưu tiên cạnh trên TỦ 3D; hết cách mới lùi về dấu ở bản trải phẳng.
+      marks = collect_marks_3d
+      marks = collect_marks if marks.empty?
       if !marks.empty?
-        # Lướt tới từng cạnh đã dán — trước đây chỉ báo con số, không xem được.
         Sketchup.active_model.select_tool(ReviewTool.new(marks))
       elsif count.positive?
         # Có dấu nhưng không đo được vị trí (bounds rỗng) — vẫn phải nói ra.

@@ -15,6 +15,7 @@ hẳn phần đã dò được về cách SketchUp trả dữ liệu cho mấy c
 | `ranh_hau_probe2.rb` | rãnh hậu — vòng 2 |
 | `dam_xuyen_probe.rb` | dầm xuyên |
 | `ngam_probe.rb` | ngàm |
+| `tag_audit.rb` | **SỔ ĐO TAG cho buổi dựng full một dự án CNC (28/07)** — `TagAudit.snap 'ten moc'` sau mỗi bước, ghi tích luỹ vào `tag_audit.txt`. Đo cả tên group, tag ở group, tag ở edge, số face và chiều nhỏ nhất (mm) — chiều nhỏ nhất là cái phân biệt rãnh hậu ~10mm với ngàm ~17,5mm khi tag giống hệt nhau. |
 | `tag_intersect_probe.rb` | **tag thật của dấu `_ABF_Intersect`** (27/07) — đếm từng kiểu tag ở group LẪN ở edge. Dò vì file đã làm rãnh hậu vẫn bị báo đỏ: tag là `ABF_Groove`, không phải `...PHAYRANHHAU...` như `kiem_tra_lien_ket` đang chờ. Cái này KHÁC 4 file trên: nó dò cho một module ĐANG CHẠY, không phải tính năng chưa làm. |
 
 **Đây là script DÒ, không phải mã sản phẩm.** Không đăng ký vào toolbar, không nằm trong

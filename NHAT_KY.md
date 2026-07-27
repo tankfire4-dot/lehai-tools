@@ -12,6 +12,25 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-27 — Dán Cạnh: bấm "Xem" giờ lướt tới từng cạnh, không còn hộp thoại cụt
+
+**Vấn đề Khoa nêu:** *"chỗ lỗi dán cạnh, ông không thể zoom tới những chỗ nào dán cạnh khi tôi bấm
+xem à"*. Đúng — `EdgeBandCheck.review` chỉ `UI.messagebox("tìm thấy 13 cạnh")` rồi thôi. Đây là
+**dòng DUY NHẤT** trong dashboard mà nút "Xem" không dẫn đi đâu; mười dòng còn lại đều
+`select_tool(ReviewTool)`.
+
+**Quyết định:** thêm `ReviewTool` theo đúng khuôn `kiem_tra_led` — lướt ← →, gõ số nhảy, ESC thoát,
+khung xanh lá (đã làm, không phải lỗi). `walk` nay mang theo transform + tên tấm + cờ "đang trong
+nesting"; `count` giữ nguyên hành vi.
+
+**Chi tiết dễ làm người dùng tưởng tool hỏng:** dấu `_ABF_edgeBanding` nằm trong nhánh
+`__ABF_Nesting`, tức **bản trải phẳng chứ không phải tủ 3D**. Bấm Xem là camera nhảy sang bãi phôi
+phẳng. Không giấu được nên nói thẳng trên banner: *"Đang xem trên BẢN TRẢI PHẲNG (nesting)"*.
+
+**Chưa chạy trong SketchUp.**
+
+---
+
 ## 2026-07-27 — Rãnh Hậu báo đỏ OAN: ABF giờ chỉ đẻ một tag `ABF_Groove`
 
 **Vấn đề:** Khoa mở file đã phay rãnh hậu bằng ABF, dashboard vẫn báo đỏ *"2 tấm đâm xuyên chưa

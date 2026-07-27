@@ -12,6 +12,37 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-07-27 — Check Chốt Sản Xuất: thêm dòng ĐỎ "Đợt Chắn Bản Lề"
+
+**Vấn đề Khoa nêu:** *"làm bản lề mà bên trong lại có tấm đợt chắn ngang bản lề thì sao mà lắp"* —
+cánh khoét cốc xong, ra xưởng mới biết đế bản lề không bắt được vào hông vì có tấm đợt cắt ngang
+đúng chỗ. Lúc đó tấm đã cắt rồi.
+
+**Quyết định:** module `TK::HingeBlockCheck` (`kiem_tra_ban_le_chan/`), **LỖI ĐỎ** (chặn như Rãnh
+Hậu, không phải nhắc vàng như Cung R100). Luật Khoa chốt: **tâm cốc bản lề cách mặt tấm đợt ≥ 80mm**.
+
+**Vì sao dò HÌNH HỌC chứ không dò theo tên (Khoa chốt):** file thật lúc bàn việc có **17/17 tấm chưa
+đặt tên**. `TK::HingeCheck` (Bản Lề Cánh) dò theo tên chứa "cánh" nên trên file đó nó mù hoàn toàn —
+đúng cái bẫy đã ghi trong phần "Lưu ý" của dashboard. Ở đây mốc neo là **`_ABF_hingeCup`** do ABF
+sinh, luôn có tên → chạy được cả trên file chưa ai đặt tên. Suy ra luôn: **group nào chứa cốc thì
+group đó LÀ cánh**, khỏi cần tên. Tấm đợt = tấm nằm ngang (dày ≤ 30mm, hai cạnh ≥ 100mm).
+
+**Cạm bẫy đã lường trước — NÓC và ĐÁY tủ cũng là tấm nằm ngang.** Không loại chúng thì tool báo đỏ
+gần như mọi tủ (cốc trên cùng cách mép cánh đúng 80mm theo luật cũ, mà nóc nằm ngay đó). Cách loại:
+chỉ tính tấm nằm **hẳn trong lòng cánh**, cách mép trên lẫn mép dưới cánh ≥ `BIEN_MM`. Nóc/đáy trùng
+biên cánh nên rơi ra.
+
+**Ba con số tool TỰ ĐẶT, không phải luật xưởng** — đã ghi cảnh báo ngay đầu file: `BIEN_MM` 20 (lùi
+vào lòng cánh), `GAN_XY_MM` 40 (hình chiếu cốc lọt bóng tấm), `DAY_MAX_MM` 30 (dày bao nhiêu thì
+không còn là ván ngang). Chạy thật báo thừa/sót thì **chỉnh ba số này trước**, đừng nghi phần còn lại.
+
+**Tự bắt được lúc soát lại:** bản đầu đếm cốc hai lần nếu group cha cũng có mặt phẳng — `collect_cups`
+nay dừng khi gặp nhóm con tự có face (nhóm đó là tấm riêng, `walk` sẽ nhận).
+
+**Chưa chạy trong SketchUp.** Mới kiểm tĩnh (quét gọi-vs-định-nghĩa, không BOM).
+
+---
+
 ## 2026-07-27 — Check Chốt Sản Xuất: thêm dòng vàng "Cung R100"
 
 **Vấn đề Khoa nêu:** trong file có cung bán kính 100mm thì **nhìn không biết nó là gì** — bo góc

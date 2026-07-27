@@ -1,2 +1,5 @@
 .wrangler/
 LeHai_Tools/thu_vien/cache/
+
+# so do tag sinh ra luc chay probe — du lieu tho, rut xong thi xoa
+probes/tag_audit.txt

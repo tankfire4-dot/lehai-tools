@@ -44,7 +44,9 @@ module TK
                [0, 4], [1, 5], [2, 6], [3, 7]].freeze
 
     # một cạnh đã dán, đủ dữ liệu để lướt tới xem
-    Mark = Struct.new(:owner, :in_nest, :segs, :center)
+    # chi = tên loại chỉ đọc từ `edge-band-types`; so_mat = mấy mặt gộp lại (cạnh
+    # cong bị SketchUp chia thành hàng trăm mặt con — xem ghi chú ở collect_marks_3d)
+    Mark = Struct.new(:owner, :in_nest, :segs, :center, :chi, :so_mat)
 
     # Đếm số group/comp mang dấu dán cạnh CỦA ABF trong toàn model.
     def self.count
@@ -64,24 +66,64 @@ module TK
         next if nest                       # khu 3D thôi — bản trải phẳng để nguồn phụ lo
         sub = ents_of(e)
         next unless sub
-        te  = t * e.transformation
-        ten = ten_hoac(e, owner)
+        te    = t * e.transformation
+        ten   = ten_hoac(e, owner)
+        types = band_types(e)
+
+        # GOM theo (tấm, loại chỉ) — KHÔNG đếm từng face.
+        # Đo thật 28/07 trên file sản xuất `CNC C.THUY`: **2099 face** mang
+        # `edge-band-id`, vì tấm CONG bị SketchUp chia cạnh thành hàng trăm mặt
+        # con (`18×7×0.1`, `18×6×3.2`…). Đếm face = con số vô nghĩa + bắt người
+        # dùng lướt 2099 mục. File thử hôm trước toàn tấm phẳng nên không lộ —
+        # đúng bẫy `sketchup-api.md` đã ghi: hình cong là ca thử bắt buộc.
+        nhom = {}
         sub.grep(Sketchup::Face).each do |f|
-          next unless banded_face?(f)
+          id = band_id(f)
+          next if id.nil?
           pts = f.outer_loop.vertices.map { |v| te * v.position }   # khuôn chia_lam/main.rb:184
           next if pts.size < 3
-          out << Mark.new(ten, false, loop_segs(pts), tam_diem(pts))
+          (nhom[id] ||= []) << pts
+        end
+
+        nhom.each do |id, loops|
+          segs = []
+          loops.each { |pts| segs.concat(loop_segs(pts)) }
+          out << Mark.new(ten, false, segs, tam_diem(loops.first),
+                          types[id] || "loại #{id}", loops.size)
         end
       end
       out
     end
 
-    def self.banded_face?(f)
-      d = f.attribute_dictionary('ABF')
-      !d.nil? && d.keys.include?('edge-band-id')
+    # `edge-band-types` là MẢNG NHIỀU BỘ 5: [id, tên chỉ, ?, màu, ?] lặp lại.
+    # `edge-band-id` trên face là KHOÁ TRA vào bảng này của chính tấm đó — hôm
+    # 27/07 tưởng id toàn 0 nên vô nghĩa, sai: file chỉ có MỘT loại chỉ thì mới
+    # toàn 0. Tấm dùng hai loại có cả id 0 lẫn 1 (vd 3 cạnh "don 205 SH" + 1 cạnh
+    # "Vat45" — Vat45 là VÁT 45°, không phải dán chỉ).
+    def self.band_types(e)
+      d = (e.attribute_dictionary('ABF') rescue nil)
+      return {} if d.nil?
+      arr = d['edge-band-types']
+      return {} unless arr.is_a?(Array)
+      h = {}
+      i = 0
+      while i + 1 < arr.size
+        h[arr[i].to_i] = arr[i + 1].to_s
+        i += 5
+      end
+      h
     rescue StandardError
-      # nuốt được: helper thuần đọc, không có dict thì false là kết quả hợp lệ
-      false
+      # nuốt được: helper thuần đọc, bảng đọc hỏng thì lùi về nhãn "loại N"
+      {}
+    end
+
+    def self.band_id(f)
+      d = f.attribute_dictionary('ABF')
+      return nil if d.nil?
+      v = d['edge-band-id']
+      v.nil? ? nil : v.to_i
+    rescue StandardError
+      nil
     end
 
     # viền khép kín của mặt cạnh — dựng toạ độ thủ công, KHÔNG splat Point3d
@@ -116,7 +158,7 @@ module TK
         ab = world_aabb_of(e, t)
         next unless ab
         c = Geom::Point3d.new((ab[0] + ab[3]) / 2, (ab[1] + ab[4]) / 2, (ab[2] + ab[5]) / 2)
-        out << Mark.new(owner.empty? ? '(tấm chưa đặt tên)' : owner, nest, aabb_box_segs(ab), c)
+        out << Mark.new(owner.empty? ? '(tấm chưa đặt tên)' : owner, nest, aabb_box_segs(ab), c, nil, 1)
       end
       out
     end
@@ -176,8 +218,10 @@ module TK
     def self.audit
       m3 = collect_marks_3d
       unless m3.empty?
-        return { status: :pass, count: m3.size,
-                 message: "Đã dán #{m3.size} cạnh trên #{m3.map(&:owner).uniq.size} tấm (mô hình 3D)." }
+        n_tam = m3.map(&:owner).uniq.size
+        chi   = m3.map(&:chi).compact.uniq
+        return { status: :pass, count: n_tam,
+                 message: "Đã dán cạnh trên #{n_tam} tấm — #{chi.size} loại chỉ (mô hình 3D)." }
       end
       n = count
       return { status: :pass, count: n,
@@ -290,8 +334,9 @@ module TK
 
       def draw_banner(view)
         v  = @items[@idx]
-        l1 = "✓ Cạnh đã dán   (#{@idx + 1}/#{@items.size})"
-        l2 = v.owner
+        l1 = "✓ Cạnh đã dán   (#{@idx + 1}/#{@items.size})" +
+              (v.so_mat.to_i > 1 ? "   — gộp #{v.so_mat} mặt (cạnh cong)" : '')
+        l2 = v.chi ? "#{v.owner}   ·   chỉ: #{v.chi}" : v.owner
         # Dấu _ABF_edgeBanding nằm trong bản TRẢI PHẲNG, không phải tủ 3D — nói
         # thẳng ra, kẻo nhìn màn hình tưởng tool zoom nhầm chỗ.
         l3 = v.in_nest ? 'Đang xem trên BẢN TRẢI PHẲNG (nesting), không phải tủ 3D' \

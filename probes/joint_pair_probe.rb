@@ -206,3 +206,74 @@ module JointPair
 end
 
 puts "JointPair nạp xong. Gõ:   JointPair.do '268', '275'"
+
+# ─────────────────────────────────────────────────────────────────────
+#  SOI RUỘT MỘT TẤM — phép đo ĐỘC LẬP, không dùng lại gì của tool.
+#
+#  Vì sao thêm (28/07/2026, sau khi kết luận sai): `JointPair.do` chép NGUYÊN
+#  phép đo của tool để "so cho công bằng". Chính vì thế nó **không thể phát hiện
+#  lỗi nằm trong phép đo đó** — cả hai cùng sai một kiểu rồi báo "khớp", và tôi
+#  kết luận "tool báo đúng" trong khi Khoa cầm thước đo ra 572 vs 574: không chạm.
+#
+#  Ở đây đo kiểu khác hẳn: liệt kê TỪNG mặt trong group, xem mặt nào nằm ngoài
+#  khối gỗ. Mặt lạ (chữ khắc, mũi tên, nhãn ABF) vừa làm PHÌNH hộp bao, vừa phá
+#  phép bắn tia — đếm chẵn/lẻ chỉ đúng với khối KÍN.
+#
+#    JointPair.soi '275'
+# ─────────────────────────────────────────────────────────────────────
+def JointPair.soi(ten)
+  tam = []
+  walk(Sketchup.active_model.entities, Geom::Transformation.new, 0, tam)
+  p = tam.find { |x| x[:ten].include?(ten) }
+  return puts("Không thấy tấm chứa '#{ten}'") if p.nil?
+
+  ent = nil
+  find_ent(Sketchup.active_model.entities, Geom::Transformation.new, 0, ten) { |e, te| ent = [e, te] }
+  return puts('Không lấy được entity') if ent.nil?
+  e, te = ent
+  sub   = ents_of(e)
+  faces = sub.grep(Sketchup::Face)
+
+  puts ''
+  puts '=' * 92
+  puts "SOI RUỘT: #{e.name}"
+  puts '=' * 92
+  puts "Face trực tiếp: #{faces.size}   ·   Group/Component con: #{sub.grep(Sketchup::Group).size + sub.grep(Sketchup::ComponentInstance).size}   ·   Edge rời: #{sub.grep(Sketchup::Edge).size}"
+  puts ''
+  puts format('%3s %12s  %-26s %s', '#', 'DIỆN TÍCH', 'HỘP BAO MẶT (mm)', 'HỞ MÉP? (edge chỉ có 1 mặt)')
+  puts '-' * 92
+  ho_tong = 0
+  faces.each_with_index do |f, i|
+    bb = Geom::BoundingBox.new
+    f.vertices.each { |v| bb.add(te * v.position) }
+    d  = [(bb.max.x - bb.min.x) * MM, (bb.max.y - bb.min.y) * MM, (bb.max.z - bb.min.z) * MM]
+    ho = f.edges.count { |ed| ed.faces.size < 2 }
+    ho_tong += ho
+    puts format('%3d %10.0f mm²  %-26s %s', i + 1, (f.area rescue 0) * MM * MM,
+                format('%.0f × %.0f × %.0f', d[0], d[1], d[2]),
+                ho.zero? ? '' : "HỞ #{ho} cạnh  ← mặt rời, KHÔNG thuộc khối kín")
+  end
+  puts '-' * 92
+  puts ho_tong.zero? ?
+    'Khối KÍN hoàn toàn → phép bắn tia (đếm chẵn/lẻ) dùng được.' :
+    "⚠ CÓ #{ho_tong} cạnh hở → khối KHÔNG KÍN. Phép bắn tia của tool cho kết quả RÁC ở đây."
+  puts ''
+  ab = p[:ab]
+  puts format('Hộp bao tính từ TẤT CẢ mặt: %.1f × %.1f × %.1f mm',
+              (ab[3] - ab[0]) * MM, (ab[4] - ab[1]) * MM, (ab[5] - ab[2]) * MM)
+  puts '→ so con số này với thước đo tay. Lệch = có mặt nhô ra ngoài khối gỗ.'
+  puts '=' * 92
+  nil
+end
+
+def JointPair.find_ent(entities, t, depth, ten, &blk)
+  return if depth > 40 || entities.nil?
+  entities.each do |e|
+    next if e.deleted?
+    next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+    next if e.name.to_s.include?(NEST_HINT)
+    te = t * e.transformation
+    blk.call(e, te) if e.name.to_s.include?(ten) && !ents_of(e).nil?
+    find_ent(ents_of(e), te, depth + 1, ten, &blk)
+  end
+end

@@ -207,6 +207,8 @@ end
 
 puts "JointPair nạp xong. Gõ:   JointPair.do '268', '275'"
 
+module JointPair
+
 # ─────────────────────────────────────────────────────────────────────
 #  SOI RUỘT MỘT TẤM — phép đo ĐỘC LẬP, không dùng lại gì của tool.
 #
@@ -221,7 +223,7 @@ puts "JointPair nạp xong. Gõ:   JointPair.do '268', '275'"
 #
 #    JointPair.soi '275'
 # ─────────────────────────────────────────────────────────────────────
-def JointPair.soi(ten)
+def self.soi(ten)
   tam = []
   walk(Sketchup.active_model.entities, Geom::Transformation.new, 0, tam)
   p = tam.find { |x| x[:ten].include?(ten) }
@@ -266,7 +268,7 @@ def JointPair.soi(ten)
   nil
 end
 
-def JointPair.find_ent(entities, t, depth, ten, &blk)
+def self.find_ent(entities, t, depth, ten, &blk)
   return if depth > 40 || entities.nil?
   entities.each do |e|
     next if e.deleted?
@@ -276,4 +278,6 @@ def JointPair.find_ent(entities, t, depth, ten, &blk)
     blk.call(e, te) if e.name.to_s.include?(ten) && !ents_of(e).nil?
     find_ent(ents_of(e), te, depth + 1, ten, &blk)
   end
+end
+
 end

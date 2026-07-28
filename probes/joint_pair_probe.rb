@@ -57,9 +57,17 @@ module JointPair
     puts format('Khối chồng của HAI HỘP BAO: %.1f × %.1f × %.1f mm', dims[2] * MM, dims[1] * MM, dims[0] * MM)
     puts format('→ tool đọc "độ ăn sâu" = %.1f mm  (8–12,5 = rãnh hậu · 15–20 = ngàm)', dims[0] * MM)
 
-    frac = collide_frac(ov, a[:tris], b[:tris])
-    puts format('Đâm xuyên GỖ THẬT (bắn tia, lưới 5×5×5): %.0f%% điểm nằm trong CẢ HAI tấm', frac * 100)
+    f3 = collide_frac(ov, a[:tris], b[:tris], 3)   # ĐÚNG như tool (SAMPLE_N = 3)
+    f7 = collide_frac(ov, a[:tris], b[:tris], 7)   # mịn hơn, để lộ ca lưới thưa đánh lừa
+    puts format('Đâm xuyên GỖ THẬT — lưới 3×3×3 (Y HỆT TOOL): %.0f%%  → tool %s',
+                f3 * 100, f3 >= 0.4 ? 'BÁO LỖI' : 'coi như đã khoét')
+    puts format('Đâm xuyên GỖ THẬT — lưới 7×7×7 (mịn hơn)   : %.0f%%', f7 * 100)
     puts ''
+    if (f3 - f7).abs > 0.2
+      puts 'KẾT: hai lưới lệch nhau nhiều → LƯỚI 27 ĐIỂM QUÁ THƯA cho khối giao này.'
+      puts '     Lỗi ở phép lấy mẫu, không phải ở AABB.'
+    end
+    frac = f3
     if frac < 0.05
       puts 'KẾT: gỗ hầu như KHÔNG chạm nhau → chồng nhau chỉ là HỘP BAO (tấm xiên).'
       puts '     Lỗi nằm ở khâu AABB, không phải ở phép bắn tia.'
@@ -147,8 +155,7 @@ module JointPair
     out
   end
 
-  def self.collide_frac(ov, ta, tb)
-    n = 5
+  def self.collide_frac(ov, ta, tb, n)
     dx = ov[3] - ov[0]; dy = ov[4] - ov[1]; dz = ov[5] - ov[2]
     both = 0; total = 0
     (0...n).each do |i|

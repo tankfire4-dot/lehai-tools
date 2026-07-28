@@ -1,5 +1,5 @@
 # encoding: UTF-8
-# SỔ ĐO TAG ABF — chạy ở TỪNG MỐC của một dự án CNC làm từ đầu tới cuối.
+# SỔ ĐO TAG + ATTRIBUTE ABF — chạy ở TỪNG MỐC của một dự án CNC làm từ đầu tới cuối.
 # Script chỉ ĐỌC model, không sửa gì. Nó ghi thêm (append) vào `tag_audit.txt`
 # nằm cạnh file này, để cuối buổi có một sổ so được các mốc với nhau.
 #
@@ -74,12 +74,23 @@ module TagAudit
       tag_e  = sub.grep(Sketchup::Edge).map { |x| x.layer.name rescue '?' }.uniq.sort.join('|')
 
       if dang_quan_tam?(name, tag_g, tag_e)
+        abf     = abf_info(e)
         key = [in_n ? 'NESTING' : '3D', name, tag_g, (tag_e.empty? ? '(không edge)' : tag_e),
-               sub.grep(Sketchup::Face).size]
+               abf[:setting], abf[:keys]]
         r = rows[key] ||= { n: 0, day: [] }
         r[:n] += 1
         d = chieu_nho_nhat_mm(sub, te)
         r[:day] << d if d
+      end
+
+      # face cũng mang attribute (edge-band-id, is-cnced-face…) — đếm riêng
+      sub.grep(Sketchup::Face).each do |f|
+        fi = abf_info(f)
+        next if fi[:keys] == '—' || fi[:keys].empty?   # '—' = không có dict ABF, đừng in rác
+        fk = [in_n ? 'NESTING' : '3D', '(FACE trong ' + cat(name, 14) + ')', '—', '—',
+              fi[:setting], fi[:keys]]
+        fr = rows[fk] ||= { n: 0, day: [] }
+        fr[:n] += 1
       end
 
       walk(sub, te, depth + 1, in_n, rows)
@@ -116,21 +127,34 @@ module TagAudit
     if rows.empty?
       s << '(không thấy dấu ABF nào, cũng không thấy tag lạ nào)'
     else
-      s << format('%-8s %4s  %-22s %-18s %-18s %5s  %s', 'KHU', 'SL', 'TÊN GROUP', 'TAG Ở GROUP', 'TAG Ở EDGE', 'FACE', 'CHIỀU NHỎ NHẤT (mm)')
-      s << '-' * 96
+      s << format('%-8s %4s  %-20s %-15s %-15s %-16s %-34s %s', 'KHU', 'SL', 'TÊN', 'TAG GROUP', 'TAG EDGE', 'setting-name', "KEY trong dict 'ABF'", 'NHỎ NHẤT (mm)')
+      s << '-' * 150
       rows.sort_by { |k, v| [k[0], -v[:n], k[1]] }.each do |k, v|
-        khu, name, tag_g, tag_e, nface = k
+        khu, name, tag_g, tag_e, setting, akeys = k
         day = v[:day]
         dm  = if day.empty? then '—'
               elsif (day.max - day.min) < 0.2 then format('%.1f', day.first)
               else format('%.1f – %.1f', day.min, day.max)
               end
-        s << format('%-8s %4d  %-22s %-18s %-18s %5d  %s', khu, v[:n], cat(name, 22), cat(tag_g, 18), cat(tag_e, 18), nface, dm)
+        s << format('%-8s %4d  %-20s %-15s %-15s %-16s %-34s %s', khu, v[:n], cat(name, 20),
+                    cat(tag_g, 15), cat(tag_e, 15), cat(setting, 16), cat(akeys, 34), dm)
       end
     end
-    s << '-' * 96
+    s << '-' * 150
     s << "Tổng: #{rows.values.inject(0) { |a, v| a + v[:n] }} dấu · #{rows.size} kiểu khác nhau."
     s.join("\n")
+  end
+
+  # Đọc dict 'ABF' — TẦNG NÓI THẬT của ABF, không hiện trong Entity Info
+  # (đo 27/07: `setting-name`="Rãnh hậu" trong khi tag chỉ có `ABF_Groove`).
+  def self.abf_info(e)
+    d = (e.attribute_dictionary('ABF') rescue nil)
+    return { setting: '—', keys: '—' } if d.nil?
+    st = d['setting-name']
+    { setting: st.nil? ? '' : st.to_s, keys: d.keys.sort.join(',') }
+  rescue StandardError
+    # nuốt được: helper thuần đọc, entity không có dict là kết quả hợp lệ
+    { setting: '?', keys: '?' }
   end
 
   def self.cat(s, n)

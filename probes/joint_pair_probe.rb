@@ -52,6 +52,18 @@ module JointPair
       puts 'Hai HỘP BAO không chồng nhau → tool sẽ không xét cặp này.'
       return nil
     end
+    # In TOẠ ĐỘ THẬT từng trục để Khoa đặt thước đúng chỗ mà kiểm — con số trừu
+    # tượng "chồng 8.5mm" không kiểm được bằng mắt, toạ độ thì kiểm được.
+    puts ''
+    puts format('%-6s %14s %14s   %14s %14s   %s', 'TRỤC', 'A từ', 'A đến', 'B từ', 'B đến', 'CHỒNG')
+    %w[X Y Z].each_with_index do |ax, k|
+      a0 = a[:ab][k] * MM; a1 = a[:ab][k + 3] * MM
+      b0 = b[:ab][k] * MM; b1 = b[:ab][k + 3] * MM
+      lo = [a0, b0].max;   hi = [a1, b1].min
+      puts format('%-6s %11.1f mm %11.1f mm   %11.1f mm %11.1f mm   %s', ax, a0, a1, b0, b1,
+                  hi > lo ? format('%.1f mm  (từ %.1f đến %.1f)', hi - lo, lo, hi) : 'không chồng')
+    end
+
     dims = [ov[3] - ov[0], ov[4] - ov[1], ov[5] - ov[2]].sort
     puts ''
     puts format('Khối chồng của HAI HỘP BAO: %.1f × %.1f × %.1f mm', dims[2] * MM, dims[1] * MM, dims[0] * MM)

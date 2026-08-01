@@ -132,7 +132,7 @@ module TK
       # thanh phan xet, ma may khong du tu cach phan xet o day.
       { status: :warn, count: nhac,
         message: "Tất cả cách nhau & cách mép ≥ #{GAP_MM}mm. Nhắc: có chi tiết chống bay chỉ hở " \
-                 "#{GAP_MM}–#{GAP_CB_MM}mm (#{nhac} cặp) — loại nhỏ nên để ≥ #{GAP_CB_MM}mm, mắt Khoa xem là đủ." }
+                 "#{GAP_MM}–#{GAP_CB_MM}mm (#{nhac} cặp) — loại nhỏ nên để ≥ #{GAP_CB_MM}mm." }
     end
 
     def self.review
@@ -506,7 +506,7 @@ module TK
              end
         l2 = "#{v.label}   ·   #{v.sheet}"
         l3 = if nhac
-               'Chi tiết NHỎ cần ≥ 12mm; chi tiết LỚN thì 7mm vẫn được — mắt Khoa quyết.'
+               'Chi tiết NHỎ cần ≥ 12mm; chi tiết LỚN thì 7mm vẫn được — người soát quyết.'
              else
                '← → đổi cặp  ·  gõ số để nhảy  ·  ESC thoát'
              end

@@ -96,7 +96,7 @@ module TK
       checks.map do |c|
         if c[:todo]
           { key: c[:key], name: c[:name], status: 'todo', count: 0,
-            message: 'Cần Khoa giải thích + ví dụ dữ liệu trước khi làm.' }
+            message: 'Chưa đủ thông tin để làm — cần mô tả + ví dụ dữ liệu.' }
         elsif c[:mod].nil?
           { key: c[:key], name: c[:name], status: 'na', count: 0,
             message: 'Tool chưa được nạp trong phiên này.' }

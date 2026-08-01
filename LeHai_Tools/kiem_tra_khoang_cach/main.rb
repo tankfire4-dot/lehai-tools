@@ -100,10 +100,11 @@ module TK
       vios.sort_by!(&:gap_mm)
       nhac = vios.count { |v| nhac?(v) }
       if nhac > 0 && nhac == vios.size
-        UI.messagebox("Không cặp nào dưới #{GAP_MM}mm.\n\n" \
-                      "Nhưng có #{nhac} cặp dính chi tiết CHỐNG BAY chỉ hở #{GAP_MM}–#{GAP_CB_MM}mm.\n" \
-                      "Chi tiết nhỏ nên để ≥ #{GAP_CB_MM}mm; chi tiết lớn thì #{GAP_MM}mm vẫn được.\n\n" \
-                      'Đây là NHẮC, không chặn xuất DXF — xem từng cặp rồi tự quyết.')
+        UI.messagebox("Không cặp nào dưới #{GAP_MM}mm — về khoảng cách là ĐẠT.\n\n" \
+                      "Chỉ nhắc: có chi tiết chống bay chỉ hở #{GAP_MM}–#{GAP_CB_MM}mm " \
+                      "(#{nhac} cặp). Loại nhỏ nên để ≥ #{GAP_CB_MM}mm.\n\n" \
+                      "Máy không biết tấm nào là nhỏ — chỉ nhắc, không chặn xuất DXF.\n" \
+                      'Muốn soi từng cặp thì bấm OK; không cần thì ESC.')
       end
       Sketchup.active_model.select_tool(ReviewTool.new(vios))
     end
@@ -117,17 +118,21 @@ module TK
       nhac = vios.count { |v| nhac?(v) }
       loi  = vios.size - nhac
 
-      # Co loi do thi bao do (nhac vang di kem trong cau chu, khong lam mo trong tam).
+      # Co loi do thi bao do. Nhac vang di kem mot ve cau, khong lam mo trong tam.
       if loi > 0
         msg = "#{loi} cặp hở dưới #{GAP_MM}mm."
-        msg += " Ngoài ra #{nhac} cặp chi tiết chống bay hở #{GAP_MM}–#{GAP_CB_MM}mm — cân nhắc." if nhac > 0
+        msg += " Kèm nhắc: có chi tiết chống bay chỉ hở #{GAP_MM}–#{GAP_CB_MM}mm." if nhac > 0
         return { status: :fail, count: loi, message: msg }
       end
 
-      # Chi con nhac vang: KHONG chan xuat DXF, chi neu ra cho Khoa quyet.
+      # Chi con nhac vang. Doc ky cau chu duoi day truoc khi sua:
+      # day la NHAC, khong phai dem loi. Khoa chot 01/08: "chi can co dong chu mau
+      # vang chu yeu la nhac nho thoi, chu chung ta lam sao tinh duoc no co nho hay
+      # khong". Nen KHONG dua con so len dau cau — dua con so len dau la bien nhac
+      # thanh phan xet, ma may khong du tu cach phan xet o day.
       { status: :warn, count: nhac,
-        message: "Không cặp nào dưới #{GAP_MM}mm. Nhưng #{nhac} cặp có chi tiết CHỐNG BAY chỉ hở " \
-                 "#{GAP_MM}–#{GAP_CB_MM}mm — chi tiết nhỏ nên để ≥ #{GAP_CB_MM}mm, chi tiết lớn thì #{GAP_MM}mm vẫn được." }
+        message: "Tất cả cách nhau & cách mép ≥ #{GAP_MM}mm. Nhắc: có chi tiết chống bay chỉ hở " \
+                 "#{GAP_MM}–#{GAP_CB_MM}mm (#{nhac} cặp) — loại nhỏ nên để ≥ #{GAP_CB_MM}mm, mắt Khoa xem là đủ." }
     end
 
     def self.review

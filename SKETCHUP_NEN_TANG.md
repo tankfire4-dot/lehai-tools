@@ -13,6 +13,48 @@ Mỗi mục có 3 phần: **nó lừa thế nào · dấu hiệu nhận ra · co
 
 ---
 
+## 0. GỐC CỦA TẤT CẢ — SketchUp không có khối đặc, chỉ có MẶT
+
+*(Khoa tự nhận ra 01/08 khi soi tấm báo 200mm: "bên trong group đó không phải là khối đặc,
+mà là nhiều mặt phẳng ghép lại." Đúng — và nó nằm dưới cả 8 mục còn lại.)*
+
+**SketchUp là phần mềm dựng MẶT, không phải dựng KHỐI.** Trong file không có "khối gỗ" nào.
+Chỉ có mặt phẳng (`Face`) và cạnh (`Edge`). Cái ta gọi là "tấm ván" thật ra là **6 mặt phẳng
+khép kín thành một cái vỏ rỗng**.
+
+**Hệ quả 1 — không ai biết tấm dày bao nhiêu.**
+
+SketchUp **không lưu độ dày ở đâu cả**. Không có thuộc tính nào để hỏi. Mọi tool muốn biết độ
+dày đều phải **tự suy ra** từ đống mặt phẳng:
+
+```
+Suy kiểu lười  → đo hộp bao, lấy cạnh ngắn nhất
+                 ↳ hỏng ngay khi tấm nằm nghiêng (mục 3a)   ← bug 33,1mm & 200mm
+Suy kiểu đúng  → tìm mặt LỚN NHẤT (chính là mặt phẳng tấm),
+                 lấy pháp tuyến của nó, chiếu mọi đỉnh lên đó,
+                 đo khoảng max−min
+                 ↳ đúng dù tấm nghiêng bao nhiêu, vì thước đo
+                   bám theo chính tấm chứ không bám theo trục
+```
+
+Suy rộng ra: **mọi con số "kích thước tấm" trong bộ plugin đều là số SUY RA, không phải số
+đọc được.** Suy sai một chỗ là sai im lặng. Đây là lý do sâu nhất khiến plugin có thể sai mà
+không báo lỗi.
+
+**Hệ quả 2 — vì sao BẮT BUỘC phải group.**
+
+Mặt phẳng để trần thì **tự dính vào nhau** (mục 7). Hai tấm chạm nhau mà không bọc group,
+SketchUp gộp mặt lại thành một mớ. **Group là vách ngăn** giữ cho đống mặt của tấm này không
+sáp nhập với tấm bên cạnh. Nó không phải để "gom cho gọn" — nó là thứ **giữ cho tấm còn là tấm**.
+
+**Hệ quả 3 — "solid" chỉ là cái vỏ kín.**
+
+SketchUp gọi một group là *solid* khi vỏ mặt của nó khép kín hoàn toàn (mỗi cạnh đúng 2 mặt).
+Thiếu một mặt, hở một cạnh → không còn là solid → nhiều phép toán (giao, trừ, tính thể tích)
+im lặng không chạy hoặc ra kết quả lạ.
+
+---
+
 ## 1. Đơn vị bên trong là INCH, không phải mm
 
 **Lừa thế nào.** Mọi độ dài SketchUp trả về đều tính bằng **inch**, bất kể ô Model Info của

@@ -117,6 +117,13 @@ perl -i -pe 's/\r\n/\n/'        <file>   # CRLF -> LF
 perl -i -pe 's/(?<!\r)\n/\r\n/' <file>   # LF -> CRLF
 ```
 
+**Gốc của bẫy (tìm ra 01/08):** kho này đặt `core.autocrlf = false`, còn kho `agent-lab-khoa`
+đặt `true`. Bên `true` thì git tự chuẩn hoá về LF khi commit nên viết kiểu nào cũng không sinh
+nhiễu — đó là lý do bẫy này **chỉ dính ở đây**, và cũng là lý do dễ quên nó tồn tại.
+
+Đừng đổi `autocrlf` sang `true` để "cho xong": lần checkout kế tiếp git sẽ viết lại **toàn kho**
+theo kiểu mới, sinh đúng cái diff khổng lồ đang muốn tránh — trên kho PUBLIC thợ đang auto-update.
+
 **Chưa đặt `.gitattributes`** để ép chuẩn chung — làm vậy sẽ chuẩn hoá lại toàn kho trong một
 lần, sinh đúng cái diff khổng lồ đang muốn tránh, trên kho PUBLIC thợ đang auto-update. Muốn dọn
 thì dọn riêng một phiên, không kèm vào sửa tính năng.

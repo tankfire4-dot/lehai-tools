@@ -71,7 +71,44 @@ khuôn chung của chính bộ plugin, không phải chuyện tôi bịa ra tiê
 **Nặng vì:** ván 17,5 và ván 18 là hai loại vật tư khác nhau. Cả tủ bị scale nhẹ → mọi tấm báo
 sai dày → đặt nhầm vật tư.
 
-### ✅ ĐÃ BẮT ĐƯỢC NGOÀI ĐỜI — 01/08, file `0. CNC C.THUY _file cat_GOC`
+### ❌ ĐÃ ĐO — KHÔNG PHẢI LỖI. A2 XUỐNG HẠNG (01/08, sau 2 vòng probe)
+
+**Kết luận cuối: `kiem_tra_do_day` BÁO ĐÚNG. Tấm 33,1mm mới là cái sai.**
+
+Probe 2 mổ tấm đó: **một khối liền, 10 mặt, là hộp chữ nhật sạch 33,06 × 254,5 × 1033mm.**
+Kiểm chéo bằng diện tích 3 cặp mặt — cả ba trục đều khớp giả thiết "hộp đặc":
+
+| Cặp mặt | Nếu là hộp thật | Probe đo được | Lệch |
+|---|---|---|---|
+| mặt lớn (254,5 × 1033) | 525.797 mm² | 515.439 mm² | 2,0% *(chỗ khoét rãnh)* |
+| mặt cạnh (33,06 × 1033) | 68.302 mm² | 68.293 mm² | 0,0% |
+| mặt đầu (33,06 × 254,5) | 16.828 mm² | 16.825 mm² | 0,0% |
+
+Không phải hai tấm chồng, không phải rác lẫn, không nghiêng trục. **Tấm dày 33,06mm thật** —
+một tấm sai vật tư nằm trong file khách, và tool đã bắt đúng, tô đỏ, cô lập ra. Đúng chức năng.
+
+Con số 17,50 ở thanh Length: nhiều khả năng là cạnh khác (rãnh khoét) hoặc giá trị còn lại
+của lần đo trước — ảnh cho thấy thao tác đo đang dở (*"Click to set second endpoint"*).
+
+**Trạng thái A2 sau khi đo:**
+
+- **Triệu chứng ban đầu → KHÔNG phải lỗi.** Xoá án.
+- **Quan sát ở tầng code vẫn ĐÚNG và vẫn giữ:** `own_thickness_mm` thật sự không nhận tham số
+  transform, lệch khỏi khuôn `world_aabb(ents, te)` của 6 tool anh em. Nhưng probe 1 cho thấy
+  **384 tấm 17.5 + 48 tấm 9.0 đo hai cách ra kết quả y hệt** → file này không có group bị scale
+  → lỗ hổng **chưa gây hại**. Xếp lại thành **rủi ro tiềm ẩn**, không phải bug đang chảy máu.
+- **Còn treo:** tấm 200mm (probe 1: góc lệch 2,28°, hai cách đo chênh 325mm). Probe 2 **không
+  tìm thấy nó nữa** — số container tụt 953 → 443 giữa hai lần chạy. **File đã đổi giữa hai lần
+  đo, chưa kết luận được.** Phải chạy lại trên file nguyên trạng.
+
+**Bài học phương pháp (giá trị hơn cả cái bug):** hai vòng probe đã bác **ba** giả thuyết liên
+tiếp — (1) do Scale, (2) do nghiêng trục, (3) do túi chứa nhiều thứ. Và bác luôn **cách sửa tôi
+định làm**: phép "chiếu lên pháp tuyến" cho tấm 200mm ra 525,85mm, tệ hơn cái đang hỏng. Nếu sửa
+theo giả thuyết nghe-hợp-lý, đã thay một lỗi bằng một lỗi to hơn — **và nó vẫn sẽ "chạy êm".**
+
+---
+
+### Ghi chép vòng 1 (giữ lại để thấy mạch suy luận sai ở đâu)
 
 Khoa chạy trên file khách thật: tool báo **33,1 mm** và **200 mm** (2 tấm, cột đỏ), thước
 SketchUp đo tấm 33,1 đó ra **17,50 mm**. **Lỗi có thật, đã xác nhận.**

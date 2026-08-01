@@ -5,6 +5,17 @@
 # Đo theo ĐƯỜNG VIỀN thật (tấm nesting chỉ có edges, phẳng) — không qua bounding box.
 # CHỈ ĐỌC, không sửa model.
 #
+# ── NHẮC VÀNG cho chi tiết CHỐNG BAY (Khoa chốt 01/08) ────────────────
+# Chi tiết đã được plugin Chống Bay gắn tag (tên tag khớp /chongbay/i) thường là
+# chi tiết NHỎ — dễ bay khi CNC cắt. Loại này nên hở ≥ 12mm thay vì 7mm.
+# Cặp nào có ÍT NHẤT MỘT bên là chi tiết chống bay và hở 7–12mm → NHẮC VÀNG.
+#
+# Vì sao VÀNG chứ không ĐỎ (Khoa nói rõ): "tuỳ chi tiết lớn thì để 7mm cũng được,
+# chi tiết nhỏ thì cần cách 12mm". Máy KHÔNG biết thế nào là nhỏ — nó chỉ biết
+# tấm đó có tag chống bay hay không. Nên nó nêu ra cho người quyết, KHÔNG chặn
+# xuất DXF. Đỏ ở đây sẽ là báo động sai hàng loạt, mà báo động sai nhiều lần thì
+# người ta bắt đầu bỏ qua cả báo động thật (xem SOAT_LOI.md mục G1).
+#
 # Toolbar do LeHai_Tools/main.rb quản lý chung — file này chỉ expose create_cmd.
 
 require 'sketchup.rb'
@@ -20,10 +31,32 @@ module TK
     MM        = 25.4
     GAP_INCH  = GAP_MM / MM
     TOL_INCH  = TOL_MM / MM
-    COLOR_BAD = Sketchup::Color.new(255, 40, 40)    # do = tam vi pham
-    COLOR_GAP = Sketchup::Color.new(255, 0, 200)    # hong canh sen = vach khoang ho (noi tren nen xam)
+
+    # ── NHAC VANG cho chi tiet CHONG BAY (Khoa chot 01/08) ──────────────
+    # Chi tiet da duoc plugin Chong Bay gan tag thi thuong la chi tiet NHO —
+    # de bay khi CNC cat. Loai nay nen ho >= 12mm chu khong phai 7mm.
+    # NHUNG day la NHAC (vang), KHONG phai loi (do): Khoa noi ro "tuy chi tiet
+    # lon thi 7mm cung duoc, chi tiet nho thi can 12mm" — may khong biet the nao
+    # la nho, nen chi neu ra cho nguoi quyet, khong chan xuat DXF.
+    GAP_CB_MM   = 12.0
+    GAP_CB_INCH = GAP_CB_MM / MM
+    CB_RE       = /chongbay/i.freeze   # cung dau hieu voi chong_bay/main.rb:26 (DST_RE)
+
+    COLOR_BAD  = Sketchup::Color.new(255, 40, 40)    # do = tam vi pham
+    COLOR_WARN = Sketchup::Color.new(230, 160, 0)    # vang-cam = nhac chong bay
+    COLOR_GAP  = Sketchup::Color.new(255, 0, 200)    # hong canh sen = vach khoang ho (noi tren nen xam)
 
     Violation = Struct.new(:kind, :sheet, :gap_mm, :segs_a, :segs_b, :ca, :cb, :label)
+
+    # nhac vang thi khong phai loi do
+    def self.nhac?(v)
+      v.kind == :pair_cb
+    end
+
+    # tag cua chi tiet co phai tag chong bay khong (doc y het chong_bay/main.rb:101)
+    def self.chong_bay?(e)
+      (e.layer.name.to_s rescue '') =~ CB_RE ? true : false
+    end
 
     # =========================================================
     #  QUET — tra ve mang Violation
@@ -38,7 +71,16 @@ module TK
         UI.messagebox("✓ Tất cả các tấm cách nhau & cách mép ≥ #{GAP_MM}mm. Không có vi phạm.")
         return
       end
-      vios.sort_by!(&:gap_mm) # gần nhất (nguy hiểm nhất) lên đầu
+      # Gần nhất (nguy hiểm nhất) lên đầu. Không cần xếp riêng đỏ/vàng: mọi lỗi đỏ
+      # đều < 7mm còn mọi nhắc vàng đều 7–12mm, nên xếp theo gap_mm là đỏ tự lên trước.
+      vios.sort_by!(&:gap_mm)
+      nhac = vios.count { |v| nhac?(v) }
+      if nhac > 0 && nhac == vios.size
+        UI.messagebox("Không cặp nào dưới #{GAP_MM}mm.\n\n" \
+                      "Nhưng có #{nhac} cặp dính chi tiết CHỐNG BAY chỉ hở #{GAP_MM}–#{GAP_CB_MM}mm.\n" \
+                      "Chi tiết nhỏ nên để ≥ #{GAP_CB_MM}mm; chi tiết lớn thì #{GAP_MM}mm vẫn được.\n\n" \
+                      'Đây là NHẮC, không chặn xuất DXF — xem từng cặp rồi tự quyết.')
+      end
       Sketchup.active_model.select_tool(ReviewTool.new(vios))
     end
 
@@ -47,7 +89,21 @@ module TK
       vios = scan
       return { status: :na, count: 0, message: "Không tìm thấy nesting (#{NEST_HINT})." } if vios.nil?
       return { status: :pass, count: 0, message: "Tất cả cách nhau & cách mép ≥ #{GAP_MM}mm." } if vios.empty?
-      { status: :fail, count: vios.size, message: "#{vios.size} cặp hở dưới #{GAP_MM}mm." }
+
+      nhac = vios.count { |v| nhac?(v) }
+      loi  = vios.size - nhac
+
+      # Co loi do thi bao do (nhac vang di kem trong cau chu, khong lam mo trong tam).
+      if loi > 0
+        msg = "#{loi} cặp hở dưới #{GAP_MM}mm."
+        msg += " Ngoài ra #{nhac} cặp chi tiết chống bay hở #{GAP_MM}–#{GAP_CB_MM}mm — cân nhắc." if nhac > 0
+        return { status: :fail, count: loi, message: msg }
+      end
+
+      # Chi con nhac vang: KHONG chan xuat DXF, chi neu ra cho Khoa quyet.
+      { status: :warn, count: nhac,
+        message: "Không cặp nào dưới #{GAP_MM}mm. Nhưng #{nhac} cặp có chi tiết CHỐNG BAY chỉ hở " \
+                 "#{GAP_MM}–#{GAP_CB_MM}mm — chi tiết nhỏ nên để ≥ #{GAP_CB_MM}mm, chi tiết lớn thì #{GAP_MM}mm vẫn được." }
     end
 
     def self.review
@@ -69,7 +125,7 @@ module TK
       data = boards_of(sheet).map do |b|
         segs = []
         walk_edges(b, t_sheet * b.transformation, segs)
-        { name: board_label(b), segs: segs, bbox: bbox_of(segs) }
+        { name: board_label(b), segs: segs, bbox: bbox_of(segs), cb: chong_bay?(b) }
       end
       check_pairs(sheet.name.to_s, data, vios)
       check_border(sheet, t_sheet, data, vios)
@@ -80,12 +136,24 @@ module TK
       data.each_with_index do |a, i|
         ((i + 1)...data.size).each do |j|
           b = data[j]
-          next if aabb_far?(a[:bbox], b[:bbox], GAP_INCH)
-          dist, ca, cb = min_dist(a[:segs], b[:segs])
-          next if dist.nil? || dist >= GAP_INCH - TOL_INCH
-          vios << Violation.new(:pair, sheet_name, (dist * MM).round(1),
-                                a[:segs], b[:segs], ca, cb,
-                                "#{a[:name]}  ↔  #{b[:name]}")
+          # Cap co CHI MOT ben la chi tiet chong bay cung phai xet o nguong 12mm:
+          # cai de bay la chi tiet nho, hang xom to hay nho khong doi duoc dieu do.
+          co_cb    = a[:cb] || b[:cb]
+          nguong   = co_cb ? GAP_CB_INCH : GAP_INCH
+          next if aabb_far?(a[:bbox], b[:bbox], nguong)
+          dist, ca, cpb = min_dist(a[:segs], b[:segs])
+          next if dist.nil?
+          nhan = "#{a[:name]}  ↔  #{b[:name]}"
+          if dist < GAP_INCH - TOL_INCH
+            # duoi 7mm — LOI DO, khong lien quan chong bay
+            vios << Violation.new(:pair, sheet_name, (dist * MM).round(1),
+                                  a[:segs], b[:segs], ca, cpb, nhan)
+          elsif co_cb && dist < GAP_CB_INCH - TOL_INCH
+            # 7-12mm VA co chi tiet chong bay — NHAC VANG, khong chan xuat
+            vios << Violation.new(:pair_cb, sheet_name, (dist * MM).round(1),
+                                  a[:segs], b[:segs], ca, cpb,
+                                  "#{nhan}   [chống bay]")
+          end
         end
       end
     end
@@ -342,15 +410,20 @@ module TK
         bb = Geom::BoundingBox.new
         @draw_a.each { |p| bb.add(p) }
         bb.add(@gap_a); bb.add(@gap_b)
-        @draw_b.each { |p| bb.add(p) } if v.kind == :pair
+        @draw_b.each { |p| bb.add(p) } if v.kind == :pair || v.kind == :pair_cb
         bb
       end
 
       # ── ve ──
+      # mau vien theo loai: nhac chong bay = vang, loi that = do
+      def mau_hien_tai
+        TK::SpacingCheck.nhac?(@vios[@idx]) ? COLOR_WARN : COLOR_BAD
+      end
+
       def draw_outline(view, pts)
         return if pts.empty?
         view.line_width = 3
-        view.drawing_color = COLOR_BAD
+        view.drawing_color = mau_hien_tai
         view.draw(GL_LINES, pts)
         view.draw2d(GL_LINES, pts.map { |p| view.screen_coords(p) }) # noi tren cung
       end
@@ -394,16 +467,30 @@ module TK
       end
 
       def draw_banner(view)
-        v = @vios[@idx]
-        l1 = "Hở #{v.gap_mm}mm < #{TK::SpacingCheck::GAP_MM}mm   (cặp #{@idx + 1}/#{@vios.size})"
+        v     = @vios[@idx]
+        nhac  = TK::SpacingCheck.nhac?(v)
+        l1 = if nhac
+               "⚠ Chống bay — hở #{v.gap_mm}mm, nên ≥ #{TK::SpacingCheck::GAP_CB_MM}mm   " \
+               "(cặp #{@idx + 1}/#{@vios.size})"
+             else
+               "Hở #{v.gap_mm}mm < #{TK::SpacingCheck::GAP_MM}mm   (cặp #{@idx + 1}/#{@vios.size})"
+             end
         l2 = "#{v.label}   ·   #{v.sheet}"
-        l3 = '← → đổi cặp  ·  gõ số để nhảy  ·  ESC thoát'
-        bg_w = 26 + [l1.length, l2.length, l3.length].max * 8
-        draw_box2d(view, 18, 18, bg_w, 80, Sketchup::Color.new(18, 22, 30, 215))
-        draw_box2d(view, 18, 18, 6, 80, COLOR_BAD)
-        txt(view, 34, 26, l1, Sketchup::Color.new(255, 120, 120), 14, true)
+        l3 = if nhac
+               'Chi tiết NHỎ cần ≥ 12mm; chi tiết LỚN thì 7mm vẫn được — mắt Khoa quyết.'
+             else
+               '← → đổi cặp  ·  gõ số để nhảy  ·  ESC thoát'
+             end
+        l4 = nhac ? '← → đổi cặp  ·  gõ số để nhảy  ·  ESC thoát' : nil
+        rows = [l1, l2, l3, l4].compact
+        bg_h = 22 * rows.size + 14
+        bg_w = 26 + rows.map(&:length).max * 8
+        draw_box2d(view, 18, 18, bg_w, bg_h, Sketchup::Color.new(18, 22, 30, 215))
+        draw_box2d(view, 18, 18, 6, bg_h, nhac ? COLOR_WARN : COLOR_BAD)
+        txt(view, 34, 26, l1, nhac ? Sketchup::Color.new(255, 200, 90) : Sketchup::Color.new(255, 120, 120), 14, true)
         txt(view, 34, 48, l2, Sketchup::Color.new(255, 255, 255), 12, false)
         txt(view, 34, 70, l3, Sketchup::Color.new(255, 210, 60), 11, false)
+        txt(view, 34, 92, l4, Sketchup::Color.new(255, 210, 60), 11, false) if l4
       end
 
       def draw_box2d(view, x, y, w, h, color)

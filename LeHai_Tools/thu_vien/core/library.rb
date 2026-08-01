@@ -13,7 +13,11 @@ module TK
 
       DEFAULT_DIR   = File.join(PATH, 'components').freeze
       CACHE_DIR     = File.join(PATH, 'cache').freeze
-      UNCATEGORIZED = 'Chung'
+
+      # Thư mục hệ thống của tool, không phải danh mục component.
+      SYSTEM_DIRS   = %w[reports].freeze
+      # Trần độ sâu khi quét cây thư mục — chặn vòng lặp shortcut trên ổ mạng.
+      MAX_DEPTH     = 10
 
       STYLES = [
         { key: 'hien_dai',     label: 'Hiện đại'    },
@@ -34,10 +38,11 @@ module TK
         { key: 'hanh_lang', label: 'Hành lang' },
       ].freeze
 
-      # Trả về Hash {root:, exists:, categories:, items:} cho UI.
+      # Trả về Hash {root:, exists:, folders:, items:} cho UI.
+      # folders = danh sách phẳng đường dẫn tương đối, thứ tự DFS (đã là thứ tự cây).
       def self.scan
         dir = components_dir
-        return { root: dir, exists: false, categories: [], items: [] } unless
+        return { root: dir, exists: false, folders: [], items: [] } unless
           File.directory?(dir)
 
         ensure_cache_dir
@@ -46,7 +51,7 @@ module TK
         {
           root:          dir,
           exists:        true,
-          categories:    category_tree,
+          folders:       folder_tree,
           items:         items.sort_by { |i| i[:name].downcase },
           reporter_name: Sketchup.read_default(PREFS_SECTION, 'reporter_name').to_s
         }
@@ -79,11 +84,11 @@ module TK
         name = defn.name.to_s.strip
         name = 'Component' if name.empty?
         {
-          name:       name,
-          categories: category_tree,
-          styles:     STYLES,
-          phongs:     PHONGS,
-          saved_by:   Sketchup.read_default(PREFS_SECTION, 'reporter_name').to_s
+          name:     name,
+          folders:  folder_tree,
+          styles:   STYLES,
+          phongs:   PHONGS,
+          saved_by: Sketchup.read_default(PREFS_SECTION, 'reporter_name').to_s
         }
       end
 
@@ -94,7 +99,7 @@ module TK
         name = sanitize_filename(params['name'].to_s)
         return { ok: false, msg: 'Tên file không hợp lệ.' } if name.empty?
 
-        dir = target_dir(params['category'].to_s, params['subcategory'].to_s)
+        dir = target_dir(params['folder'].to_s)
         FileUtils.mkdir_p(dir)
         path = File.join(dir, "#{name}.skp")
 
@@ -280,51 +285,34 @@ module TK
       private_class_method :skp_files
 
       def self.item_for(file, dir, catalog = {})
-        category, subcategory = category_of(file, dir)
         thumb = thumbnail_for(file)
         rel   = relative_path(file, dir)
         meta  = catalog[rel] || {}
         {
-          name:        File.basename(file, '.skp'),
-          path:        file,
-          category:    category,
-          subcategory: subcategory,
-          thumb:       thumb,
-          thumb_v:     thumb ? File.mtime(thumb).to_i : 0,
-          style:       Array(meta['style']),
-          phong:       Array(meta['phong']),
-          r:           meta['r'],
-          s:           meta['s'],
-          c:           meta['c'],
-          note:        meta['note'],
-          saved_by:    meta['saved_by'],
-          saved_at:    meta['saved_at']
+          name:     File.basename(file, '.skp'),
+          path:     file,
+          folder:   folder_of(rel),
+          thumb:    thumb,
+          thumb_v:  thumb ? File.mtime(thumb).to_i : 0,
+          style:    Array(meta['style']),
+          phong:    Array(meta['phong']),
+          r:        meta['r'],
+          s:        meta['s'],
+          c:        meta['c'],
+          note:     meta['note'],
+          saved_by: meta['saved_by'],
+          saved_at: meta['saved_at']
         }
       end
       private_class_method :item_for
 
-      def self.category_of(file, dir)
-        relative = file.sub(dir, '').tr('\\', '/').sub(%r{\A/}, '')
-        parts = relative.split('/')
-        case parts.size
-        when 1 then [UNCATEGORIZED, nil]
-        when 2 then [parts[0], nil]
-        else        [parts[0], parts[1]]
-        end
+      # Thư mục chứa file, tính tương đối từ gốc thư viện. '' = nằm ngay gốc.
+      def self.folder_of(rel)
+        parts = rel.split('/')
+        parts.pop
+        parts.join('/')
       end
-      private_class_method :category_of
-
-      def self.build_categories(items)
-        tree = {}
-        items.each do |item|
-          tree[item[:category]] ||= []
-          tree[item[:category]] << item[:subcategory] if item[:subcategory]
-        end
-        tree.keys.sort.map do |name|
-          { name: name, children: tree[name].uniq.sort }
-        end
-      end
-      private_class_method :build_categories
+      private_class_method :folder_of
 
       def self.thumbnail_for(file)
         png = File.join(CACHE_DIR, "#{Digest::MD5.hexdigest(file)}.png")
@@ -352,19 +340,34 @@ module TK
       end
       private_class_method :selected_definition
 
-      def self.category_tree
+      # Danh sách phẳng mọi thư mục con, sâu bao nhiêu cấp cũng quét.
+      # Thứ tự DFS (cha rồi tới con) = đúng thứ tự hiển thị cây, JS không phải sắp lại.
+      def self.folder_tree
         dir = components_dir
         return [] unless File.directory?(dir)
-        subdirs(dir).map do |cat|
-          { name: cat, children: subdirs(File.join(dir, cat)) }
+        collect_folders(dir, '', 0)
+      end
+      private_class_method :folder_tree
+
+      def self.collect_folders(dir, prefix, depth)
+        return [] if depth >= MAX_DEPTH
+        subdirs(dir).each_with_object([]) do |name, acc|
+          next if depth.zero? && SYSTEM_DIRS.include?(name.downcase)
+          rel = prefix.empty? ? name : "#{prefix}/#{name}"
+          acc << rel
+          acc.concat(collect_folders(File.join(dir, name), rel, depth + 1))
         end
       end
-      private_class_method :category_tree
+      private_class_method :collect_folders
 
+      # Quét đệ quy cả cây nên phải chịu được thư mục con không đọc được
+      # (ổ mạng, shortcut gãy): bỏ qua nhánh đó, đừng làm chết cả lần quét.
       def self.subdirs(dir)
         (Dir.entries(dir) - %w[. ..])
           .select { |e| File.directory?(File.join(dir, e)) }
           .sort
+      rescue SystemCallError
+        []
       end
       private_class_method :subdirs
 
@@ -373,13 +376,16 @@ module TK
       end
       private_class_method :sanitize_filename
 
-      def self.target_dir(category, subcategory)
-        dir = components_dir
-        category    = sanitize_filename(category)
-        subcategory = sanitize_filename(subcategory)
-        return dir if category.empty? || category == UNCATEGORIZED
-        dir = File.join(dir, category)
-        subcategory.empty? ? dir : File.join(dir, subcategory)
+      # folder = đường dẫn tương đối 'A/B/C' do UI gửi lên; '' = gốc thư viện.
+      # Từng đoạn phải lọc riêng: sanitize_filename KHÔNG chặn '..' (không có ký tự cấm),
+      # để lọt là ghi được ra ngoài thư viện.
+      def self.target_dir(folder)
+        root = components_dir
+        segs = folder.to_s.tr('\\', '/').split('/')
+                     .map { |s| sanitize_filename(s) }
+                     .reject { |s| s.empty? || s == '.' || s == '..' }
+                     .first(MAX_DEPTH)
+        segs.empty? ? root : File.join(root, *segs)
       end
       private_class_method :target_dir
 

@@ -119,8 +119,10 @@
   nav button.active .count {
     background: rgba(180,83,9,.14); color: var(--accent); font-weight: 600;
   }
-  nav .subwrap { margin: 0 0 2px 17px; padding-left: 8px; border-left: 1px solid var(--border); }
-  nav .subwrap button { font-size: 12.5px; padding: 5px 8px; }
+  /* Cây n-cấp: thụt bằng padding-left theo độ sâu, không lồng div —
+     lồng div thì tới cấp 4-5 là hết chỗ trong sidebar 200px. */
+  nav button.depth { font-size: 12.5px; padding-top: 5px; padding-bottom: 5px; }
+  nav .chev.hit { cursor: pointer; margin: -4px -2px -4px -4px; padding: 4px 2px 4px 4px; width: 16px; }
 
   /* ── Phần phải (filter + lưới) ───────────── */
   section { flex: 1; display: flex; flex-direction: column; min-height: 0; }
@@ -338,6 +340,56 @@
     font-weight: 600;
   }
 
+  /* ── Cây chọn thư mục trong form Lưu ──────── */
+  .pick-tree {
+    max-height: 168px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    padding: 4px;
+    margin-bottom: 6px;
+  }
+  .pick-tree button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 12.5px;
+    color: var(--text);
+    padding: 4px 7px;
+    border-radius: 5px;
+    margin: 1px 0;
+    font-family: inherit;
+  }
+  .pick-tree button:hover { background: var(--panel); }
+  .pick-tree button.active { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+  .pick-tree .icon { flex: 0 0 auto; display: flex; color: #b0b6be; }
+  .pick-tree button.active .icon { color: var(--accent); }
+  .pick-tree .chev {
+    flex: 0 0 auto; display: flex; width: 16px; cursor: pointer;
+    color: var(--muted); transition: transform .15s ease;
+    margin: -4px -2px -4px -4px; padding: 4px 2px 4px 4px;
+  }
+  .pick-tree .chev.open { transform: rotate(90deg); }
+  .pick-tree .chev.none { visibility: hidden; }
+  .pick-tree .label { flex: 1; word-break: break-word; min-width: 0; }
+  .pick-dest {
+    font-size: 11.5px; color: var(--muted); line-height: 1.5;
+    margin-bottom: 6px; word-break: break-word;
+  }
+  .pick-dest b { color: var(--accent); font-weight: 600; }
+  .pick-new {
+    border: none; background: none; color: var(--accent);
+    cursor: pointer; font-size: 12px; padding: 0; margin-bottom: 8px;
+    font-family: inherit;
+  }
+  .pick-new:hover { text-decoration: underline; }
+
   /* ── Report card (lịch sử) ────────────────── */
   .report-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; }
   .report-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
@@ -383,13 +435,11 @@
     </div>
 
     <div id="save-cat-section">
-      <label class="form-label">Danh mục</label>
-      <select id="save-cat" class="form-input" style="margin-bottom:6px;"></select>
-      <input type="text" id="save-cat-new" class="form-input" style="display:none; margin-bottom:6px; border-color:var(--accent);" placeholder="Gõ tên danh mục mới...">
-
-      <label class="form-label" style="margin-top:6px;">Danh mục con (tùy chọn)</label>
-      <select id="save-sub" class="form-input" style="margin-bottom:6px;"></select>
-      <input type="text" id="save-sub-new" class="form-input" style="display:none; margin-bottom:6px; border-color:var(--accent);" placeholder="Gõ tên danh mục con mới...">
+      <label class="form-label">Lưu vào thư mục</label>
+      <div id="save-tree" class="pick-tree"></div>
+      <div id="save-dest" class="pick-dest"></div>
+      <button type="button" id="save-newfolder-btn" class="pick-new">＋ Tạo thư mục con ở đây</button>
+      <input type="text" id="save-newfolder" class="form-input" style="display:none; margin-bottom:8px; border-color:var(--accent);" placeholder="Tên thư mục mới...">
     </div>
 
     <div style="display:flex; gap:8px; margin-bottom:12px;">
@@ -468,14 +518,16 @@
 
 <script>
 var app = (function () {
-  var library = { root: '', exists: true, categories: [], items: [] };
-  var activeCat   = null;
-  var activeSub   = null;
-  var expanded    = {};
-  var searchText  = '';
+  var library = { root: '', exists: true, folders: [], items: [] };
+  // activeFolder: null = Tất cả, '' = gốc thư viện, 'A/B/C' = thư mục con bất kỳ cấp
+  var activeFolder = null;
+  var expanded     = {};
+  var searchText   = '';
 
-  var saveCats     = [];
-  var NEW_VALUE    = '__new__';
+  var ROOT_LABEL   = 'Chung';
+  var saveFolders  = [];
+  var saveExpanded = {};          // nhớ nhánh đã mở, giữ qua các lần mở form
+  var savePick     = '';
   var isEditMode   = false;
   var editItemPath = null;
 
@@ -499,21 +551,63 @@ var app = (function () {
     });
   }
 
+  /* ── Cây thư mục: tiện ích chung ────────── */
+  // Chọn thư mục cha thì thấy luôn đồ trong mọi nhánh con (giữ nguyên nếp cũ).
+  function inFolder(itemFolder, target) {
+    if (target === null) return true;
+    if (target === '') return true;
+    return itemFolder === target || itemFolder.indexOf(target + '/') === 0;
+  }
+
+  function depthOf(path) { return path === '' ? 0 : path.split('/').length; }
+
+  function leafName(path) { return path.split('/').pop(); }
+
+  function parentOf(path) {
+    var i = path.lastIndexOf('/');
+    return i === -1 ? '' : path.substring(0, i);
+  }
+
+  function hasChildren(list, path) {
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].indexOf(path + '/') === 0) return true;
+    }
+    return false;
+  }
+
+  // Chỉ hiện hàng nào có TOÀN BỘ chuỗi cha đang mở.
+  function visibleFolders(list, openMap) {
+    return list.filter(function (f) {
+      var parts = f.split('/');
+      for (var i = 1; i < parts.length; i++) {
+        if (!openMap[parts.slice(0, i).join('/')]) return false;
+      }
+      return true;
+    });
+  }
+
+  // Mở sẵn mọi cấp cha để hàng đang chọn không bị giấu.
+  function expandAncestors(path, openMap) {
+    var parts = path.split('/');
+    for (var i = 1; i < parts.length; i++) openMap[parts.slice(0, i).join('/')] = true;
+  }
+
+  function breadcrumb(path) {
+    return path === '' ? '' : path.split('/').join(' / ');
+  }
+
   /* ── Filter helpers ─────────────────────── */
   function filteredItems() {
     return library.items.filter(function (it) {
-      if (activeCat && it.category !== activeCat) return false;
-      if (activeSub && it.subcategory !== activeSub) return false;
+      if (!inFolder(it.folder, activeFolder)) return false;
       if (searchText && it.name.toLowerCase().indexOf(searchText) === -1) return false;
       return true;
     });
   }
 
-  function countOf(cat, sub) {
+  function countOf(folder) {
     return library.items.filter(function (it) {
-      if (cat && it.category !== cat) return false;
-      if (sub && it.subcategory !== sub) return false;
-      return true;
+      return inFolder(it.folder, folder);
     }).length;
   }
 
@@ -522,52 +616,50 @@ var app = (function () {
   var SVG_GRID = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.3"/><rect x="9" y="1" width="6" height="6" rx="1.3"/><rect x="1" y="9" width="6" height="6" rx="1.3"/><rect x="9" y="9" width="6" height="6" rx="1.3"/></svg>';
   var SVG_FOLDER = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 4A1.5 1.5 0 0 1 3 2.5h2.6c.4 0 .79.16 1.06.44l1.1 1.1c.1.1.23.16.36.16H13A1.5 1.5 0 0 1 14.5 5.7V12A1.5 1.5 0 0 1 13 13.5H3A1.5 1.5 0 0 1 1.5 12V4z"/></svg>';
   var SVG_FOLDER_OPEN = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 4A1.5 1.5 0 0 1 3 2.5h2.6c.4 0 .79.16 1.06.44l1.1 1.1c.1.1.23.16.36.16H12A1.5 1.5 0 0 1 13.5 5.7v.8H4.6c-.67 0-1.26.44-1.45 1.08L1.5 12.2V4z"/><path d="M4.6 7.5h9.55c.5 0 .86.48.72.96l-1.27 4.3a1.5 1.5 0 0 1-1.44 1.07H2.4c-.5 0-.86-.48-.72-.96l1.48-4.3A1.5 1.5 0 0 1 4.6 7.5z" opacity=".75"/></svg>';
-  var SVG_DOC = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><path d="M5.5 6.5h5M5.5 9.5h3"/></svg>';
 
   function renderCategories() {
     var nav  = document.getElementById('categories');
-    var html = navButton(null, null, SVG_GRID, 'Tất cả', library.items.length, null);
-    if (library.categories.length > 0) html += '<div class="section">Danh mục</div>';
+    var keep = nav.scrollTop;                       // cây sâu → giữ chỗ cuộn khi vẽ lại
+    var html = navButton(null, SVG_GRID, 'Tất cả', library.items.length, null, 0);
+    if (library.folders.length > 0) html += '<div class="section">Thư mục</div>';
 
-    library.categories.forEach(function (cat) {
-      var hasKids = cat.children.length > 0;
-      var isOpen  = !!expanded[cat.name];
-      var chev    = hasKids ? (isOpen ? 'open' : '') : 'none';
-      var icon    = (isOpen && hasKids) ? SVG_FOLDER_OPEN : SVG_FOLDER;
-      html += navButton(cat.name, null, icon, cat.name, countOf(cat.name, null), chev);
-      if (hasKids && isOpen) {
-        html += '<div class="subwrap">';
-        cat.children.forEach(function (sub) {
-          html += navButton(cat.name, sub, SVG_DOC, sub, countOf(cat.name, sub), null);
-        });
-        html += '</div>';
-      }
+    visibleFolders(library.folders, expanded).forEach(function (f) {
+      var kids   = hasChildren(library.folders, f);
+      var isOpen = !!expanded[f];
+      var chev   = kids ? (isOpen ? 'open' : '') : 'none';
+      var icon   = (kids && isOpen) ? SVG_FOLDER_OPEN : SVG_FOLDER;
+      html += navButton(f, icon, leafName(f), countOf(f), chev, depthOf(f));
     });
     nav.innerHTML = html;
+    nav.scrollTop = keep;
 
     Array.prototype.forEach.call(nav.querySelectorAll('button'), function (btn) {
-      btn.onclick = function () {
-        var cat = btn.dataset.cat || null;
-        var sub = btn.dataset.sub || null;
-        if (cat && !sub) {
-          if (activeCat === cat && !activeSub) expanded[cat] = !expanded[cat];
-          else expanded[cat] = true;
+      btn.onclick = function (e) {
+        var f = btn.dataset.folder;
+        if (f === undefined || f === '') { activeFolder = null; render(); return; }
+        // Bấm trúng mũi tên: chỉ gập/mở, không đổi thư mục đang xem.
+        if (e.target.closest && e.target.closest('.chev')) {
+          expanded[f] = !expanded[f];
+          render();
+          return;
         }
-        activeCat = cat;
-        activeSub = sub;
+        if (activeFolder === f) expanded[f] = !expanded[f];
+        else expanded[f] = true;
+        activeFolder = f;
         render();
       };
     });
   }
 
-  function navButton(cat, sub, icon, label, count, chevState) {
-    var isActive = (cat === activeCat) && (sub === activeSub);
+  function navButton(folder, icon, label, count, chevState, depth) {
+    var isActive = folder === activeFolder;
     var chev = chevState === null
       ? ''
-      : '<span class="chev' + (chevState ? ' ' + chevState : '') + '">' + SVG_CHEV + '</span>';
-    return '<button class="' + (isActive ? 'active' : '') + '"'
-         + ' data-cat="' + (cat ? esc(cat) : '') + '"'
-         + ' data-sub="' + (sub ? esc(sub) : '') + '">'
+      : '<span class="chev' + (chevState ? ' ' + chevState : '') +
+        (chevState === 'none' ? '' : ' hit') + '">' + SVG_CHEV + '</span>';
+    return '<button class="' + (isActive ? 'active' : '') + (depth > 0 ? ' depth' : '') + '"'
+         + ' data-folder="' + (folder === null ? '' : esc(folder)) + '"'
+         + ' style="padding-left:' + (9 + depth * 13) + 'px">'
          + chev
          + '<span class="icon">' + icon + '</span>'
          + '<span class="label">' + esc(label) + '</span>'
@@ -613,7 +705,7 @@ var app = (function () {
         '<div class="empty"><div class="big">📭</div>' +
         '<p><b>Thư viện đang trống.</b></p>' +
         '<p>Hãy chép các file <code>.skp</code> vào thư mục thư viện.<br>' +
-        'Thư mục con cấp 1 là danh mục, cấp 2 là danh mục con.</p></div>';
+        'Thư mục con lồng bao nhiêu cấp cũng được — cây bên trái hiện đúng như trên ổ đĩa.</p></div>';
       return;
     }
 
@@ -629,7 +721,7 @@ var app = (function () {
       var thumb = it.thumb
         ? '<img src="' + fileUrl(it.thumb) + '?v=' + (it.thumb_v || 0) + '" alt="" loading="lazy">'
         : '<span class="noimg">◻</span>';
-      var where = it.category + (it.subcategory ? ' / ' + it.subcategory : '');
+      var where = it.folder ? breadcrumb(it.folder) : ROOT_LABEL;
 
       var dimParts = [];
       if (it.r) dimParts.push('R' + it.r);
@@ -793,50 +885,66 @@ var app = (function () {
   document.getElementById('btn-save').onclick    = function () { su('save_dialog'); };
   document.getElementById('btn-reports').onclick = function () { app.showReportsOverlay(); };
 
-  /* ── Form "Lưu vào thư viện" ─────────────── */
-  function fillCatSelect(preselect) {
-    var html = '<option value="">(Chung — gốc thư viện)</option>';
-    saveCats.forEach(function (c) {
-      html += '<option value="' + esc(c.name) + '">' + esc(c.name) + '</option>';
+  /* ── Form "Lưu vào thư viện": cây chọn thư mục ── */
+  function renderSaveTree() {
+    var box  = document.getElementById('save-tree');
+    var keep = box.scrollTop;
+    var html = pickButton('', SVG_GRID, 'Thư viện (gốc)', null, 0);
+
+    visibleFolders(saveFolders, saveExpanded).forEach(function (f) {
+      var kids   = hasChildren(saveFolders, f);
+      var isOpen = !!saveExpanded[f];
+      var chev   = kids ? (isOpen ? 'open' : '') : 'none';
+      var icon   = (kids && isOpen) ? SVG_FOLDER_OPEN : SVG_FOLDER;
+      html += pickButton(f, icon, leafName(f), chev, depthOf(f));
     });
-    html += '<option value="' + NEW_VALUE + '">＋ Tạo danh mục mới...</option>';
-    var sel = document.getElementById('save-cat');
-    sel.innerHTML = html;
-    sel.value = preselect || '';
-    if (sel.value !== (preselect || '')) sel.value = '';
-  }
+    box.innerHTML = html;
+    box.scrollTop = keep;
 
-  function fillSubSelect(preselect) {
-    var catVal = document.getElementById('save-cat').value;
-    var cat = null;
-    saveCats.forEach(function (c) { if (c.name === catVal) cat = c; });
-    var html = '<option value="">(Không)</option>';
-    (cat ? cat.children : []).forEach(function (s) {
-      html += '<option value="' + esc(s) + '">' + esc(s) + '</option>';
+    Array.prototype.forEach.call(box.querySelectorAll('button'), function (btn) {
+      btn.onclick = function (e) {
+        var f = btn.dataset.folder;
+        if (f !== '' && e.target.closest && e.target.closest('.chev')) {
+          saveExpanded[f] = !saveExpanded[f];
+          renderSaveTree();
+          return;
+        }
+        if (f !== '') saveExpanded[f] = true;
+        savePick = f;
+        renderSaveTree();
+        renderSaveDest();
+      };
     });
-    if (catVal && catVal !== NEW_VALUE) {
-      html += '<option value="' + NEW_VALUE + '">＋ Tạo danh mục con mới...</option>';
-    }
-    var sel = document.getElementById('save-sub');
-    sel.innerHTML = html;
-    sel.value = preselect || '';
-    if (sel.value !== (preselect || '')) sel.value = '';
-    syncNewInputs();
   }
 
-  function syncNewInputs() {
-    var catNew = document.getElementById('save-cat').value === NEW_VALUE;
-    var subNew = document.getElementById('save-sub').value === NEW_VALUE;
-    document.getElementById('save-cat-new').style.display = catNew ? 'block' : 'none';
-    document.getElementById('save-sub-new').style.display = subNew ? 'block' : 'none';
-    if (catNew) document.getElementById('save-cat-new').focus();
-    else if (subNew) document.getElementById('save-sub-new').focus();
+  function pickButton(folder, icon, label, chevState, depth) {
+    var chev = chevState === null
+      ? '<span class="chev none">' + SVG_CHEV + '</span>'
+      : '<span class="chev' + (chevState ? ' ' + chevState : '') + '">' + SVG_CHEV + '</span>';
+    return '<button type="button" class="' + (folder === savePick ? 'active' : '') + '"'
+         + ' data-folder="' + esc(folder) + '"'
+         + ' style="padding-left:' + (7 + depth * 13) + 'px">'
+         + chev
+         + '<span class="icon">' + icon + '</span>'
+         + '<span class="label">' + esc(label) + '</span></button>';
   }
 
-  function resolvedValue(selId, newId) {
-    var v = document.getElementById(selId).value;
-    if (v === NEW_VALUE) v = document.getElementById(newId).value.trim();
-    return v;
+  function newFolderName() {
+    var input = document.getElementById('save-newfolder');
+    return input.style.display === 'none' ? '' : input.value.trim();
+  }
+
+  // Đường dẫn cuối cùng gửi xuống Ruby: '' = gốc, 'A/B/C' = lồng bao nhiêu cấp cũng được.
+  function targetFolder() {
+    var extra = newFolderName();
+    if (!extra) return savePick;
+    return savePick === '' ? extra : savePick + '/' + extra;
+  }
+
+  function renderSaveDest() {
+    var path = targetFolder();
+    document.getElementById('save-dest').innerHTML =
+      'Sẽ lưu vào: <b>' + (path === '' ? '📚 Thư viện (gốc)' : esc(breadcrumb(path))) + '</b>';
   }
 
   function hideSaveForm() {
@@ -849,8 +957,16 @@ var app = (function () {
     document.getElementById('save-by-section').style.display = '';
   }
 
-  document.getElementById('save-cat').addEventListener('change', function () { fillSubSelect(''); });
-  document.getElementById('save-sub').addEventListener('change', syncNewInputs);
+  document.getElementById('save-newfolder-btn').onclick = function () {
+    var input = document.getElementById('save-newfolder');
+    var opening = input.style.display === 'none';
+    input.style.display = opening ? 'block' : 'none';
+    if (!opening) input.value = '';
+    this.textContent = opening ? '✕ Bỏ tạo thư mục mới' : '＋ Tạo thư mục con ở đây';
+    renderSaveDest();
+    if (opening) input.focus();
+  };
+  document.getElementById('save-newfolder').addEventListener('input', renderSaveDest);
   document.getElementById('save-cancel').onclick = hideSaveForm;
   document.getElementById('save-overlay').addEventListener('click', function (e) {
     if (e.target === this) hideSaveForm();
@@ -882,17 +998,14 @@ var app = (function () {
       hideSaveForm();
       return;
     }
-    var category    = resolvedValue('save-cat', 'save-cat-new');
-    var subcategory = category ? resolvedValue('save-sub', 'save-sub-new') : '';
     su('save_to_library', JSON.stringify({
-      name:        name,
-      category:    category,
-      subcategory: subcategory,
-      r:           r,
-      s:           s,
-      c:           c,
-      note:        note,
-      saved_by:    document.getElementById('save-saved-by').value.trim()
+      name:     name,
+      folder:   targetFolder(),
+      r:        r,
+      s:        s,
+      c:        c,
+      note:     note,
+      saved_by: document.getElementById('save-saved-by').value.trim()
     }));
     hideSaveForm();
   };
@@ -938,27 +1051,37 @@ var app = (function () {
 
   return {
     setLibrary: function (data) {
-      library = data || { root: '', exists: true, categories: [], items: [] };
+      library = data || { root: '', exists: true, folders: [], items: [] };
+      if (!library.folders) library.folders = [];
       if (data && data.reporter_name !== undefined) savedReporter = data.reporter_name;
-      var names = library.categories.map(function (c) { return c.name; });
-      if (activeCat && names.indexOf(activeCat) === -1) { activeCat = null; activeSub = null; }
+      // Thư mục vừa xem có thể đã bị xóa/đổi tên ngoài Explorer → quay về Tất cả.
+      if (activeFolder && library.folders.indexOf(activeFolder) === -1) activeFolder = null;
       render();
     },
     openFolder:   function () { su('open_folder'); },
     chooseFolder: function () { su('choose_folder'); },
     refresh:      function () { su('refresh'); },
     showSaveForm: function (info) {
-      saveCats   = (info && info.categories) || [];
+      saveFolders = (info && info.folders) || [];
       document.getElementById('save-name').value = (info && info.name) || '';
       document.getElementById('save-saved-by').value = (info && info.saved_by) || savedReporter;
-      document.getElementById('save-cat-new').value = '';
-      document.getElementById('save-sub-new').value = '';
       document.getElementById('save-r').value = '';
       document.getElementById('save-s').value = '';
       document.getElementById('save-c').value = '';
       document.getElementById('save-note').value = '';
-      fillCatSelect(activeCat || '');
-      fillSubSelect(activeSub || '');
+
+      // Ô tạo thư mục mới luôn khởi động ở trạng thái đóng.
+      var nf = document.getElementById('save-newfolder');
+      nf.value = '';
+      nf.style.display = 'none';
+      document.getElementById('save-newfolder-btn').textContent = '＋ Tạo thư mục con ở đây';
+
+      // Chọn sẵn đúng thư mục đang xem bên trái; nhánh mở giữ nguyên từ lần trước.
+      savePick = (activeFolder && saveFolders.indexOf(activeFolder) !== -1) ? activeFolder : '';
+      if (savePick) expandAncestors(savePick, saveExpanded);
+      renderSaveTree();
+      renderSaveDest();
+
       document.getElementById('save-overlay').style.display = 'flex';
       document.getElementById('save-name').focus();
       document.getElementById('save-name').select();

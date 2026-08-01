@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 # Thư Viện Component — trình duyệt thư viện .skp dùng chung:
-# lưới thumbnail, danh mục 2 cấp theo cây thư mục, tìm kiếm,
-# click để chèn, lưu component từ model vào thư viện.
+# lưới thumbnail, cây thư mục n-cấp (đúng như trên ổ đĩa), tìm kiếm,
+# click để chèn, lưu component từ model vào thư mục bất kỳ trong cây.
 #
 # Theo kiến trúc LeHai_Tools: không tự tạo toolbar/menu,
 # chỉ expose TK::ThuVien.create_cmd (xem ui/menu.rb).

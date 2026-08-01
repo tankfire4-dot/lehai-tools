@@ -4,8 +4,14 @@
 # chỗ đó → đế bản lề không bắt được vào hông, lắp không vào. Phát hiện lúc ra
 # xưởng thì tấm đã cắt rồi.
 #
-# Luật (Khoa chốt 27/07): TÂM cốc bản lề phải cách MẶT tấm đợt ≥ 80mm.
-# Gần hơn = lỗi đỏ.
+# Luật (Khoa chốt 01/08, THAY luật 27/07): tính từ TÂM cốc bản lề, **lên 40mm và
+# xuống 40mm phải trống** — không tấm đợt nào cấn vào dải đó. Cấn = lỗi đỏ.
+#   Trước 27/07: đòi tâm cốc cách mặt tấm đợt ≥ 80mm → siết gấp đôi mức cần, báo thừa.
+#   Khoa 01/08: "chỉ cần từ tâm cốc lên và xuống 4cm không cấn gì là được".
+# Chiều NGANG (Khoa chốt 01/08): "2 bên hông không cần tính" → BỎ dung sai theo chiều
+# RỘNG tủ (trái/phải), cốc phải nằm đúng trong bóng tấm đợt. GIỮ dung sai theo chiều
+# SÂU (GAN_XY_MM) vì cánh ở phía TRƯỚC tấm đợt, mặt cánh lố ra ngoài mép trước tấm
+# ~10-20mm — bỏ nốt thì cốc rơi ra ngoài bóng tấm và tool BẮT HỤT, im lặng báo "đạt".
 #
 # ── Dò bằng HÌNH HỌC, KHÔNG dò theo tên (Khoa chốt 27/07) ──────────────
 # Vì sao: file thật đang mở lúc bàn việc có 17/17 tấm CHƯA ĐẶT TÊN. Bản Lề Cánh
@@ -39,9 +45,9 @@ module TK
     MM        = 25.4
     MAX_DEPTH = 40
 
-    HO_MM       = 80.0    # Khoa chốt: tâm cốc cách mặt tấm đợt tối thiểu ngần này
+    HO_MM       = 40.0    # Khoa chốt 01/08: từ TÂM cốc, lên 40 và xuống 40 phải trống
     BIEN_MM     = 20.0    # tấm phải lùi vào trong lòng cánh ngần này mới tính (loại nóc/đáy)
-    GAN_XY_MM   = 40.0    # cốc coi là "nằm trên/dưới tấm" nếu hình chiếu lọt bbox tấm nới ngần này
+    GAN_XY_MM   = 40.0    # dung sai CHỈ theo chiều SÂU (cánh ở trước tấm đợt). Trái/phải = 0.
     DAY_MAX_MM  = 30.0    # dày hơn ngần này thì không phải ván nằm ngang
     CANH_MIN_MM = 100.0   # hai cạnh còn lại phải rộng ngần này (loại nhãn/dấu ABF vụn)
 
@@ -68,7 +74,7 @@ module TK
       return { status: :pass, count: 0,
                message: "Đã soi #{cups.size} cốc bản lề — không cái nào bị tấm đợt chắn." } if vios.empty?
       { status: :fail, count: vios.size,
-        message: "#{vios.size} cốc bản lề bị tấm đợt chắn (gần hơn #{fmt(HO_MM)}mm) — lắp không vào." }
+        message: "#{vios.size} cốc bản lề bị tấm đợt cấn trong khoảng ±#{fmt(HO_MM)}mm trên/dưới tâm — lắp không vào." }
     end
 
     def self.review
@@ -81,7 +87,7 @@ module TK
       vios = find_blocked(cups, shelves)
       if vios.empty?
         UI.messagebox("Đã soi #{cups.size} cốc bản lề trên #{shelves.size} tấm nằm ngang.\n\n" \
-                      "Không cốc nào bị tấm đợt chắn (đều cách ≥ #{fmt(HO_MM)}mm).")
+                      "Không cốc nào bị cấn — trên và dưới mỗi tâm cốc đều trống ≥ #{fmt(HO_MM)}mm.")
         return
       end
       Sketchup.active_model.select_tool(ReviewTool.new(vios))
@@ -99,11 +105,20 @@ module TK
           next if s.equal?(cup.door)
           # 1. tấm phải nằm HẲN TRONG LÒNG cánh theo chiều đứng — loại nóc/đáy ở biên
           next unless a[2] >= d[2] + BIEN_MM / MM && a[5] <= d[5] - BIEN_MM / MM
-          # 2. hình chiếu bằng của cốc phải lọt vào bóng tấm (nới GAN_XY_MM)
+          # 2. hình chiếu bằng của cốc phải lọt vào bóng tấm.
+          #    Khoa chốt 01/08: "2 bên hông không cần tính" → BỎ dung sai theo chiều
+          #    RỘNG tủ (trái/phải). Nhưng GIỮ dung sai theo chiều SÂU: cánh nằm phía
+          #    TRƯỚC tấm đợt nên mặt cánh thường lố ra ngoài mép trước tấm ~10-20mm;
+          #    bỏ nốt dung sai này thì cốc rơi ra ngoài bóng tấm → tool BẮT HỤT, im
+          #    lặng báo "đạt" đúng lúc có lỗi thật.
+          #    Trục SÂU = trục ngang MỎNG hơn của cánh (bề dày cánh nằm theo chiều sâu).
+          sau_theo_x = (d[3] - d[0]) < (d[4] - d[1])
           near = GAN_XY_MM / MM
+          nx   = sau_theo_x ? near : 0.0
+          ny   = sau_theo_x ? 0.0  : near
           c = cup.center
-          next unless c.x >= a[0] - near && c.x <= a[3] + near
-          next unless c.y >= a[1] - near && c.y <= a[4] + near
+          next unless c.x >= a[0] - nx && c.x <= a[3] + nx
+          next unless c.y >= a[1] - ny && c.y <= a[4] + ny
           # 3. khoảng cách đứng từ tâm cốc tới KHỐI tấm (nằm trong khối = 0)
           gap = if c.z >= a[2] && c.z <= a[5] then 0.0
                 else [(c.z - a[2]).abs, (c.z - a[5]).abs].min
@@ -316,7 +331,7 @@ module TK
         v  = @items[@idx]
         l1 = "⚠ Đợt chắn bản lề — hở #{TK::HingeBlockCheck.fmt(v.gap_mm)}mm   (#{@idx + 1}/#{@items.size})"
         l2 = "Cánh: #{v.door_name}   ·   Tấm chắn: #{v.shelf_name}"
-        l3 = "Đỏ = cốc bản lề, cam = tấm đang chắn. Cần ≥ #{TK::HingeBlockCheck.fmt(HO_MM)}mm mới lắp được."
+        l3 = "Đỏ = cốc bản lề, cam = tấm đang cấn. Cần trống ±#{TK::HingeBlockCheck.fmt(HO_MM)}mm trên/dưới tâm cốc."
         l4 = '← → đổi  ·  gõ số để nhảy  ·  ESC thoát'
         bg_w = 26 + [l1.length, l2.length, l3.length, l4.length].max * 8
         draw_box2d(view, 18, 18, bg_w, 100, Sketchup::Color.new(18, 22, 30, 215))

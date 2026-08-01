@@ -3,8 +3,12 @@
 Mục tiêu: code **nhất quán** để bất kỳ ai (Claude phiên mới, thợ code lạ) đọc cũng thấy cùng một
 phong cách → dễ tiếp quản, dễ kiểm, thoát phụ thuộc một người.
 
-**Claude đọc file này TRƯỚC khi viết/sửa bất kỳ code Ruby nào trong repo.** Kèm dùng skill
-`sketchup-api` cho mọi việc liên quan SketchUp Ruby.
+**Claude đọc file này TRƯỚC khi viết/sửa bất kỳ code Ruby nào trong repo**, kèm
+[SKETCHUP_NEN_TANG.md](SKETCHUP_NEN_TANG.md) — 8 chỗ SketchUp trả số sai mà không báo lỗi.
+
+> **Sửa 01/08/2026:** dòng này trước ghi "dùng skill `sketchup-api`". **Skill đó chưa từng tồn tại**
+> trên máy — nghĩa là mọi dòng Ruby trong kho từ trước tới nay viết bằng trí nhớ của model, không
+> có tài liệu nào đối chiếu. Đó là gốc của rủi ro "sai mà không biết". Nay trỏ về file thật.
 
 Nguyên tắc áp dụng: **code mới theo Luật nhà; code cũ chỉ sửa khi đụng tới** (không đập đi xây lại
 hàng loạt — rủi ro cao, đúng tinh thần "ổn định hơn tối ưu"). Mỗi lần dọn 1 file về chuẩn thì ghi

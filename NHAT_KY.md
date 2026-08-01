@@ -12,6 +12,54 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-08-01 — Lấp móng: 8 chỗ SketchUp nói dối + mẫu chuẩn để ĐO tool
+
+**Vấn đề Khoa nêu:** *"những khái niệm cốt lõi của plugin, đúng hơn là kiến thức về SketchUp của
+tôi chưa có mà tôi dám dựng plugin, thành ra đôi khi plugin sẽ sai mà không biết."* Rồi tự chốt:
+*"tụi mình làm plugin theo kiểu bộc phát, chưa rõ ràng với nền tảng từ đầu."*
+
+Đúng, và soi ra được bằng chứng cứng: **LUAT_NHA.md bắt "dùng skill `sketchup-api`" — skill đó
+chưa từng tồn tại trên máy.** Luật trỏ vào chỗ trống suốt từ 20/06. Nghĩa là mọi dòng Ruby trong
+kho viết bằng trí nhớ của model, không có tài liệu nào đối chiếu. Cộng thêm: kết nối Trimble
+SketchUp (MCP) chưa cấp quyền → agent chưa bao giờ tự mở model thật để đo. Mọi chữ "ĐẠT" từ trước
+tới nay là **mắt Khoa nhìn**, không phải máy đo.
+
+**Quyết định:** không đi học lại SketchUp từ đầu (mấy tháng, 95% không dính nghề tủ). Thay vào đó
+làm hai thứ hẹp:
+1. [SKETCHUP_NEN_TANG.md](SKETCHUP_NEN_TANG.md) — gom đúng **8 chỗ SketchUp trả số sai mà không
+   báo lỗi**, mỗi chỗ chỉ đích danh file trong kho đang nghi dính.
+2. [MAU_CHUAN.md](MAU_CHUAN.md) — đặc tả file `.skp` 9 tấm đã biết trước kích thước thật, cố tình
+   dựng bậy (scale, xoay, lồng 3 cấp, lật gương, xa gốc, dày lẻ, dưới dung sai). Kèm luật:
+   **chưa đo trên mẫu chuẩn thì chưa gọi là ĐẠT.**
+
+**Vì sao lúc này rẻ hơn lúc đầu:** một năm trước đọc tài liệu API thì 200 trang, không biết trang
+nào dính tới mình. Bây giờ có 20 tool đang chạy → chúng chỉ đúng ra 8 khái niệm chịu lực. Đã trả
+tiền (bằng lỗi thật) để biết cần học cái gì. Bộc phát không phải cái sai — cái sai là **"nó chạy
+được" bị coi là vạch đích** thay vì vạch xuất phát của việc kiểm.
+
+**Hai nghi phạm nặng nhất soi tĩnh ra được** (chưa xác nhận, chờ mẫu chuẩn):
+- `dien_ten/core/namer.rb:78,91` + `ui/dialog.rb:226` — dùng `definition.bounds` để **gom nhóm và
+  đặt TÊN tấm theo kích thước**. `definition.bounds` bỏ qua transform → tấm bị Scale tool sẽ mang
+  tên ghi số cũ. Tên tấm đi thẳng ra xưởng.
+- `auto_dan_canh/main.rb:269,292` — mồi chuỗi transform bằng `e.transformation` của chính entity
+  được chọn, thiếu transform các cấp cha + `model.edit_transform`. Chọn tấm từ ngoài thì đúng;
+  nhấp vào trong tủ rồi chọn thì toạ độ thế giới sai. (`edit_transform` xuất hiện **đúng 1 lần**
+  trong cả kho: `canh_cnc/main.rb:445`.)
+
+**Một chỗ hoá ra LÀNH:** soi `start_operation` — 11/11 tool sửa model đều bọc đủ start+commit,
+các file không bọc đều là loại chỉ-đọc, bọc mới là sai. Chỉ hở đường thoát khi lỗi: `chia_lam` và
+`kiem_tra_do_day` không có `abort_operation`, `dim_nhanh` thiếu 1 nhánh. Ba chỗ này sửa được ngay,
+không cần mẫu chuẩn.
+
+**Bài học:** 6/8 mục trong file nền tảng **không lộ trên model demo phẳng**. Đó là lời giải cho
+nghịch lý "20 tool chạy ổn mà vẫn có thể sai" — chưa cái nào bị đo trên hình khó. **"Chạy ổn"
+không phải bằng chứng đúng, nó chỉ là bằng chứng chưa crash.**
+
+**Rủi ro đã lường:** mạch soát này gần như chắc chắn moi ra vài tool đang sai — sai từ lâu, chỉ là
+chưa ai nhìn. Đó là thứ bỏ công ra mua, không phải hỏng việc.
+
+---
+
 ## 2026-07-27 — Dán Cạnh: bấm "Xem" giờ lướt tới từng cạnh, không còn hộp thoại cụt
 
 **Vấn đề Khoa nêu:** *"chỗ lỗi dán cạnh, ông không thể zoom tới những chỗ nào dán cạnh khi tôi bấm

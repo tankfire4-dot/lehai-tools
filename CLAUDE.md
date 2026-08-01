@@ -19,8 +19,13 @@ vào `KHOA.md` cho Khoa tự chạy (luật CONG GITHUB, xem `agent_lab_khoa/AGE
 ## Tài liệu
 
 - **CLAUDE.md** (file này) = hiến pháp ngắn: cách làm việc + cấu trúc + con trỏ. Đọc mỗi phiên — giữ gọn.
-- **[LUAT_NHA.md](LUAT_NHA.md)** = quy ước code thống nhất. **Đọc TRƯỚC khi viết/sửa code Ruby**,
-  kèm dùng skill `sketchup-api`.
+- **[LUAT_NHA.md](LUAT_NHA.md)** = quy ước code thống nhất (viết code cho ĐẸP + NHẤT QUÁN).
+  **Đọc TRƯỚC khi viết/sửa code Ruby.**
+- **[SKETCHUP_NEN_TANG.md](SKETCHUP_NEN_TANG.md)** = 8 chỗ SketchUp trả số sai mà không báo lỗi
+  (viết code cho ĐÚNG). **Đọc TRƯỚC khi viết/sửa code Ruby** — cùng lúc với LUAT_NHA.
+  *Hai file khác nhau: LUAT_NHA lo phong cách, file này lo tính đúng.*
+- **[MAU_CHUAN.md](MAU_CHUAN.md)** = đặc tả file `.skp` mẫu để ĐO tool. Luật kèm theo:
+  **chưa đo trên mẫu chuẩn thì chưa gọi là ĐẠT** — "mở lên thấy chạy" chỉ là *chưa crash*.
 - **[NHAT_KY.md](NHAT_KY.md)** = nhật ký phát triển: vì sao đằng sau mỗi quyết định + bài học. Mỗi
   thay đổi đáng kể → ghi 1 mục (Vấn đề → Quyết định → Vì sao → Bài học). Đọc khi cần hiểu mạch cũ.
 

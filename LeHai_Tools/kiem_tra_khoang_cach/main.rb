@@ -53,8 +53,32 @@ module TK
       v.kind == :pair_cb
     end
 
-    # tag cua chi tiet co phai tag chong bay khong (doc y het chong_bay/main.rb:101)
-    def self.chong_bay?(e)
+    # Tam nay co phai chi tiet CHONG BAY khong?
+    #
+    # ⚠️ BAY DA MAC 01/08 (do live tren file that): tag chong bay KHONG nam o group
+    # tam. `chong_bay/main.rb:588-594` gan tag cho entity nao co tag `ABF_cuttingLines`
+    # — tuc la ĐƯỜNG CẮT NẰM BÊN TRONG tam. Ban dau doan sai o day chi hoi
+    # `board.layer.name` -> LUC NAO CUNG false -> nhac vang khong bao gio bat, ma
+    # dashboard van xanh nen KHONG AI BIET. Do live moi lo: file co 200 tag chong bay
+    # va 446 cap trong dai 7-12mm ma khong cap nao dinh tag — con so khong the co that.
+    #
+    # Nen phai soi CA CAY CON, dung ngay khi thay tag dau tien.
+    def self.chong_bay?(e, depth = 0)
+      return false if depth > 8
+      return true if tag_cb?(e)
+      ents = ents_of(e)
+      return false unless ents
+      ents.each do |c|
+        if c.is_a?(Sketchup::Group) || c.is_a?(Sketchup::ComponentInstance)
+          return true if chong_bay?(c, depth + 1)
+        elsif tag_cb?(c)
+          return true
+        end
+      end
+      false
+    end
+
+    def self.tag_cb?(e)
       (e.layer.name.to_s rescue '') =~ CB_RE ? true : false
     end
 

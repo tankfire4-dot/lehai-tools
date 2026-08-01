@@ -321,3 +321,54 @@ tham số transform, không có đường nào để đúng). Rồi A1, rồi B.
 
 *Nguồn: soi tĩnh 11.000 dòng Ruby trong `LeHai_Tools/`, 01/08/2026. Chưa chạy SketchUp lần nào.
 Mỗi mục kiểm xong → ghi kết quả vào bảng + một dòng vào [NHAT_KY.md](NHAT_KY.md).*
+
+---
+
+# G. Kiểm Tra Liên Kết (ngàm) — ĐÃ ĐO, KHÔNG PHẢI LỖI
+
+**01/08.** Khoa: dashboard báo *4 mối ngàm "2 tấm đâm xuyên 17.5mm chưa khoét"* trong khi nhìn
+model không thấy gỗ nào cấn vào.
+
+**Kết luận: tool báo ĐÚNG.** Khoa tự dựng file đối chứng 2 tấm có ngàm thật + dấu ABF → tool
+nhận đúng *"Đã làm NGÀM ✓"*, cả bảng xanh. Còn trong file gốc, gỗ **thật sự đang chồng gỗ
+17.5mm** — chỗ đó Khoa cố ý để vậy vì sẽ **khoét tay ở xưởng**, không làm ngàm trong model.
+
+**Cách tool nghĩ** (đọc `kiem_tra_lien_ket/main.rb`, ghi lại để khỏi phải đọc lại):
+
+```
+GĐ1 — xếp cặp + ra con số 17.5mm:  CHỈ dùng HỘP BAO world (overlap_box:176).
+      Chưa nhìn thấy một mặt gỗ nào. Cạnh nhỏ nhất khối giao rơi 15–20mm → gọi "ngàm".
+GĐ2 — phán đã khoét hay chưa:      CÓ dùng mặt thật (collide_frac:202) — dựng tam giác
+      từ Face, bắn tia +X đếm giao lẻ, lưới SAMPLE_N=3 (27 điểm), ngưỡng 0.4.
+      made = frac < 0.4  (đâm xuyên thấp = đã khoét bằng tay)
+```
+
+Tức là **tên gọi và con số đến từ hộp; lời phán đến từ mặt.** GĐ2 chính là cái chặn được
+"hộp bao lừa" — nên giả thuyết hộp-lừa không giải thích được ca này, và hoá ra không cần
+giải thích, vì không có lỗi.
+
+## G1. VIỆC THẬT CẦN LÀM — không phải sửa lỗi, là thêm trạng thái thứ 3
+
+Tool có 2 trạng thái, thực tế Khoa có 3:
+
+| | Thực tế | Tool xếp | Đúng? |
+|---|---|---|---|
+| 1 | đã làm (có ABF / đã khoét trong model) | xanh | ✓ |
+| 2 | quên chưa làm | đỏ | ✓ |
+| 3 | **cố ý để vậy, khoét tay ở xưởng** | đỏ | ✗ **dồn nhầm vào (2)** |
+
+**Rủi ro thật không phải báo thừa** — mà là Khoa dần quen với chấm đỏ vô hại rồi **bắt đầu bỏ
+qua chấm đỏ**, đến lúc có mối quên thật thì nó trôi qua. Đây là kiểu hỏng của hệ thống báo động,
+không phải của code. File 4 mối còn nhớ được; file 40 mối thì không.
+
+**Hướng làm (chưa chốt, cần Khoa quyết):** cho phép đánh dấu một mối là *"cố ý — khoét tay"*
+rồi tool nhớ và xếp riêng, thay vì bắt Khoa nhớ trong đầu.
+
+> **Câu hỏi cho Khoa:** đánh dấu theo cách nào tiện cho ông nhất — đặt tên tấm theo quy ước,
+> gắn tag, hay bấm nút ngay trong bảng khi đang soi mối đó?
+
+## G2. Ghi nhận cách kiểm của Khoa — nên thành thói quen
+
+Khoa tự dựng file sạch 2 tấm để thử cái **đã biết trước câu trả lời**, thay vì tranh luận trên
+file khách 443 tấm. Đó chính là tinh thần `MAU_CHUAN.md`, làm theo bản năng chứ không theo tài
+liệu. **Ca nào nghi ngờ tool → dựng 2 tấm thử trước, rẻ hơn mọi cách khác.**

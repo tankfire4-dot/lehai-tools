@@ -124,7 +124,12 @@ module TK
         # (Khoa 01/08 nhin file that: "ua co thay nhac toi 12mm nao dau" — chu co that
         #  nhung khong co so nen mat khong bat duoc.)
         msg = "#{loi} cặp hở dưới #{GAP_MM}mm."
-        msg += " ⚠ Kèm nhắc: #{nhac} cặp chi tiết chống bay hở #{GAP_MM}–#{GAP_CB_MM}mm (nên ≥ #{GAP_CB_MM}mm)." if nhac > 0
+        # Chi duong nhay THANG toi cum vang. Danh sach xep theo gap_mm tang dan, ma moi
+        # loi do deu <7mm con moi nhac vang deu 7-12mm -> cum vang LUON nam gon o CUOI,
+        # bat dau dung o (so loi do + 1). Khong co dong nay thi Khoa phai quet tay qua
+        # ca tram cap moi thay cai vang dau tien (Khoa 01/08: "phai quet toi no moi hien").
+        msg += " ⚠ Kèm nhắc: #{nhac} cặp chi tiết chống bay hở #{GAP_MM}–#{GAP_CB_MM}mm " \
+               "(nên ≥ #{GAP_CB_MM}mm) — nằm cuối danh sách, bấm Xem rồi gõ #{loi + 1}." if nhac > 0
         return { status: :fail, count: loi, message: msg }
       end
 

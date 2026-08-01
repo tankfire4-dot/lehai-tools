@@ -84,3 +84,39 @@ end
 
 ### 8. Comment
 - Tiếng Việt. Tiêu đề mục dùng dạng `# ── Tên mục ──────`.
+
+---
+
+## C. Bẫy hạ tầng — KẾT THÚC DÒNG (CRLF vs LF)
+
+**Mắc phải 01/08/2026, suýt phát nhầm.** Kho này **trộn** hai kiểu kết thúc dòng:
+
+| File | Kiểu |
+|---|---|
+| `LeHai_Tools/main.rb` | **CRLF** |
+| hầu hết file còn lại (`kiem_tra_*`, `probes/*`, `*.md`) | **LF** |
+
+Công cụ sửa file của agent có thể **ghi lại cả file theo kiểu khác** với bản gốc. Khi đó
+`git diff` báo **toàn bộ file đã đổi** — 547 dòng cho một sửa đổi 20 dòng. Hậu quả:
+
+1. **Không soát được diff** — thay đổi thật chìm trong nhiễu.
+2. **Trạm phát so file theo BYTE** (xem `NHAT_KY.md` 01/08 mục thư viện): đổi kết thúc dòng là
+   đổi byte → thợ tải lại file dù nội dung y hệt.
+
+**Luật:** trước khi commit file `.rb`, kiểm kết thúc dòng khớp bản gốc:
+
+```bash
+git diff --stat            # số dòng đổi có khớp việc mình làm không?
+file LeHai_Tools/main.rb   # CRLF hay LF — phải giống bản trên origin/master
+```
+
+Lệch thì sửa trước khi commit:
+
+```bash
+perl -i -pe 's/\r\n/\n/'        <file>   # CRLF -> LF
+perl -i -pe 's/(?<!\r)\n/\r\n/' <file>   # LF -> CRLF
+```
+
+**Chưa đặt `.gitattributes`** để ép chuẩn chung — làm vậy sẽ chuẩn hoá lại toàn kho trong một
+lần, sinh đúng cái diff khổng lồ đang muốn tránh, trên kho PUBLIC thợ đang auto-update. Muốn dọn
+thì dọn riêng một phiên, không kèm vào sửa tính năng.

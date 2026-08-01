@@ -71,12 +71,43 @@ khuôn chung của chính bộ plugin, không phải chuyện tôi bịa ra tiê
 **Nặng vì:** ván 17,5 và ván 18 là hai loại vật tư khác nhau. Cả tủ bị scale nhẹ → mọi tấm báo
 sai dày → đặt nhầm vật tư.
 
-> ### Kiểm tay
+### ✅ ĐÃ BẮT ĐƯỢC NGOÀI ĐỜI — 01/08, file `0. CNC C.THUY _file cat_GOC`
+
+Khoa chạy trên file khách thật: tool báo **33,1 mm** và **200 mm** (2 tấm, cột đỏ), thước
+SketchUp đo tấm 33,1 đó ra **17,50 mm**. **Lỗi có thật, đã xác nhận.**
+
+**Nhưng cơ chế KHÁC cái tôi dự đoán ở trên.** Nếu do Scale thì sai số phải là bội số tròn
+(×2 → 35, ×1,5 → 26,25). **33,1 là số lẻ → không phải scale.**
+
+Giả thuyết mới (đang dò bằng `probes/do_day_probe.rb`): **hộp bao phồng vì tấm nằm nghiêng
+so với trục của chính group nó** — mục 3a, không phải 3c.
+
+```
+hộp bao dày = 17,5·cos(góc) + CHIỀU DÀI TẤM·sin(góc)
+                             └────────┬────────┘
+                          số này to → góc tí xíu cũng phình
+tấm dài 1000mm nghiêng 0,9°  →  hộp bao 33,1mm
+```
+
+**Nếu đúng, đây là chuyện nặng hơn tôi tưởng:** không cần nghiêng nhiều — **lệch trục dưới
+1 độ** là đủ, vì tấm càng dài sai số càng lớn. File tên `cat_GOC` (cắt góc) đúng loại việc
+hay sinh tấm lệch trục.
+
+**Hệ quả cho cách sửa:** thêm nhân transform **không cứu được gì**. Phải **bỏ hẳn cách đo bằng
+hộp bao**, thay bằng: lấy pháp tuyến mặt lớn nhất → chiếu mọi đỉnh lên pháp tuyến đó → khoảng
+max-min chính là độ dày thật, đúng bất kể tấm nghiêng bao nhiêu.
+
+> **Chưa chốt** cho tới khi probe xác nhận. Không sửa code theo giả thuyết.
+
+*(Cách kiểm tay bằng Scale ở dưới vẫn giữ — nó dò một cơ chế KHÁC có thể cũng đang tồn tại
+song song. Chưa kiểm.)*
+
+> ### Kiểm tay (cơ chế scale — vẫn chưa kiểm)
 > 1. Vẽ tấm bất kỳ dày **18**, Make Group.
 > 2. Scale tool kéo ×2 **theo chiều dày**. Đo bằng thước SketchUp: thật là **36**.
 > 3. Chạy **Kiểm Tra Độ Dày**.
-> - Báo **36** → tôi sai.
-> - Báo **18** → **đúng bug**.
+> - Báo **36** → cơ chế scale không dính.
+> - Báo **18** → dính **cả hai** cơ chế cùng lúc.
 
 ---
 

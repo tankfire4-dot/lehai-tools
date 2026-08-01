@@ -81,9 +81,14 @@ module LeHai
         # ── Cụm 4 (cuối): DC / chuẩn bị xuất CNC ──
         [defined?(::TK::GoGroup) && ::TK::GoGroup.respond_to?(:create_cmd),
          -> { ::TK::GoGroup.create_cmd }],
-        [defined?(::TK::ThickCheck) && ::TK::ThickCheck.respond_to?(:create_cmd),
-         -> { ::TK::ThickCheck.create_cmd }],
-        # Tìm Tấm Lỗi — đặt cạnh Kiểm Tra Độ Dày (cùng là kính lúp soi tấm)
+        # CẤT 01/08/2026 — Khoa: "chỗ Check Chốt Sản Xuất đã có độ dày rồi, plugin
+        # độ dày lẻ bỏ ra được". Dashboard `soat_truoc_xuat/main.rb:21,34` VẪN require
+        # và gọi `TK::ThickCheck` cho dòng "Độ Dày Ván" — nên CHỈ gỡ NÚT, KHÔNG xoá
+        # code. Xoá module là dòng đó trong dashboard chết theo.
+        # Vẫn gọi tay được: `TK::ThickCheck.show`. Trả nút lại = bỏ dấu `#` dòng dưới.
+        # [defined?(::TK::ThickCheck) && ::TK::ThickCheck.respond_to?(:create_cmd),
+        #  -> { ::TK::ThickCheck.create_cmd }],
+        # Tìm Tấm Lỗi — trước đây đặt cạnh Kiểm Tra Độ Dày (cùng là kính lúp soi tấm)
         [defined?(::TK::ABFFinder) && ::TK::ABFFinder.respond_to?(:create_cmd),
          -> { ::TK::ABFFinder.create_cmd }],
         # Kiểm Tra Khoảng Cách — QC sau nesting, cùng cụm kiểm tra

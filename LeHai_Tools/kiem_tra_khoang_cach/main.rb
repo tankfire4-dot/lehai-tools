@@ -120,8 +120,11 @@ module TK
 
       # Co loi do thi bao do. Nhac vang di kem mot ve cau, khong lam mo trong tam.
       if loi > 0
+        # Ve nhac PHAI co con so, khong thi no troi tuot ben canh con so cua ve do.
+        # (Khoa 01/08 nhin file that: "ua co thay nhac toi 12mm nao dau" — chu co that
+        #  nhung khong co so nen mat khong bat duoc.)
         msg = "#{loi} cặp hở dưới #{GAP_MM}mm."
-        msg += " Kèm nhắc: có chi tiết chống bay chỉ hở #{GAP_MM}–#{GAP_CB_MM}mm." if nhac > 0
+        msg += " ⚠ Kèm nhắc: #{nhac} cặp chi tiết chống bay hở #{GAP_MM}–#{GAP_CB_MM}mm (nên ≥ #{GAP_CB_MM}mm)." if nhac > 0
         return { status: :fail, count: loi, message: msg }
       end
 

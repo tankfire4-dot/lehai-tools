@@ -86,10 +86,10 @@ module TK
         if @mode == :area
           f, tr = pick_face(view, x, y)
           if f
-            alt = (flags & ALT_MODIFIER_MASK) != 0  # giu Alt = chi 1 mat
-            @hover_faces = alt ? [f] : gather_region(f)
+            alt = (flags & ALT_MODIFIER_MASK) != 0  # MAC DINH chi 1 mat (an toan); giu Alt = gom ca mang phang
+            @hover_faces = alt ? gather_region(f) : [f]
             @hover_face_tr = tr
-            @hover_area = region_m2(@hover_faces)
+            @hover_area = region_m2(@hover_faces, tr)
           else
             @hover_faces = nil; @hover_area = 0.0
           end
@@ -161,8 +161,12 @@ module TK
         face.normal.parallel?(n0) && (face.vertices.first.position - p0).dot(n0).abs < 0.001
       end
 
-      def region_m2(faces)
-        faces.inject(0.0) { |s, f| s + f.area } * SQIN_M2
+      def region_m2(faces, tr)
+        # f.area(tr) = dien tich DA nhan scale cua group (world) = dung so Entity Info.
+        # f.area khong tham so chi ra dien tich LOCAL -> sai khi tam nam trong group bi
+        # phong/thu. Cung ho voi loi ban kinh cung da va o radius_of (~dong 248).
+        # SketchUp tu tinh (ke ca mat co lo/lom), minh chi bao no nhan ca scale.
+        faces.inject(0.0) { |s, f| s + f.area(tr) } * SQIN_M2
       end
 
       def region_centroid
@@ -457,7 +461,7 @@ module TK
       end
 
       def hud_action
-        return 'Rê mảng → click cộng · giữ Alt = chỉ 1 mặt' if @mode == :area
+        return 'Rê mặt → click cộng · giữ Alt = gom cả mảng' if @mode == :area
         if @state == :place
           @is_arc ? 'Rê đặt nhãn R → click đặt · ESC huỷ' : 'Rê đặt vị trí dim → click đặt · ESC huỷ'
         elsif @blocked
@@ -487,7 +491,7 @@ module TK
 
       def update_status
         msg = if @mode == :area
-                'Dim Nhanh [Diện tích]: rê mảng→click cộng m² · Tab=đổi · ESC=bảng kê'
+                'Dim Nhanh [Diện tích]: rê mặt→click cộng m² · Alt=gom mảng · Tab=đổi · ESC=bảng kê'
               else
                 m = @mode == :sum ? 'Báo giá' : 'Ghi chú'
                 @state == :pick ? "Dim Nhanh [#{m}]: rê cạnh→click dim · Tab=đổi chế độ · ESC thoát"

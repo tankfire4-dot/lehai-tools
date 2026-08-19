@@ -20,7 +20,7 @@ module TK
     ABF_NAME_PREFIX = '_ABF'.freeze
     ABF_TAG_PREFIX  = 'ABF_'.freeze
 
-    OPTS = %w[convert makecomp name color tag attr abf].freeze
+    OPTS = %w[convert makecomp name color tag attr abf dim].freeze
 
     # ── Dialog ─────────────────────────────────────────────────
     def self.show
@@ -31,7 +31,7 @@ module TK
       @dlg = UI::HtmlDialog.new(
         dialog_title:    'Dọn Component',
         preferences_key: 'tk.gogroup',
-        width:           320, height: 380,
+        width:           320, height: 424,
         min_width:       280, min_height: 320,
         resizable:       true,
         style:           UI::HtmlDialog::STYLE_DIALOG
@@ -54,11 +54,20 @@ module TK
       end
 
       model   = Sketchup.active_model
-      targets = model.selection.reject(&:locked?).select do |e|
+      # respond_to? trước khi gọi locked?: Sketchup::Text (nhãn dẫn) KHÔNG có
+      # method locked? → reject(&:locked?) văng NoMethodError, làm đơ câm (Khoa
+      # gặp 19/08). Không đoán entity nào có method gì — hỏi rồi mới gọi.
+      targets = model.selection.reject { |e| e.respond_to?(:locked?) && e.locked? }.select do |e|
         e.is_a?(Sketchup::ComponentInstance) || e.is_a?(Sketchup::Group)
       end
-      if targets.empty?
-        status('Chưa chọn component/group nào trong model.')
+      # Dim VÀ ghi chú (Text) đều là annotation, KHÔNG phải component/group nên bị
+      # lọc khỏi targets. Gom riêng để xóa khi được tích — chính Text là thứ vừa
+      # làm đơ, nên dọn nó luôn.
+      dims = opts['dim'] ? model.selection.select { |e|
+        e.is_a?(Sketchup::Dimension) || e.is_a?(Sketchup::Text)
+      } : []
+      if targets.empty? && dims.empty?
+        status('Chưa chọn component/group (hoặc dim/ghi chú) nào trong model.')
         return
       end
 
@@ -66,6 +75,7 @@ module TK
       begin
         @count      = 0
         @comp_count = 0
+        dim_n = erase_dims(dims)   # xóa dim/ghi chú đã gom (annotation ngoài targets)
         roots = targets
 
         if opts['convert']
@@ -102,15 +112,42 @@ module TK
         return
       end
 
-      status(summary(opts, @count, @comp_count, abf))
+      status(summary(opts, @count, @comp_count, abf, dim_n))
+    rescue => e
+      # Lưới an toàn CUỐI: mọi lỗi NGOÀI khối model (dựng targets/dims, summary…)
+      # từng lọt ra callback → dialog kẹt "Đang xử lý…" mà không nói gì (Khoa gặp
+      # 19/08). Giờ khai thẳng ra status + Console để đọc được, không đơ câm nữa.
+      status("Lỗi: #{e.class}: #{e.message}")
+      puts "[Dọn Component] #{e.class}: #{e.message}"
+      puts e.backtrace.first(8).join("\n") if e.backtrace
     end
     private_class_method :run
 
-    def self.summary(opts, conv, comp, abf)
+    # ── Xóa dim / ghi chú (annotation) ─────────────────────────
+    # Dim + Text đều là annotation top-level, không nằm trong targets. Xóa từng
+    # cái có bọc rescue: một cái hỏng không kéo sập cả thao tác (begin/rescue
+    # tường minh để chạy được cả SketchUp cũ — Ruby 2.2 chưa cho rescue in block).
+    def self.erase_dims(dims)
+      n = 0
+      dims.each do |d|
+        begin
+          next if d.deleted?
+          d.erase!
+          n += 1
+        rescue => e
+          puts "[Dọn Component] bỏ qua 1 dim không xóa được: #{e.message}"
+        end
+      end
+      n
+    end
+    private_class_method :erase_dims
+
+    def self.summary(opts, conv, comp, abf, dim)
       parts = []
       parts << "biến #{conv} component→group" if opts['convert']
       parts << "biến #{comp} group→component" if opts['makecomp']
       parts << "xóa #{abf} object ABF"        if opts['abf']
+      parts << "xóa #{dim} dim/ghi chú"       if opts['dim']
       done = []
       done << 'tên'        if opts['name']
       done << 'màu'        if opts['color']
@@ -310,10 +347,11 @@ module TK
         <label><input type="checkbox" id="tag"> Xóa tag</label>
         <label><input type="checkbox" id="attr"> Xóa thuộc tính</label>
         <label><input type="checkbox" id="abf"> Xóa object ABF (nhãn, rãnh phay)</label>
+        <label><input type="checkbox" id="dim"> Xóa dim / ghi chú (kích thước, nhãn)</label>
         <button class="run" onclick="runIt()">Thực hiện</button>
         <div id="status"></div>
         <script>
-          var KEYS=['convert','makecomp','name','color','tag','attr','abf'];
+          var KEYS=['convert','makecomp','name','color','tag','attr','abf','dim'];
           function setStatus(m){ document.getElementById('status').textContent=m; }
           function runIt(){
             var o={}; KEYS.forEach(function(k){ o[k]=document.getElementById(k).checked; });

@@ -42,8 +42,12 @@ module TK
     # template dao mẫu bên Aspire — "PHAI" giờ là di sản, không còn nghĩa bên.
     TAG_HO = 'CHONGBAYPHAI'.freeze
 
-    # Hai chế độ, Tab xoay qua lại (thay cho Tự động/Trái/Phải/Gỡ cũ).
-    CHE_DO = ['Gắn', 'Gỡ'].freeze
+    # Ba chế độ, Tab xoay qua lại (Gắn → Gỡ → Soát). Soát CHỈ ĐỌC: xem lại số đã
+    # đánh của file (kể cả file người khác làm) + bắt lỗi thiếu/trùng/chưa gắn.
+    # Thêm 04/08: đánh xong không có đường soát lại lộ trình — số cất trong tên
+    # tag nhưng chỉ vẽ huy hiệu cho tag gắn TRONG PHIÊN, mở file người khác là
+    # thấy nền cam mà không thấy số (xem ve_so + draw mục 3).
+    CHE_DO = ['Gắn', 'Gỡ', 'Soát'].freeze
 
     # Nhận dạng tấm ván trong cây nesting (đo thật 23/07 — xem traverse).
     SHEET_RE  = /-sheet-\d+\z/i.freeze
@@ -290,6 +294,20 @@ module TK
       puts "[Chống Bay] không cập nhật được bảng: #{e.message}"
     end
 
+    # SOÁT → bảng: mỗi hàng một tấm [tam, max, thieu[], trung[], chua].
+    # Số nhúng thẳng vào mảng JS (đều là số nguyên nên không phải escape); chỉ
+    # tên tấm mới đi qua esc_html vì nó là chuỗi.
+    def self.sync_soat(rows)
+      return unless @panel && (@panel.visible? rescue false)
+      js = rows.map do |tam, max, thieu, trung, chua|
+        "[\"#{esc_html(tam || 'ngoài tấm')}\",#{max.to_i}," \
+        "[#{thieu.join(',')}],[#{trung.join(',')}],#{chua.to_i}]"
+      end.join(',')
+      @panel.execute_script("capNhatSoat([#{js}])")
+    rescue => e
+      puts "[Chống Bay] không cập nhật được bảng soát: #{e.message}"
+    end
+
     def self.build_panel_html
       theme = File.exist?(THEME) ? File.read(THEME, encoding: 'UTF-8') : ''
       <<~HTML
@@ -305,6 +323,17 @@ module TK
             display: inline-block; width: 10px; height: 10px; border-radius: 3px;
             margin-right: 7px; vertical-align: -1px;
           }
+          /* Bảng SOÁT — sức khoẻ từng tấm. */
+          #soat th {
+            font-size: 10px; font-weight: 700; letter-spacing: .05em;
+            text-transform: uppercase; color: var(--lh-ink-soft); text-align: left;
+            padding: 6px 8px; border-bottom: 1.5px solid var(--lh-line);
+          }
+          #soat td { vertical-align: top; }
+          .bad   { color: #d64545; font-weight: 600; }
+          .warn  { color: var(--lh-amber, #b8791f); font-weight: 600; }
+          .ok    { color: #1a9d5a; font-weight: 700; }
+          .muted { color: var(--lh-ink-soft); }
         </style></head>
         <body class="lh"><div class="lh-dialog">
           <div class="lh-eyebrow">LeHai's Decor Tools</div>
@@ -315,16 +344,20 @@ module TK
             <div class="lh-chips">
               <button class="lh-chip is-active" id="c0" onclick="pick(0)">Gắn</button>
               <button class="lh-chip" id="c1" onclick="pick(1)">Gỡ</button>
+              <button class="lh-chip" id="c2" onclick="pick(2)">Soát</button>
             </div>
             <div class="lh-hint">
               <b>Gắn</b>: đánh số thứ tự cắt cho mỗi chi tiết, một dãy liền cho mỗi
               tấm. Kiểu <b>Khung</b> tự sắp theo cột dọc, quét <b>phải qua trái</b>;
               kiểu <b>Vẽ tự do</b> đánh theo đúng nét mình vẽ. <b>Gỡ</b>: quét lại
-              chỗ gắn nhầm để trả về tag gốc. Tab đổi qua lại hai chế độ.
+              chỗ gắn nhầm để trả về tag gốc. <b>Soát</b>: xem lại số đã đánh của cả
+              file (kể cả file người khác) — hiện số lên từng chi tiết, zoom vào một
+              tấm để đọc; bảng bên dưới nói tấm nào <b>thiếu số</b>, <b>trùng số</b>
+              hay <b>chưa gắn</b>. Tab xoay vòng ba chế độ.
             </div>
           </div>
 
-          <div class="lh-field">
+          <div class="lh-field mk">
             <label class="lh-label">Kiểu quét</label>
             <div class="lh-chips">
               <button class="lh-chip is-active" id="k0" onclick="pickK(0)">Khung</button>
@@ -332,21 +365,38 @@ module TK
             </div>
           </div>
 
-          <div class="lh-field">
+          <div class="lh-field mk">
             <label class="lh-label">Đợt kế tiếp — <span id="tam">…</span></label>
             <input class="lh-input" id="n0" type="number" min="1" max="#{SO_TOI_DA}"
                    value="1" onchange="gui()">
           </div>
-          <div class="lh-hint">
+          <div class="lh-hint mk">
             Số là THỨ TỰ CẮT, mỗi chi tiết một số riêng. Đếm RIÊNG cho <b>từng tấm
             ván</b> — mỗi tấm là một lần chạy máy, nên quét sang tấm khác là số bắt
             đầu lại. Ô này nói về tấm vừa quét. Tự dò từ file (số lớn nhất đang có
             + 1); gõ đè để nhảy tới đợt khác. Trần #{SO_TOI_DA} mỗi tấm.
           </div>
 
-          <hr class="lh-divider">
-          <div class="lh-card" style="padding:6px 8px 8px">
+          <hr class="lh-divider mk">
+          <div class="lh-card mk" style="padding:6px 8px 8px">
             <table id="dem"></table>
+          </div>
+
+          <!-- SOÁT: bảng sức khoẻ từng tấm (ẩn ở chế độ Gắn/Gỡ). -->
+          <div class="sc" style="display:none">
+            <hr class="lh-divider">
+            <div class="lh-card" style="padding:6px 8px 8px">
+              <table id="soat">
+                <thead><tr><th>Tấm</th>
+                  <th style="text-align:right">Số đợt</th><th>Vấn đề</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="lh-hint">
+              Số hiện trên từng chi tiết ngoài khung nhìn — <b>zoom vào một tấm</b>
+              để đọc rõ lộ trình. <b>Thiếu</b>/<b>trùng</b> là máy bắt chắc; còn thứ
+              tự dao có hợp lý không thì nhìn số trên màn hình mà xét.
+            </div>
           </div>
 
           <div id="nhac" class="lh-status"></div>
@@ -378,13 +428,21 @@ module TK
           // bớt một kiểu quét là getElementById trả null, capNhat chết giữa
           // chừng và CẢ BẢNG ngừng cập nhật — hỏng ở chỗ không liên quan gì.
           // Số lấy từ Ruby, khỏi phải nhớ sửa hai nơi. (23/07)
-          // cd = chế độ (0 Gắn / 1 Gỡ), k = kiểu quét, so = đợt kế tiếp (một số),
+          // cd = chế độ (0 Gắn / 1 Gỡ / 2 Soát), k = kiểu quét, so = đợt kế tiếp,
           // tam = tên tấm ván ô số đang nói tới.
           function capNhat(cd, k, so, tam, dem){
             for (var i = 0; i < #{CHE_DO.size}; i++){
               document.getElementById("c" + i).className =
                 (i === cd) ? "lh-chip is-active" : "lh-chip";
             }
+            // SOÁT giấu bộ điều khiển đánh dấu (.mk), bày bảng sức khoẻ (.sc).
+            // Chỉ số Soát = chế độ cuối, lấy từ Ruby để khỏi ghim tay một con số.
+            var soat = (cd === #{CHE_DO.size - 1});
+            var mk = document.getElementsByClassName("mk");
+            for (var a = 0; a < mk.length; a++){ mk[a].style.display = soat ? "none" : ""; }
+            var sc = document.getElementsByClassName("sc");
+            for (var b = 0; b < sc.length; b++){ sc[b].style.display = soat ? "" : "none"; }
+
             for (var j2 = 0; j2 < #{KIEU.size}; j2++){
               document.getElementById("k" + j2).className =
                 (j2 === k) ? "lh-chip is-active" : "lh-chip";
@@ -397,6 +455,35 @@ module TK
                  + dem[j][0] + "</td><td class=v>" + dem[j][1] + "</td></tr>";
             }
             document.getElementById("dem").innerHTML = s;
+          }
+          // rows = [[tam, max, thieu[], trung[], chua], ...] từ Ruby (soat_tinh).
+          // Ba mức khác nhau, ĐỪNG trộn màu:
+          //   Trùng số   = sai CHẮC (hai chi tiết cùng thứ tự dao) → đỏ, đọc trước.
+          //   Thiếu số   = dãy đứt quãng (gỡ giữa chừng / nhảy số tay) → vàng, để ý.
+          //   Chưa gắn   = BÌNH THƯỜNG (chỉ tấm nhỏ mới cần chống bay) → xám, thông
+          //                tin thôi, không phải lỗi.
+          // Danh sách thiếu có thể dài nếu nhảy số tay → cắt còn 12 số đầu.
+          function capNhatSoat(rows){
+            var body = document.querySelector("#soat tbody");
+            if (!body) { return; }
+            function catList(a){
+              if (a.length <= 12) { return a.join(", "); }
+              return a.slice(0, 12).join(", ") + "… (+" + (a.length - 12) + ")";
+            }
+            var s = "";
+            for (var i = 0; i < rows.length; i++){
+              var tam = rows[i][0], max = rows[i][1];
+              var thieu = rows[i][2], trung = rows[i][3], chua = rows[i][4];
+              var pb = [];
+              if (trung.length) { pb.push("<span class=bad>Trùng " + catList(trung) + "</span>"); }
+              if (thieu.length) { pb.push("<span class=warn>Thiếu " + catList(thieu) + "</span>"); }
+              if (!pb.length)   { pb.push("<span class=ok>&#10003;</span>"); }
+              if (chua)         { pb.push("<span class=muted>còn " + chua + " chưa gắn</span>"); }
+              var dai = (max > 0) ? ("1–" + max) : "—";
+              s += "<tr><td>" + tam + "</td><td class=v>" + dai
+                 + "</td><td>" + pb.join(" &middot; ") + "</td></tr>";
+            }
+            body.innerHTML = s;
           }
         </script></body></html>
       HTML
@@ -635,13 +722,15 @@ module TK
 
     class SweepTool
 
-      # Hai chế độ, Tab xoay qua lại (thay cho vòng Tự động/Trái/Phải/Gỡ cũ):
+      # Ba chế độ, Tab xoay qua lại (thay cho vòng Tự động/Trái/Phải/Gỡ cũ):
       #   0 = GẮN (mặc định) — quét tới đâu đánh số cắt tới đó
       #   1 = GỠ            — trả chi tiết về tag gốc đã ghi nhớ
-      # Gỡ nằm cùng vòng Tab thay vì thêm phím mới: Khoa đã quen Tab rồi.
-      GAN_I = 0
-      GO_I  = 1
-      SO_O  = TK::ChongBay::CHE_DO.size   # tổng số nút chế độ
+      #   2 = SOÁT          — chỉ đọc: hiện số đã đánh của cả file + bắt lỗi
+      # Gỡ/Soát nằm cùng vòng Tab thay vì thêm phím mới: Khoa đã quen Tab rồi.
+      GAN_I  = 0
+      GO_I   = 1
+      SOAT_I = 2
+      SO_O   = TK::ChongBay::CHE_DO.size   # tổng số nút chế độ
 
       def initialize
         @che_do_i = GAN_I   # chỉ số chế độ (GAN_I / GO_I)
@@ -704,6 +793,36 @@ module TK
         so = so_ke_cua(@tam_hien)
         TK::ChongBay.sync_panel(@che_do_i, @kieu_i, so,
                                 @tam_hien || 'ngoài tấm', hang)
+        # Soát: gửi thêm bảng sức khoẻ từng tấm (thiếu/trùng/chưa gắn).
+        TK::ChongBay.sync_soat(soat_tinh) if @che_do_i == SOAT_I
+      end
+
+      # ── SOÁT: dò lỗi khách quan trong dãy số đã đánh ─────────────
+      # Với mỗi tấm, trả [tam, max, thieu[], trung[], chua]:
+      #   max   = số đợt lớn nhất đang có (0 nếu tấm chưa gắn gì)
+      #   thieu = các số 1..max KHÔNG xuất hiện → bỏ sót một chi tiết giữa dãy
+      #   trung = số xuất hiện >1 lần → hai chi tiết cùng số, sai thứ tự đường dao
+      #   chua  = số chi tiết trong tấm còn đeo tag gốc (chưa đánh số)
+      # Đây là ba lỗi máy bắt được chắc chắn; còn "lộ trình có hợp lý không" thì
+      # để mắt người đọc số trên màn hình — hai thứ bù nhau.
+      def soat_tinh
+        cac_tam.map do |tam|
+          dem  = Hash.new(0)   # số đợt => bao nhiêu chi tiết mang số đó
+          chua = 0
+          (@cands || []).each do |c|
+            next if c.tam != tam
+            if c.tag.nil?
+              chua += 1
+            else
+              _h, so = TK::ChongBay.tach_tag(c.tag)
+              dem[so] += 1 unless so.nil?
+            end
+          end
+          max   = dem.keys.max || 0
+          thieu = (1..max).reject { |n| dem.key?(n) }
+          trung = dem.select { |_n, k| k > 1 }.keys.sort
+          [tam, max, thieu, trung, chua]
+        end
       end
 
       def erase? ; @che_do_i == GO_I end
@@ -846,6 +965,7 @@ module TK
       end
 
       def onLButtonDown(_flags, x, y, view)
+        return if @che_do_i == SOAT_I   # Soát chỉ đọc — không quét, không gắn
         @drag = true
         @x0 = x; @y0 = y; @x1 = x; @y1 = y
         @net = [[x, y]]
@@ -966,10 +1086,10 @@ module TK
           view.draw2d(GL_LINES, pts)
         end
 
-        # 3. HUY HIỆU SỐ ĐỢT. Chỉ vẽ cái gắn TRONG PHIÊN NÀY (Khoa 23/07) — file
-        #    đã gắn sẵn cả trăm cái mà vẽ hết thì màn hình đặc chữ, không đọc
-        #    được cái mình vừa làm. Đây là chỗ ĐỌC THỨ TỰ; nền màu chỉ còn nói
-        #    "đã gắn".
+        # 3. HUY HIỆU SỐ ĐỢT. Gắn/Gỡ: chỉ vẽ cái gắn TRONG PHIÊN NÀY (Khoa 23/07)
+        #    — file đã gắn sẵn cả trăm cái mà vẽ hết thì màn hình đặc chữ, không
+        #    đọc được cái mình vừa làm. SOÁT: vẽ HẾT để soi lại lộ trình file
+        #    người khác (xem ve_so). Đây là chỗ ĐỌC THỨ TỰ; nền màu chỉ nói "đã gắn".
         ve_so(view)
 
         draw_band(view) if @drag
@@ -998,9 +1118,15 @@ module TK
       # thành vệt, thà không vẽ còn hơn vẽ ra thứ không đọc được.
       # Khuôn draw_text (keyword options, SketchUp 2016+): dim_nhanh/main.rb:485.
       def ve_so(view)
-        return if @tag_phien.nil? || @tag_phien.empty?
+        # SOÁT vẽ số cho MỌI chi tiết đã gắn (không chỉ tag của phiên này) để đọc
+        # lại lộ trình của file người khác. Cái ẩn-theo-kích-thước bên dưới
+        # (`dai < 20`) tự lo chuyện "đặc chữ" mà 23/07 sợ: zoom xa thì số biến
+        # mất, zoom vào MỘT tấm thì chỉ số của tấm đó hiện — không cần điều hướng.
+        soat = @che_do_i == SOAT_I
+        return if !soat && (@tag_phien.nil? || @tag_phien.empty?)
         @cands.each do |c|
-          next if c.tag.nil? || !@tag_phien[c.tag]
+          next if c.tag.nil?
+          next if !soat && !@tag_phien[c.tag]
           next if (c.group.deleted? rescue true)
           _h, so = TK::ChongBay.tach_tag(c.tag)
           next if so.nil?

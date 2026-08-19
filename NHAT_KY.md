@@ -12,6 +12,41 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-08-19 — Dim Nhanh diện tích: quên nhân scale + đảo mặc định gom mảng
+
+**Vấn đề:** Khoa đo diện tích bằng Dim Nhanh, số lệch ~18% so với Entity Info của
+SketchUp (25.39 vs 31.1 m²). Đo tiếp ra HAI lỗi chồng nhau: (1) `region_m2` cộng
+`f.area` — diện tích LOCAL, **không nhân scale** của group chứa mặt → sai khi tấm
+nằm trong group bị phóng/thu. (2) Mặc định "rê là gom cả mảng phẳng" **vơ luôn**
+mặt kế bên cùng mặt phẳng mà file người vẽ để dính nhau → tổng phình; bấm Alt
+(chỉ 1 mặt) thì hết.
+
+**Quyết định:** (1) `f.area` → `f.area(tr)` — để SketchUp tự tính, nhân cả scale,
+khớp đúng Entity Info (Khoa nghiệm thu số đúng trên máy thật). (2) ĐẢO mặc định:
+rê = **CHỈ 1 MẶT** (an toàn); giữ **Alt** mới gom cả mảng (chủ động).
+
+**Vì sao:** cây thước sai 18% thì tệ hơn không có — số m² chảy thẳng vào báo giá.
+Mặc định phải là lối KHÔNG BAO GIỜ vơ dư; gom mảng là tiện ích chọn thêm.
+
+**Bài học:** đúng họ lỗi `radius_of` đã vá (lấy `.radius` LOCAL chưa nhân scale) —
+sửa một nhánh, quên nhánh cùng cây thước. Đo bất kỳ đại lượng hình học trong
+group: hỏi ngay *"đã nhân transform chưa?"*. `f.area(tr)` chưa từng chạy trong
+repo → nghiệm thu bằng tay Khoa ở Ruby Console, không ghi "đã kiểm" thay người.
+
+> Phát hành cùng: Chống Bay thêm chế độ **Soát** (chỉ đọc — hiện số đã đánh của cả
+> file + bắt Thiếu/Trùng/Chưa gắn), code tồn từ 04/08 nay nghiệm thu + ship chung.
+>
+> Và **Dọn Component**: quét trúng annotation thì **đơ câm**. Thủ phạm THẬT (đo ra
+> bằng lưới-an-toàn thêm 19/08, KHÁC với giả thuyết "re-association" ban đầu):
+> dòng `selection.reject(&:locked?)` gọi `locked?` lên **Sketchup::Text** (nhãn
+> dẫn) — Text KHÔNG có method đó → `NoMethodError` ném ra NGOÀI rescue (rescue cũ
+> chỉ bọc khối model) → dialog kẹt "Đang xử lý…". Vá: guard `respond_to?(:locked?)`
+> + rescue phủ cả `run()`. Thêm nút **Xóa dim/ghi chú** dọn luôn Dimension + Text.
+> Bài học: (1) đừng gọi method lên entity chưa chắc kiểu — hỏi `respond_to?` trước;
+> (2) rescue phải phủ TỪ ĐẦU callback, lỗi ngoài khối = đơ câm không để lại dấu.
+
+---
+
 ## 2026-08-01 — Lấp móng: 8 chỗ SketchUp nói dối + mẫu chuẩn để ĐO tool
 
 **Vấn đề Khoa nêu:** *"những khái niệm cốt lõi của plugin, đúng hơn là kiến thức về SketchUp của

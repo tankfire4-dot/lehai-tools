@@ -18,7 +18,7 @@ module TK
     THEME = File.join(PATH, '..', 'shared', 'lehai_theme.css').freeze
 
     # Nạp các check phụ thuộc — rescue để 1 tool lỗi không chặn dashboard.
-    %w[kiem_tra_do_day kiem_tra_khoang_cach trung_tam kiem_tra_ban_le kiem_tra_lien_ket kiem_tra_led kiem_tra_ten kiem_tra_dan_canh kiem_tra_r100 kiem_tra_ban_le_chan].each do |folder|
+    %w[kiem_tra_do_day kiem_tra_khoang_cach trung_tam kiem_tra_ban_le kiem_tra_lien_ket kiem_tra_led kiem_tra_ten kiem_tra_dan_canh kiem_tra_r100 kiem_tra_ban_le_chan soi_van].each do |folder|
       begin
         require File.join(PATH, '..', folder, 'main')
       rescue LoadError, StandardError => e
@@ -41,7 +41,9 @@ module TK
         { key: 'chanbl',  name: 'Đợt Chắn Bản Lề',  mod: mod_of(:HingeBlockCheck) },
         { key: 'khoang',  name: 'Khoảng Cách 7mm',  mod: mod_of(:SpacingCheck) },
         # Cuối bảng: nhắc người xác nhận, không phải chốt chặn (vàng, không đỏ).
-        { key: 'r100',    name: 'Cung R100',        mod: mod_of(:RadiusCheck) }
+        { key: 'r100',    name: 'Cung R100',        mod: mod_of(:RadiusCheck) },
+        # Nhắc mắt-kiểm chiều vân (không tự chấm đúng/sai được) — luôn vàng; Xem = mở Soi Vân.
+        { key: 'van',     name: 'Chiều Vân Gỗ',     mod: mod_of(:SoiVan) }
       ]
     end
     private_class_method :checks

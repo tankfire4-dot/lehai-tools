@@ -56,6 +56,24 @@ module TK
       run
     end
 
+    # ── Adapter cho dashboard "Check Chốt Sản Xuất" (TK::PreExportCheck) ──
+    # Vân KHÔNG tự kiểm đúng/sai được (đúng chiều là quyết định của người) → luôn để
+    # VÀNG nhắc mắt-kiểm trước khi xuất, không bao giờ tự cho "đạt".
+    def self.audit
+      labeled = 0; total = 0                      # chỉ ĐẾM tấm, không dựng hình tô (nhẹ cho dashboard)
+      walk(Sketchup.active_model.entities, Geom::Transformation.new, 0) do |board, _te|
+        total += 1
+        labeled += 1 if find_label(board)
+      end
+      return { status: :na, count: 0, message: 'Không thấy tấm ván ABF nào để soi vân.' } if total.zero?
+      { status: :warn, count: labeled,
+        message: "Nhớ soi chiều vân gỗ — đổ màu solid dễ bỏ sót tấm ngược. Bấm Xem để phủ màu #{labeled} tấm." }
+    end
+
+    def self.review
+      run
+    end
+
     # =========================================================
     #  QUÉT
     # =========================================================

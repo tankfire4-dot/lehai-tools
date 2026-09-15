@@ -17,6 +17,7 @@ module LeHai
         File.join(path, 'go_group',      'main'),
         File.join(path, 'kiem_tra_do_day', 'main'),
         File.join(path, 'tim_tam_loi',   'main'),
+        File.join(path, 'soi_van',       'main'),
         File.join(path, 'kiem_tra_khoang_cach', 'main'),
         File.join(path, 'chong_bay',     'main'),
         File.join(path, 'truc_toa_do',   'main'),
@@ -47,6 +48,7 @@ module LeHai
       puts "[LeHai_Tools] Defined? TK::GoGroup            = #{defined?(::TK::GoGroup).inspect}"
       puts "[LeHai_Tools] Defined? TK::ThickCheck         = #{defined?(::TK::ThickCheck).inspect}"
       puts "[LeHai_Tools] Defined? TK::ABFFinder          = #{defined?(::TK::ABFFinder).inspect}"
+      puts "[LeHai_Tools] Defined? TK::SoiVan             = #{defined?(::TK::SoiVan).inspect}"
       puts "[LeHai_Tools] Defined? TK::SpacingCheck       = #{defined?(::TK::SpacingCheck).inspect}"
       puts "[LeHai_Tools] Defined? TK::ChongBay           = #{defined?(::TK::ChongBay).inspect}"
       puts "[LeHai_Tools] Defined? TK::AxisFix            = #{defined?(::TK::AxisFix).inspect}"
@@ -91,6 +93,9 @@ module LeHai
         # Tìm Tấm Lỗi — trước đây đặt cạnh Kiểm Tra Độ Dày (cùng là kính lúp soi tấm)
         [defined?(::TK::ABFFinder) && ::TK::ABFFinder.respond_to?(:create_cmd),
          -> { ::TK::ABFFinder.create_cmd }],
+        # Soi Vân — phủ màu + sọc theo chiều vân ABF, soi tấm ngược khi đổ màu solid (cùng cụm soi tấm)
+        [defined?(::TK::SoiVan) && ::TK::SoiVan.respond_to?(:create_cmd),
+         -> { ::TK::SoiVan.create_cmd }],
         # Kiểm Tra Khoảng Cách — QC sau nesting, cùng cụm kiểm tra
         [defined?(::TK::SpacingCheck) && ::TK::SpacingCheck.respond_to?(:create_cmd),
          -> { ::TK::SpacingCheck.create_cmd }],

@@ -226,6 +226,7 @@ là danh sách nút. Muốn biết đủ module thì `ls LeHai_Tools/*/`.
 | Gỡ DC → Group | `TK::GoGroup` | ✓ |
 | Kiểm Tra Độ Dày | `TK::ThickCheck` | ✓ |
 | Tìm Tấm Lỗi | `TK::ABFFinder` | ✓ |
+| Soi Vân (phủ màu + sọc chiều vân ABF, soi tấm ngược) | `TK::SoiVan` | ✓ |
 | Kiểm Tra Khoảng Cách | `TK::SpacingCheck` | ✓ |
 | Trục Tọa Độ | `TK::AxisFix` | ✓ |
 | Dim Nhanh | `TK::QuickDim` | ✓ |

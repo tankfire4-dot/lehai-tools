@@ -1,5 +1,5 @@
 {
-  "version": "1.9.59",
+  "version": "1.9.60",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -54,6 +54,9 @@
     "LeHai_Tools/soat_truoc_xuat/main.rb",
     "LeHai_Tools/soat_truoc_xuat/icons/gate_16.png",
     "LeHai_Tools/soat_truoc_xuat/icons/gate_24.png",
+    "LeHai_Tools/soi_van/main.rb",
+    "LeHai_Tools/soi_van/icons/soi_van_16.png",
+    "LeHai_Tools/soi_van/icons/soi_van_24.png",
     "LeHai_Tools/tam_go/main.rb",
     "LeHai_Tools/tam_go/icons/tamgo_16.png",
     "LeHai_Tools/tam_go/icons/tamgo_24.png",

@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mộng xương chó</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="giao_dien.css"></head>
+<body>
+<header><div><h1>Mộng xương chó</h1><span class="subtitle">Chỉnh thông số trên sơ đồ</span></div><span id="demo" class="badge">Đang kết nối SketchUp…</span></header>
+<div class="toolbar"><label>Tấm tạo mộng <select id="source" aria-label="Tấm tạo mộng"></select></label><span id="boardSize"></span><div class="quantity"><label for="count">Số mộng</label><button id="minus" aria-label="Bớt một mộng">−</button><input id="count" type="number" value="3" min="1" step="1"><button id="plus" aria-label="Thêm một mộng">+</button></div><button id="pick">Chọn cạnh trên model</button></div>
+<main>
+<section><div class="section-title"><h2><span>1</span> Cạnh đặt mộng</h2><p id="measureHelp">Bấm ô số để xem kích thước tương ứng trên hình.</p></div>
+<div class="split"><div class="drawing">
+<div class="dimension-inputs"><label>Lùi tâm <span><input id="inset" type="number" value="50" min="0" step="1"> mm</span></label><label>Rộng đầu <span><input id="head" type="number" value="35" min="1" step=".5"> mm</span></label><label>Cao mộng <span><input id="height" type="number" value="10" min="1" step=".5"> mm</span></label></div>
+<div class="board-stage"><canvas id="board" aria-label="Sơ đồ tấm và mộng theo cạnh đã chọn"></canvas><button class="edge top" data-edge="1">1 · Trên</button><button class="edge right" data-edge="2">2 · Phải</button><button class="edge bottom" data-edge="3">3 · Dưới</button><button class="edge left" data-edge="4">4 · Trái</button></div>
+<div class="detail-controls"><label>Đường kính khoét cổ <input id="neck" type="number" value="6" min="1" step=".5"> mm</label><label>Vát đỉnh <input id="bevel" type="number" value="1" min="0" step=".1"> mm</label></div>
+</div><aside><h3 id="edgeTitle">Cạnh 1 · Trên</h3><p class="note">Đối chiếu số cạnh và mặt A/B đang tô trên model.</p><div id="contact" class="contact"></div><p id="spacing" class="small"></p></aside></div></section>
+<section><div class="section-title"><h2><span>2</span> Vị trí dấu âm</h2><p>Mặt cắt theo bề dày · phóng to</p></div>
+<div class="split"><div class="drawing"><div class="mark-inputs"><label>Dày tính dấu <span><input id="fit" type="number" value="14" min="1" step=".1"> mm</span></label><label>Dư dày tổng <span><input id="slackT" type="number" value="0.1" min="0" step=".05"> mm</span></label><span class="help">Chia đều độ dư hai bên</span></div><canvas id="section" aria-label="Dấu âm dịch về mặt A hoặc B, thân ván giữ nguyên"></canvas><div class="sides"><button data-side="none">Không thu</button><button data-side="A">Giữ mặt A</button><button data-side="B">Giữ mặt B</button></div><p class="rule" id="rule">Chỉ dấu âm thay đổi · Mộng 3D giữ nguyên bề dày ván</p></div><aside><h3>Dấu trên tấm nhận</h3><canvas id="mortise" aria-label="Đường bao mộng âm"></canvas><p id="markSize" class="small"></p><div class="aside-controls"><label>Dư dài tổng <span><input id="slackL" type="number" value=".5" min="0" step=".1"> mm</span></label><label>Dao góc dấu âm <span><input id="cutter" type="number" value="6" min="1" step=".5"> mm</span></label></div></aside></div></section>
+</main>
+<footer><div><strong id="summary"></strong><p id="status" role="status" aria-live="polite"></p></div><button id="cancel">Đóng</button><button id="apply" class="primary">Áp dụng</button></footer>
+<script src="giao_dien.js"></script></body></html>

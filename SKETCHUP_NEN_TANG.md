@@ -85,13 +85,24 @@ với một độ dài inch thì im lặng luôn.
 gốc** → mọi tấm khác cùng bản gốc đổi theo.
 
 Chỗ chết người: trong SketchUp bằng tay, ông nhấp đúp vào group để sửa thì SketchUp thường tự
-tách bản riêng cho ông. **Ruby thì KHÔNG.** Code sửa thẳng vào definition, lây sang tấm khác,
-mà màn hình lúc đó ông đang nhìn tấm này nên không thấy.
+tách bản riêng cho ông. **Với COMPONENT, Ruby thì KHÔNG** — sửa `definition.entities` là sửa
+bản gốc, lây sang mọi bản sao, mà màn hình lúc đó ông đang nhìn tấm này nên không thấy.
+
+> **Đính chính 23/09/2026 (đối chiếu tài liệu Trimble `Sketchup::Group#entities`):** bản cũ ghi
+> "Ruby thì KHÔNG" chung cho cả group — **sai với GROUP**. Tài liệu hãng: *"Editing the returned
+> Entities will automatically make the group unique, similarly to when you open it for editing
+> in the GUI."* Tức sửa qua `group.entities` thì SketchUp tự tách. Rủi ro lây thật nằm ở
+> **ComponentInstance** (tài liệu: `make_unique` *"create a component definition for this
+> instance that is not used by any other instances"*). Gọi `make_unique` trên group vẫn vô hại,
+> cứ giữ — nhưng đừng tin nó là lý do duy nhất code đang an toàn.
 
 ```ruby
 inst.make_unique   # tách bản riêng TRƯỚC khi sửa
 # CẢNH BÁO: make_unique thay entity cũ bằng entity MỚI.
 # Mọi biến/danh sách đang giữ entity cũ thành rác -> phải lấy lại tay cầm.
+# (23/09: tài liệu Trimble chỉ nói ComponentInstance được definition MỚI, không nói instance
+#  bị thay. Cảnh báo này đến từ lần chạy Chống Bay — CHƯA đo chính xác cái gì thành rác:
+#  instance hay tay cầm trỏ vào entities của definition cũ. Cứ quét lại là an toàn.)
 ```
 
 **Dấu hiệu.** Sửa 1 tấm, mở ra thấy 5 tấm đổi theo. Hoặc: chạy tool xong, `entity.deleted?`

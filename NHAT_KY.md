@@ -20,7 +20,7 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
    lỗi Dọn Component đã vá 19/08: vùng chọn lẫn ghi chú/Text/dim thì văng NoMethodError, bấm nút
    không có gì xảy ra, không báo gì.
 2. **Chia Lam** (`chia_lam/main.rb`, `generate_slats_perfect`) mở `start_operation` mà không có
-   `rescue`/`abort_operation`. `add_face` gặp điểm trùng/lệch mặt phẳng thì văng lỗi → để lại nửa
+   `rescue`/`abort_operation`. lỗi bất kỳ giữa chừng (`pushpull`, `add_group`…) → để lại nửa
    bộ lam + thao tác undo bỏ ngỏ, và vì lỗi nằm trong callback Tool nên SketchUp nuốt câm.
 3. **Đường tự cập nhật** có hai lỗ: (a) `updater.rb` tải tới đâu GHI ĐÈ tới đó → rớt mạng giữa
    chừng là máy thợ lẫn file bản mới + bản cũ tới lần mở sau; (b) `main.rb` dựng toolbar không
@@ -38,6 +38,11 @@ hiện tại. Phải thử trên một máy thợ trước.
 
 **Bài học.** Một bản vá (go_group 19/08) mà không quét anh em cùng họ thì lỗi còn sống ở tool bên
 cạnh. Vá xong một chỗ → `grep` cả kho đúng mẫu đó.
+
+**Đính chính cùng ngày:** bản đầu mục này ghi "`add_face` gặp điểm trùng thì văng lỗi" —
+đoán từ trí nhớ. Đối chiếu tài liệu Trimble: `add_face` hỏng thì **trả `nil`**, không ghi
+exception nào; `chia_lam` vốn đã xử lý nhánh `nil`. Khối rescue vẫn giữ vì còn che các lệnh
+khác. Đúng loại lỗi "đoán API" mà `sketchup-api.md` mục 0 cấm — bắt được nhờ đối chiếu.
 
 **Đã kiểm:** tĩnh — cân bằng khối trước/sau, quét gọi-vs-định-nghĩa sạch, diff đúng 4 file.
 **CHƯA chạy SketchUp.**

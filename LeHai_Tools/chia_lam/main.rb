@@ -362,8 +362,9 @@ module TK
 
         model.commit_operation
         rescue => e
-          # add_face van loi (diem trung / lech mat phang) thi KHONG de lai nua bo
-          # lam + thao tac undo bo ngo. Loi trong callback Tool bi SketchUp nuot
+          # Loi bat ky giua chung (pushpull, add_group...) thi KHONG de lai nua bo
+          # lam + thao tac undo bo ngo. add_face hong thi tra nil (tai lieu Trimble),
+          # da xu ly o nhanh else ben tren. Loi trong callback Tool bi SketchUp nuot
           # cam, nen phai tu bao ra (sketchup-api.md muc "Bat loi trong Tool").
           model.abort_operation
           puts "[Chia Lam] Loi: #{e.class}: #{e.message}"

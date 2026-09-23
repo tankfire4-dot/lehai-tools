@@ -12,6 +12,36 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-09-23 — 1.9.64: vá 3 chỗ sau lượt soát toàn bộ (Claude, Khoa giao)
+
+**Vấn đề.** Soát tĩnh toàn kho 1.9.63 (chưa mở SketchUp) ra 3 chỗ sửa ngay được:
+
+1. **Trục Tọa Độ** (`truc_toa_do/main.rb`, `picked`) còn `selection.reject(&:locked?)` — đúng
+   lỗi Dọn Component đã vá 19/08: vùng chọn lẫn ghi chú/Text/dim thì văng NoMethodError, bấm nút
+   không có gì xảy ra, không báo gì.
+2. **Chia Lam** (`chia_lam/main.rb`, `generate_slats_perfect`) mở `start_operation` mà không có
+   `rescue`/`abort_operation`. `add_face` gặp điểm trùng/lệch mặt phẳng thì văng lỗi → để lại nửa
+   bộ lam + thao tác undo bỏ ngỏ, và vì lỗi nằm trong callback Tool nên SketchUp nuốt câm.
+3. **Đường tự cập nhật** có hai lỗ: (a) `updater.rb` tải tới đâu GHI ĐÈ tới đó → rớt mạng giữa
+   chừng là máy thợ lẫn file bản mới + bản cũ tới lần mở sau; (b) `main.rb` dựng toolbar không
+   `rescue`, mà `check_update` nằm SAU → một `create_cmd` lỗi là mất luôn đường vá từ xa.
+
+**Quyết định.** (1) hỏi `respond_to?(:locked?)` trước khi gọi, y bản vá go_group. (2) bọc
+`begin/rescue` + `abort_operation` + báo lỗi ra Console và hộp thoại. (3a) tải đủ hết vào bộ nhớ,
+chỉ ghi khi không thiếu file nào; thiếu thì không ghi gì và báo sẽ thử lại lần mở sau.
+(3b) `rescue` từng nút trong vòng dựng toolbar.
+
+**Cố ý CHƯA làm:** updater đặt `verify_mode = VERIFY_NONE` từ ngày đầu (`d8f37bc`), không ghi lý
+do. Nghĩa là tải code về rồi chạy mà không xác minh nguồn — ai chen vào mạng là tráo được code.
+Chưa bật lại vì nếu SketchUp máy thợ thiếu chứng chỉ gốc thì auto-update chết IM LẶNG — tệ hơn
+hiện tại. Phải thử trên một máy thợ trước.
+
+**Bài học.** Một bản vá (go_group 19/08) mà không quét anh em cùng họ thì lỗi còn sống ở tool bên
+cạnh. Vá xong một chỗ → `grep` cả kho đúng mẫu đó.
+
+**Đã kiểm:** tĩnh — cân bằng khối trước/sau, quét gọi-vs-định-nghĩa sạch, diff đúng 4 file.
+**CHƯA chạy SketchUp.**
+
 ## 2026-08-19 — Dim Nhanh diện tích: quên nhân scale + đảo mặc định gom mảng
 
 **Vấn đề:** Khoa đo diện tích bằng Dim Nhanh, số lệch ~18% so với Entity Info của
@@ -1014,6 +1044,7 @@ Tóm tắt 1 dòng mỗi version. Lý do chi tiết của các thay đổi gần
 
 | Phiên bản | Ngày       | Nội dung |
 |-----------|------------|----------|
+| 1.9.64    | 2026-09-23 | Vá sau lượt soát: Trục Tọa Độ không còn đơ câm khi vùng chọn lẫn ghi chú; Chia Lam lỗi giữa chừng thì hoàn tác sạch + báo; updater tải đủ mới ghi (hết cảnh lẫn bản); 1 nút lỗi không chặn toolbar + tự cập nhật |
 | 1.9.48    | 2026-07-20 | Chống Bay: trần 9 đợt (một chữ số → Aspire sắp tên bằng chuỗi vẫn ra đúng thứ tự số); mỗi lượt kéo nhận tối đa `đợt_cuối−đợt_đầu+1` chi tiết, dư thì cắt bớt + báo, KHÔNG quay vòng (quay vòng làm hai chi tiết cùng lượt trùng số trùng màu) |
 | 1.9.10    | 2026-06-20 | Trục Tọa Độ: Reset phát hiện Dynamic Component (có dict `dynamic_attributes`) → bỏ qua + cảnh báo "gỡ DC trước" thay vì lặng lẽ không ăn (engine DC giữ Position kéo trục về chỗ cũ). Lý do: reset đổi transformation nhưng DC áp lại x/y/z stored → trục không bám góc tấm. Phải Dọn Component (DC→group) trước rồi mới reset |
 | 1.9.9     | 2026-06-20 | Thêm tool Trục Tọa Độ (`truc_toa_do/`, module `TK::AxisFix`): 1 icon mở bảng nhỏ — nút Reset trục về global (+ gốc về góc hình, khử -0) và 3 nút X/Y/Z xoay vật thể 90° quanh trục. Kết quả báo ngay trong bảng (không popup). Ở cụm DC, cuối toolbar |

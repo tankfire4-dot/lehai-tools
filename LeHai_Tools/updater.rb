@@ -70,19 +70,26 @@ module LeHai
 
       plugins_dir = File.expand_path('..', File.dirname(__FILE__))
 
+      # Tai DU het vao bo nho truoc, chi ghi khi khong thieu file nao. Truoc day tai
+      # toi dau ghi de toi do -> rot mang giua chung la may tho lan file ban moi +
+      # ban cu (vd main.rb moi goi ham ma file con van la ban cu) toi lan mo sau.
       failed = []
+      downloaded = {}
       files.each do |rel_path|
         content = _http_get_retry(base_raw_url + rel_path)
         if content
-          dest = File.join(plugins_dir, rel_path)
-          FileUtils.mkdir_p(File.dirname(dest))
-          File.open(dest, 'wb') { |f| f.write(content) }  # wb = binary, giữ nguyên bytes UTF-8
+          downloaded[rel_path] = content
         else
           failed << rel_path
         end
       end
 
       if failed.empty?
+        downloaded.each do |rel_path, content|
+          dest = File.join(plugins_dir, rel_path)
+          FileUtils.mkdir_p(File.dirname(dest))
+          File.open(dest, 'wb') { |f| f.write(content) }  # wb = binary, giữ nguyên bytes UTF-8
+        end
         File.write(version_file, remote_version)
         UI.messagebox(
           "LeHai's Decor Tools da cap nhat len v#{remote_version}.\n\n" \
@@ -91,7 +98,8 @@ module LeHai
         )
       else
         UI.messagebox(
-          "Cap nhat v#{remote_version} mot phan.\nKhong tai duoc: #{failed.join(', ')}",
+          "Chua cap nhat duoc v#{remote_version} (chua ghi file nao, ban cu van chay).\n" \
+          "Khong tai duoc: #{failed.join(', ')}\nSe tu thu lai lan mo SketchUp sau.",
           MB_OK
         )
       end

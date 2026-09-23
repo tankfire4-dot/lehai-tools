@@ -119,10 +119,18 @@ module LeHai
          -> { ::TK::PreExportCheck.create_cmd }]
       ]
 
+      # rescue TUNG nut: create_cmd cua 1 tool loi khong duoc lam sap ca toolbar, va
+      # nhat la khong duoc chan check_update ben duoi — do la duong DUY NHAT de va
+      # tu xa khi lo phat ban loi.
       groups.each do |loaded, builder|
         next unless loaded
-        toolbar.add_item(builder.call)
-        loaded_count += 1
+        begin
+          toolbar.add_item(builder.call)
+          loaded_count += 1
+        rescue => e
+          puts "[LeHai_Tools] LOI tao nut: #{e.class}: #{e.message}"
+          puts e.backtrace.first(3).join("\n") if e.backtrace
+        end
       end
 
       puts "[LeHai_Tools] Toolbar da load #{loaded_count}/#{groups.size} tools"

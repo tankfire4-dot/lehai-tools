@@ -140,7 +140,10 @@ module TK
 
     # ── Helper ─────────────────────────────────────────────────
     def self.picked
-      sel = Sketchup.active_model.selection.reject(&:locked?).select do |e|
+      # respond_to? truoc khi goi locked?: ghi chu (Text), dim, canh... KHONG co
+      # method locked? -> reject(&:locked?) van NoMethodError, bam nut do cam.
+      # Cung loi Don Component da va 19/08 (go_group/main.rb:60).
+      sel = Sketchup.active_model.selection.reject { |e| e.respond_to?(:locked?) && e.locked? }.select do |e|
         e.is_a?(Sketchup::ComponentInstance) || e.is_a?(Sketchup::Group)
       end
       if sel.empty?

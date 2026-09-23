@@ -319,7 +319,7 @@ module TK
 
         model = Sketchup.active_model
         model.start_operation("Chia Lam Khit Bien Dang", true)
-
+        begin
         active_ents = model.active_entities
         normal_world = @picked_face.normal.transform(@transformation).normalize
 
@@ -361,6 +361,15 @@ module TK
         end
 
         model.commit_operation
+        rescue => e
+          # add_face van loi (diem trung / lech mat phang) thi KHONG de lai nua bo
+          # lam + thao tac undo bo ngo. Loi trong callback Tool bi SketchUp nuot
+          # cam, nen phai tu bao ra (sketchup-api.md muc "Bat loi trong Tool").
+          model.abort_operation
+          puts "[Chia Lam] Loi: #{e.class}: #{e.message}"
+          puts e.backtrace.first(5).join("\n") if e.backtrace
+          UI.messagebox("Lỗi: #{e.message}")
+        end
       end
     end
 

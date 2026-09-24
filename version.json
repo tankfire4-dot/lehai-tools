@@ -1,5 +1,5 @@
 {
-  "version": "1.9.64",
+  "version": "1.9.65",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -32,6 +32,11 @@
     "LeHai_Tools/ha_nen/LeHai_HaNen_16.png",
     "LeHai_Tools/ha_nen/LeHai_HaNen_24.png",
     "LeHai_Tools/ha_nen/main.rb",
+    "LeHai_Tools/hinh_nhan/hinh_nhan.html",
+    "LeHai_Tools/hinh_nhan/hinh_nhan.js",
+    "LeHai_Tools/hinh_nhan/main.rb",
+    "LeHai_Tools/hinh_nhan/icons/hinh_nhan_16.png",
+    "LeHai_Tools/hinh_nhan/icons/hinh_nhan_24.png",
     "LeHai_Tools/kiem_tra_ban_le/main.rb",
     "LeHai_Tools/kiem_tra_ban_le/icons/hinge_16.png",
     "LeHai_Tools/kiem_tra_ban_le/icons/hinge_24.png",

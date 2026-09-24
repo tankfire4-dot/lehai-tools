@@ -12,6 +12,46 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-09-24 — 1.9.65: tool mới Hình Nhân (kiểm công năng) — và vì sao TÁCH số chuẩn khỏi số ước lượng
+
+**Vấn đề.** Khoa: người trong 3D Warehouse chỉ có dáng đứng, mỗi lần kiếm rất phiền; cần một
+hình nhân đúng kích thước theo chiều cao/cân nặng, ở dáng hoạt động (nấu, với tủ, ngồi, nằm…),
+để kiểm tủ/bàn có vừa người dùng không (nhu cầu B = KIỂM CÔNG NĂNG, không phải cho đẹp render).
+
+**Quyết định.** Module `hinh_nhan/` (`TK::HinhNhan`), nút cạnh Thư Viện.
+- Toán dáng + lưới nằm ở `hinh_nhan.js` — chạy trong hộp thoại VÀ test bằng Node
+  (`tests/hinh_nhan.test.cjs`, 159 ca). Ruby chỉ nhận lưới tam giác rồi dựng bằng
+  `Geom::PolygonMesh` + `add_faces_from_mesh` (đã đối chiếu tài liệu Trimble).
+- 13 dáng / 5 phòng; vóc chọn nhanh Nữ thấp 150 · Nữ TB 156 · **Nam TB 168 (mặc định)** · Nam
+  cao 175 (trung bình theo Tổng điều tra dinh dưỡng 2019–2020: nam 168,1 · nữ 156,2).
+- Vỏ bo tròn kiểu ma-nơ-canh (Khoa chọn theo ảnh mẫu), mỗi khúc là một group riêng.
+
+**Vì sao TÁCH hai loại số (Khoa hỏi thẳng: "nếu bịa thông số sẽ rất nguy hiểm").**
+- **SỐ ĐO CHUẨN** (bảng xanh): tỉ lệ × chiều cao, có nguồn — Drillis & Contini (1966) và **Atlat
+  nhân trắc học người Việt Nam trong lứa tuổi lao động (1986)**. Đối chiếu: cao vai 0.810H (Atlat)
+  vs 0.818H (Drillis), dài tay 0.439–0.440H vs 0.440H, dài chân 0.524–0.532H vs 0.530H → lệch ~1%.
+  Hình nhân ngồi thẳng cho cao ngồi 0.524H vs Atlat 0.532H.
+- **ƯỚC LƯỢNG THEO DÁNG** (khung vàng, dấu ≈): góc khớp từng dáng và độ dày theo cân nặng là
+  ước lượng của agent, CHƯA có nguồn. Đo độ nhạy: rửa mặt, thân cúi ±10° → đầu ngón tay đổi
+  **±12 cm**. Lấy số đó chọn cao lavabo là sai. Nên dòng gợi ý của mọi dáng giờ **trỏ về bảng
+  CHUẨN** (vd "Cao lavabo: suy từ Khuỷu tay — đứng") và KHÔNG in quy tắc có con số chưa có nguồn
+  (test chặn chữ số trong gợi ý).
+
+**Bài học (đã trả giá trong ngày).**
+1. **Đọc nhầm bảng nguồn**: dùng bề ngang vai/hông PHÍA NGOÀI (0.259H / 0.191H) làm khoảng cách
+   KHỚP, rồi đắp thêm bề dày tay/đùi → vai 0.33H, hông 0.31H; Khoa nhìn là thấy "buồn cười".
+   Test bề ngang giờ khoá theo số Atlat (hông 0.18–0.20H).
+2. **Tin giá trị trả về của API**: bản đầu dừng khi `add_faces_from_mesh` trả 0 → lần chạy thật
+   đầu tiên báo lỗi khúc Thân. Chưa rõ là không dựng được hay giá trị trả về khác tài liệu (chưa
+   có dòng Console). Nay ĐẾM mặt thật trong group; 0 mặt thì dựng từng tam giác bằng `add_face`.
+3. Số trên màn hình sẽ bị người thiết kế dùng như chuẩn — phần nào là ước lượng phải NÓI RA
+   ngay cạnh con số, không để trong tài liệu.
+
+**Đã kiểm:** Node 159/159 (khớp Drillis ở dáng đứng, lưới kín + pháp tuyến ra ngoài mọi dáng ×
+3 vóc, bề ngang theo Atlat, gợi ý không chứa số); hộp thoại trên Chromium 0 lỗi JS; **đã chạy
+thật trên SketchUp 2025 máy Khoa** (bản bo tròn, 24/09). Chưa kiểm: đo người thật để hiệu chỉnh
+góc dáng; số liệu Atlat là trung bình năm 1986, chưa có phân vị (P5/P95).
+
 ## 2026-09-23 — 1.9.64: vá 3 chỗ sau lượt soát toàn bộ (Claude, Khoa giao)
 
 **Vấn đề.** Soát tĩnh toàn kho 1.9.63 (chưa mở SketchUp) ra 3 chỗ sửa ngay được:
@@ -1049,6 +1089,7 @@ Tóm tắt 1 dòng mỗi version. Lý do chi tiết của các thay đổi gần
 
 | Phiên bản | Ngày       | Nội dung |
 |-----------|------------|----------|
+| 1.9.65    | 2026-09-24 | Tool mới **Hình Nhân**: hình nhân đúng kích thước theo cao/nặng, 13 dáng nội thất theo phòng; bảng SỐ ĐO CHUẨN (Drillis + Atlat người Việt 1986) tách khỏi số ƯỚC LƯỢNG theo dáng |
 | 1.9.64    | 2026-09-23 | Vá sau lượt soát: Trục Tọa Độ không còn đơ câm khi vùng chọn lẫn ghi chú; Chia Lam lỗi giữa chừng thì hoàn tác sạch + báo; updater tải đủ mới ghi (hết cảnh lẫn bản); 1 nút lỗi không chặn toolbar + tự cập nhật |
 | 1.9.48    | 2026-07-20 | Chống Bay: trần 9 đợt (một chữ số → Aspire sắp tên bằng chuỗi vẫn ra đúng thứ tự số); mỗi lượt kéo nhận tối đa `đợt_cuối−đợt_đầu+1` chi tiết, dư thì cắt bớt + báo, KHÔNG quay vòng (quay vòng làm hai chi tiết cùng lượt trùng số trùng màu) |
 | 1.9.10    | 2026-06-20 | Trục Tọa Độ: Reset phát hiện Dynamic Component (có dict `dynamic_attributes`) → bỏ qua + cảnh báo "gỡ DC trước" thay vì lặng lẽ không ăn (engine DC giữ Position kéo trục về chỗ cũ). Lý do: reset đổi transformation nhưng DC áp lại x/y/z stored → trục không bám góc tấm. Phải Dọn Component (DC→group) trước rồi mới reset |

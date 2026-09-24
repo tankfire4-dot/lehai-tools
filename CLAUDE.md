@@ -205,7 +205,8 @@ toolbar rỗng tên `X` mà SketchUp nhớ — gỡ ở **View → Toolbars → 
 
 **Đọc kỹ cột "Nút" — hai cách đếm khác nhau, đừng trộn.** Số module ≠ số nút trên toolbar.
 Có module **không có nút riêng**: nó chạy từ trong dashboard Check Chốt Sản Xuất (icon khiên cuối
-hàng). Tính tới 27/07/2026: **22 module, 13 nút** (Hạ Nền đã cất — code còn, nút gỡ).
+hàng). Tính tới 24/09/2026: **26 module, 16 nút** (Hạ Nền + Kiểm Tra Độ Dày đã cất nút — code còn;
+đếm lại từ thư mục + mảng `groups`, không chép số cũ).
 
 Nguồn sự thật cho từng cột: cột Module = thư mục trong `LeHai_Tools/`; cột Nút = mảng `groups`
 trong `LeHai_Tools/main.rb` (chỗ DUY NHẤT quyết định nút nào lên toolbar và theo thứ tự nào).
@@ -219,14 +220,17 @@ là danh sách nút. Muốn biết đủ module thì `ls LeHai_Tools/*/`.
 |------|--------|-----|
 | Tạo Tấm Gỗ | `Lehai::TamGoGen` | ✓ |
 | Tạo Cánh CNC | `CanhCNC` | ✓ |
+| Chia Lam | `TK::ChiaLam` | ✓ |
 | ~~Hạ Nền Uốn Cong~~ | `LeHaiDecor::HaNen` | **CẤT 19/07** — bên thiết kế không dùng |
 | Auto Dán Cạnh | `MyStudio::AutoEdgeBand` | ✓ |
 | Điền Tên Nhanh | `TuDong::DienTen` | ✓ |
 | Thư Viện Component | `TK::ThuVien` | ✓ |
+| **Hình Nhân** (cao/nặng + 13 dáng, số chuẩn Drillis/Atlat VN tách khỏi số ước lượng) | `TK::HinhNhan` | ✓ |
 | Gỡ DC → Group | `TK::GoGroup` | ✓ |
-| Kiểm Tra Độ Dày | `TK::ThickCheck` | ✓ |
+| Kiểm Tra Độ Dày | `TK::ThickCheck` | **CẤT 01/08** — chạy trong dashboard |
 | Tìm Tấm Lỗi | `TK::ABFFinder` | ✓ |
 | Soi Vân (phủ màu + sọc chiều vân ABF, soi tấm ngược) | `TK::SoiVan` | ✓ |
+| Mộng Xương Chó | `TK::MongXuongCho` | ✓ |
 | Kiểm Tra Khoảng Cách | `TK::SpacingCheck` | ✓ |
 | Trục Tọa Độ | `TK::AxisFix` | ✓ |
 | Dim Nhanh | `TK::QuickDim` | ✓ |

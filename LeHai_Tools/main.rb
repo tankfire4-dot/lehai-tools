@@ -14,6 +14,7 @@ module LeHai
         File.join(path, 'ha_nen',        'main'),
         File.join(path, 'dien_ten',      'main'),
         File.join(path, 'thu_vien',      'main'),
+        File.join(path, 'hinh_nhan',     'main'),
         File.join(path, 'go_group',      'main'),
         File.join(path, 'kiem_tra_do_day', 'main'),
         File.join(path, 'tim_tam_loi',   'main'),
@@ -46,6 +47,7 @@ module LeHai
       puts "[LeHai_Tools] Defined? LeHaiDecor::HaNen      = #{defined?(::LeHaiDecor::HaNen).inspect}"
       puts "[LeHai_Tools] Defined? TuDong::DienTen        = #{defined?(::TuDong::DienTen).inspect}"
       puts "[LeHai_Tools] Defined? TK::ThuVien            = #{defined?(::TK::ThuVien).inspect}"
+      puts "[LeHai_Tools] Defined? TK::HinhNhan           = #{defined?(::TK::HinhNhan).inspect}"
       puts "[LeHai_Tools] Defined? TK::GoGroup            = #{defined?(::TK::GoGroup).inspect}"
       puts "[LeHai_Tools] Defined? TK::ThickCheck         = #{defined?(::TK::ThickCheck).inspect}"
       puts "[LeHai_Tools] Defined? TK::ABFFinder          = #{defined?(::TK::ABFFinder).inspect}"
@@ -82,6 +84,10 @@ module LeHai
         # ── Cụm 3: Thư viện ──
         [defined?(::TK::ThuVien) && ::TK::ThuVien.respond_to?(:create_cmd),
          -> { ::TK::ThuVien.create_cmd }],
+        # Hình Nhân — hình nhân đúng kích thước theo cao/nặng + dáng hoạt động, kiểm công năng
+        # tủ/bàn (thêm 1.9.65). Cùng cụm công cụ cho người thiết kế, cạnh Thư Viện.
+        [defined?(::TK::HinhNhan) && ::TK::HinhNhan.respond_to?(:create_cmd),
+         -> { ::TK::HinhNhan.create_cmd }],
         # ── Cụm 4 (cuối): DC / chuẩn bị xuất CNC ──
         [defined?(::TK::GoGroup) && ::TK::GoGroup.respond_to?(:create_cmd),
          -> { ::TK::GoGroup.create_cmd }],

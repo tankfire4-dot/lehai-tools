@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<title>Hình Nhân</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lehai_theme.css">
+<style>
+  .nhap { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .nhap .lh-input { width: 100%; box-sizing: border-box; }
+  #so { width: 100%; border-collapse: collapse; }
+  #so td { padding: 5px 2px; border-bottom: 1px solid var(--lh-line-2); }
+  #so td.v { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  canvas { width: 100%; height: 300px; display: block; }
+  .lh-chips { flex-wrap: wrap; }
+  .uoc { color: var(--lh-muted); font-size: 11px; margin-top: 6px; }
+  .phong { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+           color: var(--lh-ink-soft); margin: 8px 0 4px; }
+  .phong:first-child { margin-top: 0; }
+  #voc .lh-chip { padding-left: 10px; padding-right: 10px; }
+  .bang-tieu-de { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin: 2px 0 4px; }
+  .chuan .bang-tieu-de { color: #1a7a4c; }
+  .uocluong .bang-tieu-de { color: var(--lh-amber-2); }
+  .uocluong { background: #fffaf0; border: 1px dashed rgba(180,83,9,.45); }
+  .uocluong td.v { color: var(--lh-amber-2); }
+  td .nguon { display: block; font-size: 10px; color: var(--lh-muted); }
+  .goiy { background: var(--lh-chip); color: var(--lh-amber-2); border-radius: var(--lh-radius-sm);
+          padding: 7px 10px; font-size: 12px; margin-top: 8px; }
+</style></head>
+<body class="lh"><div class="lh-dialog">
+  <div class="lh-eyebrow">LeHai's Decor Tools</div>
+  <div class="lh-title">Hình Nhân — kiểm công năng</div>
+
+  <div class="lh-field">
+    <label class="lh-label">Vóc người</label>
+    <div class="lh-chips" id="voc"></div>
+  </div>
+  <div class="lh-field nhap">
+    <label class="lh-label">Chiều cao (cm)
+      <input class="lh-input" id="cao" type="number" min="120" max="210" step="1"></label>
+    <label class="lh-label">Cân nặng (kg)
+      <input class="lh-input" id="nang" type="number" min="30" max="150" step="1"></label>
+  </div>
+
+  <div class="lh-field">
+    <label class="lh-label">Hoạt động</label>
+    <div id="dang"></div>
+  </div>
+
+  <div class="lh-card" style="padding:6px">
+    <canvas id="ve" aria-label="Hình nhân nhìn nghiêng"></canvas>
+  </div>
+
+  <div class="lh-card chuan" style="padding:8px 10px; margin-top:10px">
+    <div class="bang-tieu-de">✔ Số đo chuẩn — tư thế tĩnh, dùng để thiết kế</div>
+    <table id="soChuan"></table>
+    <div class="uoc">Tỉ lệ theo chiều cao, đã đối chiếu Atlat nhân trắc người Việt (1986) — sai lệch ~1%.
+      Là số TRUNG BÌNH: người thật lệch vài %.</div>
+  </div>
+  <div class="lh-card uocluong" style="padding:8px 10px; margin-top:10px">
+    <div class="bang-tieu-de">⚠ Ước lượng theo dáng — chỉ để hình dung, không lấy làm kích thước</div>
+    <table id="so"></table>
+    <div class="uoc" id="bmi"></div>
+  </div>
+  <div class="goiy" id="goiy"></div>
+
+  <div id="nhac" class="lh-status"></div>
+  <button class="lh-btn lh-btn--primary" style="margin-top:12px; width:100%" id="tao">Tạo &amp; đặt vào model</button>
+  <div class="uoc">Chiều dài từng đoạn: tỉ lệ Drillis &amp; Contini theo chiều cao. Vóc trung bình: Tổng
+    điều tra dinh dưỡng 2019–2020. Độ dày theo cân nặng và góc khớp là ƯỚC LƯỢNG — để kiểm công
+    năng, không phải đo chính xác từng người.</div>
+</div>
+
+<script src="hinh_nhan.js"></script>
+<script>
+  var $ = function (id) { return document.getElementById(id); };
+
+  // Nhớ lựa chọn lần trước (chỉ là tiện lợi trên máy này — trình duyệt chặn thì bỏ qua).
+  var NHO = 'lehai.hinhnhan.v1';
+  function doc() { try { return JSON.parse(localStorage.getItem(NHO)) || {}; } catch (e) { return {}; } }
+  function ghi() { try { localStorage.setItem(NHO, JSON.stringify({ key: trangThai.key, cao: $('cao').value, nang: $('nang').value })); } catch (e) {} }
+
+  var cu = doc(), macDinh = HinhNhan.VOC[HinhNhan.VOC_MAC_DINH];
+  var trangThai = { key: HinhNhan.DANG[cu.key] ? cu.key : 'dung_nau' };
+  $('cao').value = cu.cao || macDinh.cao;
+  $('nang').value = cu.nang || macDinh.nang;
+
+  // Nút vóc người chọn nhanh.
+  HinhNhan.VOC.forEach(function (v) {
+    var b = document.createElement('button');
+    b.className = 'lh-chip'; b.textContent = v.ten + ' ' + v.cao;
+    b.title = v.cao + ' cm · ' + v.nang + ' kg'; b.dataset.cao = v.cao; b.dataset.nang = v.nang;
+    b.onclick = function () { $('cao').value = v.cao; $('nang').value = v.nang; ve(); };
+    $('voc').appendChild(b);
+  });
+
+  // Nút chọn dáng, NHÓM THEO PHÒNG — thêm dáng mới ở hinh_nhan.js là tự có nút.
+  var theoPhong = {};
+  Object.keys(HinhNhan.DANG).forEach(function (k) {
+    var ph = HinhNhan.DANG[k].phong;
+    (theoPhong[ph] = theoPhong[ph] || []).push(k);
+  });
+  Object.keys(theoPhong).forEach(function (ph) {
+    var tieuDe = document.createElement('div'); tieuDe.className = 'phong'; tieuDe.textContent = ph;
+    var hang = document.createElement('div'); hang.className = 'lh-chips';
+    theoPhong[ph].forEach(function (k) {
+      var b = document.createElement('button');
+      b.className = 'lh-chip'; b.textContent = HinhNhan.DANG[k].ten; b.dataset.key = k;
+      b.onclick = function () { trangThai.key = k; ve(); };
+      hang.appendChild(b);
+    });
+    $('dang').appendChild(tieuDe); $('dang').appendChild(hang);
+  });
+
+  function thongSo() {
+    var cao = Number($('cao').value) * 10, nang = Number($('nang').value);
+    if (!(cao >= 1200 && cao <= 2100)) return { loi: 'Chiều cao từ 120 đến 210 cm.' };
+    if (!(nang >= 30 && nang <= 150)) return { loi: 'Cân nặng từ 30 đến 150 kg.' };
+    return { cao: cao, nang: nang };
+  }
+
+  function ve() {
+    document.querySelectorAll('#dang .lh-chip').forEach(function (b) {
+      b.className = b.dataset.key === trangThai.key ? 'lh-chip is-active' : 'lh-chip';
+    });
+    document.querySelectorAll('#voc .lh-chip').forEach(function (b) {
+      var dung = String($('cao').value) === b.dataset.cao && String($('nang').value) === b.dataset.nang;
+      b.className = dung ? 'lh-chip is-active' : 'lh-chip';
+    });
+    ghi();
+    var t = thongSo();
+    $('nhac').textContent = t.loi || '';
+    $('tao').disabled = !!t.loi;
+    if (t.loi) return;
+    var r = HinhNhan.dung(t.cao, t.nang, trangThai.key);
+    trangThai.kq = r;
+
+    $('soChuan').innerHTML = HinhNhan.soChuan(t.cao).map(function (c) {
+      return '<tr><td>' + c.ten + '<span class="nguon">' + c.nguon + '</span></td><td class="v">' + c.mm + ' mm</td></tr>';
+    }).join('');
+    $('so').innerHTML = r.hien.map(function (k) {
+      return '<tr><td>' + HinhNhan.NHAN[k] + '</td><td class="v">≈ ' + r.so[k] + ' mm</td></tr>';
+    }).join('');
+    $('bmi').textContent = 'BMI ' + r.bmi + ' · góc khớp và độ dày theo cân nặng là ước lượng, chưa có nguồn';
+    $('goiy').textContent = 'Gợi ý kiểm: ' + (HinhNhan.DANG[trangThai.key].goiY || '');
+    veNghieng(r);
+  }
+
+  // Nhìn nghiêng (mặt phẳng YZ): người hướng mặt sang PHẢI (−Y trong model).
+  function veNghieng(r) {
+    var c = $('ve'), dpr = window.devicePixelRatio || 1;
+    var W = c.clientWidth, H = c.clientHeight;
+    c.width = W * dpr; c.height = H * dpr;
+    var g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+
+    var ys = [], zs = [];
+    r.khoi.forEach(function (k) { k.luoi.diem.forEach(function (q) { ys.push(-q[1]); zs.push(q[2]); }); });
+    var minY = Math.min.apply(null, ys) - 60, maxY = Math.max.apply(null, ys) + 60;
+    var maxZ = Math.max(Math.max.apply(null, zs) + 60, 600);
+    var s = Math.min((W - 125) / (maxY - minY), (H - 24) / maxZ);
+    var X = function (y) { return 20 + (-y - minY) * s; };
+    var Z = function (z) { return H - 12 - z * s; };
+
+    // sàn
+    g.strokeStyle = '#a08060'; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(0, Z(0)); g.lineTo(W, Z(0)); g.stroke();
+
+    // vạch cao độ các số đo — nhãn ngắn; hai cao độ sát nhau thì đẩy nhãn cách ≥ 13px
+    var NGAN = { dinhDau: 'Đỉnh đầu', tamMat: 'Mắt', khuyuTay: 'Khuỷu', dauNgon: 'Ngón tay',
+                 dinhGoi: 'Gối', matNgoi: 'Mặt ngồi', caoNhat: 'Cao nhất' };
+    var vach = r.hien.filter(function (k) { return NGAN[k]; })
+      .map(function (k) { return { k: k, z: Z(r.so[k]) }; })
+      .sort(function (a, b) { return a.z - b.z; });
+    for (var i = 1; i < vach.length; i++) vach[i].ty = Math.max(vach[i].z, (vach[i - 1].ty || vach[i - 1].z) + 13);
+    if (vach.length) vach[0].ty = vach[0].z;
+    g.font = '11px DM Sans, Segoe UI, sans-serif';
+    vach.forEach(function (v) {
+      g.setLineDash([4, 4]); g.strokeStyle = 'rgba(180,83,9,.55)';
+      g.beginPath(); g.moveTo(0, v.z); g.lineTo(W - 100, v.z); g.lineTo(W - 94, v.ty); g.stroke();
+      g.setLineDash([]); g.fillStyle = '#92400e';
+      g.fillText('≈' + r.so[v.k] + ' ' + NGAN[v.k], W - 92, v.ty + 4);
+    });
+
+    // Mỗi khúc vẽ bằng BAO LỒI của các đỉnh lưới chiếu lên mặt nghiêng (YZ) → bóng bo tròn
+    // đúng dáng vỏ. Khúc bên trái (X âm) nhạt hơn để phân biệt hai chân/hai tay.
+    function baoLoi(pts) {
+      pts = pts.slice().sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; });
+      var cr = function (o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); };
+      var lo = [], hi = [];
+      pts.forEach(function (p) { while (lo.length > 1 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); });
+      for (var i = pts.length - 1; i >= 0; i--) { var p = pts[i]; while (hi.length > 1 && cr(hi[hi.length - 2], hi[hi.length - 1], p) <= 0) hi.pop(); hi.push(p); }
+      return lo.slice(0, -1).concat(hi.slice(0, -1));
+    }
+    var xepVe = r.khoi.slice().sort(function (a, b) {        // bên trái vẽ trước (nằm sau)
+      return a.luoi.diem[0][0] - b.luoi.diem[0][0];
+    });
+    xepVe.forEach(function (k) {
+      var cx = k.luoi.diem.reduce(function (s2, q) { return s2 + q[0]; }, 0) / k.luoi.diem.length;
+      var bo = baoLoi(k.luoi.diem.map(function (q) { return [X(q[1]), Z(q[2])]; }));
+      g.fillStyle = cx < -1 ? '#e2d6c8' : '#f3ede4';
+      g.strokeStyle = 'rgba(124,45,18,.55)'; g.lineWidth = 1;
+      g.beginPath(); bo.forEach(function (q, i) { i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); });
+      g.closePath(); g.fill(); g.stroke();
+    });
+  }
+
+  $('cao').addEventListener('input', ve);
+  $('nang').addEventListener('input', ve);
+  window.addEventListener('resize', ve);
+
+  $('tao').onclick = function () {
+    if (!trangThai.kq) return;
+    var t = thongSo();
+    var goi = { cao: t.cao, nang: t.nang, key: trangThai.key, dang: trangThai.kq.dang,
+                khoi: trangThai.kq.khoi, so: trangThai.kq.so, hien: trangThai.kq.hien,
+                chuan: HinhNhan.soChuan(t.cao) };
+    if (window.sketchup && sketchup.tao) {
+      $('nhac').textContent = 'Đang dựng… rê chuột vào model rồi bấm để đặt.';
+      sketchup.tao(JSON.stringify(goi));
+    } else {
+      $('nhac').textContent = 'Bản xem trong trình duyệt — mở từ SketchUp để tạo.';
+    }
+  };
+  window.baoLoi = function (msg) { $('nhac').className = 'lh-status lh-status--bad'; $('nhac').textContent = msg; };
+  window.baoXong = function (msg) { $('nhac').className = 'lh-status lh-status--ok'; $('nhac').textContent = msg; };
+
+  ve();
+</script>
+</body></html>

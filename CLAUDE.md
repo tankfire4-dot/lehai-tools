@@ -225,7 +225,7 @@ là danh sách nút. Muốn biết đủ module thì `ls LeHai_Tools/*/`.
 | Auto Dán Cạnh | `MyStudio::AutoEdgeBand` | ✓ |
 | Điền Tên Nhanh | `TuDong::DienTen` | ✓ |
 | Thư Viện Component | `TK::ThuVien` | ✓ |
-| **Hình Nhân** (cao/nặng + 13 dáng, số chuẩn Drillis/Atlat VN tách khỏi số ước lượng) | `TK::HinhNhan` | ✓ |
+| **Hình Nhân** (cao/nặng + 13 dáng; thông số tương đối, để hình dung không gian) | `TK::HinhNhan` | ✓ |
 | Gỡ DC → Group | `TK::GoGroup` | ✓ |
 | Kiểm Tra Độ Dày | `TK::ThickCheck` | **CẤT 01/08** — chạy trong dashboard |
 | Tìm Tấm Lỗi | `TK::ABFFinder` | ✓ |

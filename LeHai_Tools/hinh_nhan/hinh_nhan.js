@@ -98,52 +98,40 @@
   //   Thêm hậu tố P / T để hai bên khác nhau: vaiP = tay PHẢI, hangT = chân TRÁI…
   //   (người nhìn về −Y nên bên PHẢI của người nằm ở phía X âm)
   //   nam    : true = xoay cả người nằm ngửa
-  //   phong  : nhóm nút trong hộp thoại; hien: số đo hiện cho dáng này
+  //   phong  : nhóm nút trong hộp thoại; hien: số đo ước lượng lưu vào component (không hiện
+  //            trên hộp thoại — Khoa 24/09: bảng số làm người thiết kế phân tâm)
   var DANG = {
     // Bếp
     dung_nau:    { phong: 'Bếp', ten: 'Đứng nấu / rửa bát', than: 15, co: 20, vai: 35, khuyu: 65, hang: 0, goi: 0,
-                   goiY: 'Cao mặt bếp: suy từ "Khuỷu tay — đứng" ở bảng CHUẨN, không lấy số của dáng này.',
                    hien: ['khuyuTay', 'dauNgon', 'voiTruoc', 'tamMat'] },
     voi_tu_tren: { phong: 'Bếp', ten: 'Với tủ trên', than: 0, co: -20, vai: 160, khuyu: 10, hang: 0, goi: 0,
-                   goiY: 'Tầm với là ước lượng theo góc tay. Kiểm bằng vóc THẤP và thử người thật trước khi chốt kệ cao.',
                    hien: ['dauNgon', 'tamMat', 'dinhDau'] },
     cui_tu_duoi: { phong: 'Bếp', ten: 'Khom lấy đồ tủ dưới', than: 70, co: -10, vai: 70, khuyu: 10, hang: 0, goi: 15,
-                   goiY: 'Để hình dung khoảng trống trước tủ dưới — chiều sâu là ước lượng, chừa thêm khoảng dư.',
                    hien: ['dauNgon', 'voiTruoc', 'caoNhat', 'chieuSau'] },
     ngoi_xom:    { phong: 'Bếp', ten: 'Ngồi xổm (tủ thấp, lau sàn)', than: 30, co: 0, vai: 55, khuyu: 20, hang: 120, goi: 140,
-                   goiY: 'Để hình dung tầm với ngăn thấp — số là ước lượng.',
                    hien: ['dauNgon', 'caoNhat', 'chieuSau'] },
     // Phòng tắm
     rua_mat:     { phong: 'Phòng tắm', ten: 'Rửa mặt ở lavabo', than: 35, co: 20, vai: 45, khuyu: 50, hang: 0, goi: 5,
-                   goiY: 'Cao lavabo: suy từ "Khuỷu tay — đứng" ở bảng CHUẨN, KHÔNG lấy đầu ngón tay của dáng cúi này. Gương theo "Tầm mắt — đứng".',
                    hien: ['dauNgon', 'khuyuTay', 'tamMat', 'chieuSau'] },
     ngoi_bon_cau:{ phong: 'Phòng tắm', ten: 'Ngồi bồn cầu', than: 15, co: 15, vai: 30, khuyu: 60, hang: 95, goi: 100,
-                   goiY: 'Để hình dung chỗ để chân trước bồn cầu — số là ước lượng.',
                    hien: ['matNgoi', 'dinhGoi', 'chieuSau', 'tamMat'] },
     // Phòng ngủ
     treo_do:     { phong: 'Phòng ngủ', ten: 'Treo đồ tủ áo (một tay)', than: 0, co: -15, vai: 0, vaiP: 150, khuyu: 5, khuyuP: 20, hang: 0, goi: 0,
-                   goiY: 'Cao thanh treo: kiểm bằng vóc THẤP; tầm với là ước lượng theo góc tay — thử người thật trước khi chốt.',
                    hien: ['dauNgon', 'tamMat'] },
     nam_giuong:  { phong: 'Phòng ngủ', ten: 'Nằm giường', than: 0, co: 0, vai: 0, khuyu: 0, hang: 0, goi: 0, nam: true,
-                   goiY: 'Lòng giường phải dài hơn chiều cao người (số CHUẨN) cộng khoảng dư; kiểm bằng vóc CAO.',
                    hien: ['chieuDai', 'caoNhat', 'ngangNguoi'] },
     // Ăn / làm việc / khách
     ngoi_ghe:    { phong: 'Ăn · làm việc · khách', ten: 'Ngồi ghế ăn / bàn học', than: 0, co: 15, vai: 25, khuyu: 75, hang: 90, goi: 90,
-                   goiY: 'Mặt dưới bàn phải hở trên đỉnh gối — đỉnh gối là ước lượng (độ dày đùi), chừa thêm khoảng dư; kiểm bằng vóc CAO.',
                    hien: ['matNgoi', 'dinhGoi', 'khuyuTay', 'tamMat'] },
     ngoi_sofa:   { phong: 'Ăn · làm việc · khách', ten: 'Ngồi sofa', than: -25, co: 10, vai: 10, khuyu: 40, hang: 80, goi: 80,
-                   goiY: 'Để hình dung chỗ cho chân trước sofa — số là ước lượng.',
                    hien: ['matNgoi', 'dinhGoi', 'tamMat', 'chieuSau'] },
     ngoi_bet:    { phong: 'Ăn · làm việc · khách', ten: 'Ngồi bệt (sập, bàn trà thấp)', than: -10, co: 10, vai: 15, khuyu: 30, hang: 90, goi: 0,
-                   goiY: 'Để hình dung tầm mắt, khuỷu tay khi ngồi sàn — số là ước lượng.',
                    hien: ['tamMat', 'khuyuTay', 'chieuSau'] },
     // Lối đi · cửa
     dung_thang:  { phong: 'Lối đi · cửa', ten: 'Đứng thẳng (cửa, gầm thang)', than: 0, co: 0, vai: 0, khuyu: 0, hang: 0, goi: 0,
-                   goiY: 'Gầm thang, dầm, cửa: dùng chiều cao người (CHUẨN) cộng khoảng hở an toàn; kiểm bằng vóc CAO.',
                    hien: ['dinhDau', 'tamMat', 'ngangNguoi', 'chieuSau'] },
     di_bo:       { phong: 'Lối đi · cửa', ten: 'Đi bộ (lối đi)', than: 3, co: 0, vai: 0, vaiP: 20, vaiT: -20, khuyu: 15,
                    hang: 0, hangP: -15, hangT: 22, goi: 0, goiP: 5, goiT: 12,
-                   goiY: 'Để hình dung bề ngang và bước chân trên lối đi — số là ước lượng.',
                    hien: ['ngangNguoi', 'chieuSau', 'dinhDau'] }
   };
 

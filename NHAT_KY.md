@@ -37,6 +37,12 @@ hình nhân đúng kích thước theo chiều cao/cân nặng, ở dáng hoạt
   CHUẨN** (vd "Cao lavabo: suy từ Khuỷu tay — đứng") và KHÔNG in quy tắc có con số chưa có nguồn
   (test chặn chữ số trong gợi ý).
 
+**Cập nhật cùng ngày — Khoa thử trên SketchUp:** bỏ HẲN 2 bảng số khỏi hộp thoại ("khiến bọn
+thiết kế phân tâm"), bỏ dòng gợi ý theo dáng; chỉ để một dòng nhắc: *thông số mang tính tương
+đối, dùng để hình dung không gian, không dùng làm thông số thiết kế chính xác*. Số chuẩn +
+số ước lượng vẫn LƯU trong attribute `LeHai_HinhNhan` của component (`so_do_chuan_mm`,
+`uoc_luong_theo_dang_mm`) — tra được khi cần, không hiện ra. Hình xem trước nhìn nghiêng giữ nguyên.
+
 **Bài học (đã trả giá trong ngày).**
 1. **Đọc nhầm bảng nguồn**: dùng bề ngang vai/hông PHÍA NGOÀI (0.259H / 0.191H) làm khoảng cách
    KHỚP, rồi đắp thêm bề dày tay/đùi → vai 0.33H, hông 0.31H; Khoa nhìn là thấy "buồn cười".
@@ -1089,7 +1095,7 @@ Tóm tắt 1 dòng mỗi version. Lý do chi tiết của các thay đổi gần
 
 | Phiên bản | Ngày       | Nội dung |
 |-----------|------------|----------|
-| 1.9.65    | 2026-09-24 | Tool mới **Hình Nhân**: hình nhân đúng kích thước theo cao/nặng, 13 dáng nội thất theo phòng; bảng SỐ ĐO CHUẨN (Drillis + Atlat người Việt 1986) tách khỏi số ƯỚC LƯỢNG theo dáng |
+| 1.9.65    | 2026-09-24 | Tool mới **Hình Nhân**: hình nhân đúng kích thước theo cao/nặng, 13 dáng nội thất theo phòng; hộp thoại chỉ nhắc "thông số tương đối, không dùng làm thông số thiết kế"; tỉ lệ đối chiếu Atlat người Việt 1986 |
 | 1.9.64    | 2026-09-23 | Vá sau lượt soát: Trục Tọa Độ không còn đơ câm khi vùng chọn lẫn ghi chú; Chia Lam lỗi giữa chừng thì hoàn tác sạch + báo; updater tải đủ mới ghi (hết cảnh lẫn bản); 1 nút lỗi không chặn toolbar + tự cập nhật |
 | 1.9.48    | 2026-07-20 | Chống Bay: trần 9 đợt (một chữ số → Aspire sắp tên bằng chuỗi vẫn ra đúng thứ tự số); mỗi lượt kéo nhận tối đa `đợt_cuối−đợt_đầu+1` chi tiết, dư thì cắt bớt + báo, KHÔNG quay vòng (quay vòng làm hai chi tiết cùng lượt trùng số trùng màu) |
 | 1.9.10    | 2026-06-20 | Trục Tọa Độ: Reset phát hiện Dynamic Component (có dict `dynamic_attributes`) → bỏ qua + cảnh báo "gỡ DC trước" thay vì lặng lẽ không ăn (engine DC giữ Position kéo trục về chỗ cũ). Lý do: reset đổi transformation nhưng DC áp lại x/y/z stored → trục không bám góc tấm. Phải Dọn Component (DC→group) trước rồi mới reset |

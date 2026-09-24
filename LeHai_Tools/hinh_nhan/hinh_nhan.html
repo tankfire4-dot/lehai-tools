@@ -7,9 +7,6 @@
 <style>
   .nhap { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .nhap .lh-input { width: 100%; box-sizing: border-box; }
-  #so { width: 100%; border-collapse: collapse; }
-  #so td { padding: 5px 2px; border-bottom: 1px solid var(--lh-line-2); }
-  #so td.v { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
   canvas { width: 100%; height: 300px; display: block; }
   .lh-chips { flex-wrap: wrap; }
   .uoc { color: var(--lh-muted); font-size: 11px; margin-top: 6px; }
@@ -17,12 +14,6 @@
            color: var(--lh-ink-soft); margin: 8px 0 4px; }
   .phong:first-child { margin-top: 0; }
   #voc .lh-chip { padding-left: 10px; padding-right: 10px; }
-  .bang-tieu-de { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin: 2px 0 4px; }
-  .chuan .bang-tieu-de { color: #1a7a4c; }
-  .uocluong .bang-tieu-de { color: var(--lh-amber-2); }
-  .uocluong { background: #fffaf0; border: 1px dashed rgba(180,83,9,.45); }
-  .uocluong td.v { color: var(--lh-amber-2); }
-  td .nguon { display: block; font-size: 10px; color: var(--lh-muted); }
   .goiy { background: var(--lh-chip); color: var(--lh-amber-2); border-radius: var(--lh-radius-sm);
           padding: 7px 10px; font-size: 12px; margin-top: 8px; }
 </style></head>
@@ -50,24 +41,10 @@
     <canvas id="ve" aria-label="Hình nhân nhìn nghiêng"></canvas>
   </div>
 
-  <div class="lh-card chuan" style="padding:8px 10px; margin-top:10px">
-    <div class="bang-tieu-de">✔ Số đo chuẩn — tư thế tĩnh, dùng để thiết kế</div>
-    <table id="soChuan"></table>
-    <div class="uoc">Tỉ lệ theo chiều cao, đã đối chiếu Atlat nhân trắc người Việt (1986) — sai lệch ~1%.
-      Là số TRUNG BÌNH: người thật lệch vài %.</div>
-  </div>
-  <div class="lh-card uocluong" style="padding:8px 10px; margin-top:10px">
-    <div class="bang-tieu-de">⚠ Ước lượng theo dáng — chỉ để hình dung, không lấy làm kích thước</div>
-    <table id="so"></table>
-    <div class="uoc" id="bmi"></div>
-  </div>
-  <div class="goiy" id="goiy"></div>
+  <div class="goiy">Các thông số của hình nhân chỉ mang tính tương đối, dùng để hình dung không gian — không dùng làm thông số thiết kế chính xác.</div>
 
   <div id="nhac" class="lh-status"></div>
   <button class="lh-btn lh-btn--primary" style="margin-top:12px; width:100%" id="tao">Tạo &amp; đặt vào model</button>
-  <div class="uoc">Chiều dài từng đoạn: tỉ lệ Drillis &amp; Contini theo chiều cao. Vóc trung bình: Tổng
-    điều tra dinh dưỡng 2019–2020. Độ dày theo cân nặng và góc khớp là ƯỚC LƯỢNG — để kiểm công
-    năng, không phải đo chính xác từng người.</div>
 </div>
 
 <script src="hinh_nhan.js"></script>
@@ -134,14 +111,6 @@
     var r = HinhNhan.dung(t.cao, t.nang, trangThai.key);
     trangThai.kq = r;
 
-    $('soChuan').innerHTML = HinhNhan.soChuan(t.cao).map(function (c) {
-      return '<tr><td>' + c.ten + '<span class="nguon">' + c.nguon + '</span></td><td class="v">' + c.mm + ' mm</td></tr>';
-    }).join('');
-    $('so').innerHTML = r.hien.map(function (k) {
-      return '<tr><td>' + HinhNhan.NHAN[k] + '</td><td class="v">≈ ' + r.so[k] + ' mm</td></tr>';
-    }).join('');
-    $('bmi').textContent = 'BMI ' + r.bmi + ' · góc khớp và độ dày theo cân nặng là ước lượng, chưa có nguồn';
-    $('goiy').textContent = 'Gợi ý kiểm: ' + (HinhNhan.DANG[trangThai.key].goiY || '');
     veNghieng(r);
   }
 

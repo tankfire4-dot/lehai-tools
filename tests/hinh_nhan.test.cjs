@@ -102,7 +102,7 @@ const moiDiem = (r, ten) => r.khoi.filter(k => !ten || k.ten === ten).flatMap(k 
   kiem('khom: đầu ngón thấp hơn 0.25H', khom.so.dauNgon < 0.25 * H, khom.so.dauNgon);
   // Vóc người: mặc định Nam TB 168 (Tổng điều tra dinh dưỡng 2019–2020)
   kiem('vóc mặc định = Nam TB 168', HN.VOC[HN.VOC_MAC_DINH].cao === 168);
-  kiem('mọi dáng thuộc một phòng + có số đo', Object.values(HN.DANG).every(d => d.phong && d.hien.length && d.hien.every(k => HN.NHAN[k])));
+  kiem('mọi dáng thuộc một phòng + có số đo lưu kèm', Object.values(HN.DANG).every(d => d.phong && d.hien.length && d.hien.every(k => HN.NHAN[k])));
 }
 
 // 5c. SỐ ĐO CHUẨN (24/09): chỉ số có nguồn, tỉ lệ thẳng theo chiều cao; đối chiếu Atlat VN.
@@ -121,9 +121,6 @@ const moiDiem = (r, ten) => r.khoi.filter(k => !ten || k.ten === ten).flatMap(k 
   const H = 1607, r = HN.dung(H, 49, 'ngoi_ghe', { than: 0, co: 0 });
   const dinh = Math.max(...r.khoi.filter(k => k.ten === 'Dau').flatMap(k => k.luoi.diem).map(q => q[2]));
   kiem('hình nhân ngồi thẳng: cao ngồi ≈ 0.532H (±3%)', gan((dinh - r.so.matNgoi) / H, 0.532, 0.016), ((dinh - r.so.matNgoi) / H).toFixed(3));
-  // Gợi ý KHÔNG được in quy tắc có con số (chưa có nguồn) — chỉ trỏ về bảng chuẩn / nói là ước lượng
-  kiem('gợi ý không chứa con số chưa có nguồn', Object.values(HN.DANG).every(d => !/\d/.test(d.goiY)),
-    Object.values(HN.DANG).filter(d => /\d/.test(d.goiY)).map(d => d.ten));
 }
 
 // 6. LƯỚI của MỌI dáng × vài vóc người:

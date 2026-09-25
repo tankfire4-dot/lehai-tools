@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<title>Khung bao tủ lạnh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../shared/lehai_theme.css">
+<style>
+  html, body { height: 100%; }
+  .khung { display: grid; grid-template-columns: 240px 1fr; gap: 16px; height: 100%;
+           box-sizing: border-box; padding: 16px; }
+  .trai { display: flex; flex-direction: column; min-height: 0; }
+  #form { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px; margin: 0 -8px; }
+  .o { display: grid; grid-template-columns: 1fr 76px; align-items: center; gap: 8px;
+       padding: 5px 8px; margin: 0 -8px; border-radius: var(--lh-radius-sm); }
+  .o.dang { background: var(--lh-chip); }
+  .o label { font-size: 12.5px; color: var(--lh-ink-soft); }
+  .o .lh-input { width: 100%; box-sizing: border-box; text-align: right; }
+  .nhom { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+          color: var(--lh-muted); margin: 12px 0 4px; }
+  .nhom:first-of-type { margin-top: 4px; }
+  .tinh { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--lh-muted);
+          padding: 5px 0; border-top: 1px dashed var(--lh-line); margin-top: 8px; }
+  .tinh b { color: var(--lh-ink-soft); font-weight: 600; }
+  .day { margin-top: auto; }
+  .day .lh-btn { width: 100%; }
+  .day .lh-btn:disabled { opacity: .45; cursor: not-allowed; }
+  .phai { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 2fr 1.5fr 1.5fr; gap: 12px; min-height: 0; }
+  .phai .dai { grid-row: span 3; }
+  .hinh { display: flex; flex-direction: column; min-height: 0; background: var(--lh-surface);
+          border-radius: var(--lh-radius); box-shadow: var(--lh-shadow); padding: 8px; }
+  .hinh .ten { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+               color: var(--lh-muted); margin: 2px 4px 6px; }
+  .hinh svg { flex: 1; min-height: 0; width: 100%; }
+  /* nét vẽ — mọi nét giữ độ dày theo pixel dù hình co giãn */
+  svg * { vector-effect: non-scaling-stroke; }
+  .tam  { fill: #fff; stroke: var(--lh-ink-soft); stroke-width: 1; }
+  .tam.canh { fill: #f6efe4; }
+  .tam.nen  { fill: var(--lh-line-2); stroke: var(--lh-line); }
+  .tuong { fill: var(--lh-fill-2); stroke: none; }
+  .len   { fill: #e7b9a8; stroke: var(--lh-walnut); stroke-width: 1; }
+  .dim line { stroke: var(--lh-muted); stroke-width: 1; }
+  .dim text { fill: var(--lh-muted); font-family: var(--lh-font); }
+  .dim.tu line { stroke-dasharray: 4 3; }
+  .dim.sang line { stroke: var(--lh-amber); stroke-width: 2.2; }
+  .dim.sang text { fill: var(--lh-amber-2); font-weight: 700; }
+  .an { fill: none; stroke: var(--lh-amber); stroke-width: 1.5; stroke-dasharray: 5 3; }
+  #nhac:empty { display: none; }
+</style></head>
+<body class="lh"><div class="khung">
+  <div class="trai">
+    <div class="lh-eyebrow">Tạo Modul Nhanh</div>
+    <div class="lh-title">Khung bao tủ lạnh</div>
+    <div id="form"></div>
+    <div class="tinh"><span>Tủ trên (tự tính)</span><b id="tutren">—</b></div>
+    <div class="day">
+      <div id="nhac" class="lh-status"></div>
+      <button class="lh-btn lh-btn--primary" id="dung" disabled>Dựng vào model</button>
+    </div>
+  </div>
+  <div class="phai">
+    <div class="hinh dai"><div class="ten">Mặt đứng — nhìn từ trước</div><svg id="truoc"></svg></div>
+    <div class="hinh"><div class="ten">Mặt cắt cạnh — tường bên phải</div><svg id="canh"></svg></div>
+    <div class="hinh"><div class="ten">Chi tiết hậu — nhìn từ trên</div><svg id="hau"></svg></div>
+    <div class="hinh"><div class="ten">Chi tiết chân tường</div><svg id="chan"></svg></div>
+  </div>
+</div>
+
+<script>
+  var $ = function (id) { return document.getElementById(id); };
+  var NS = 'http://www.w3.org/2000/svg';
+  var NHO = 'lehai.taomodul.khungbao.v1';
+  // ô nào thuộc nhóm nào — chỉ để chia tiêu đề, không chứa số liệu
+  var NHOM = { rong: 'Kích thước tủ', cao_tu_lanh: 'Chia chiều cao', len_day: 'Len chân tường (0 = không có)', van: 'Ván & hậu' };
+
+  var truong = [], dangSua = null, cuoi = null, hen = null;
+
+  function docNho() { try { return JSON.parse(localStorage.getItem(NHO)) || {}; } catch (e) { return {}; } }
+  function ghiNho(v) { try { localStorage.setItem(NHO, JSON.stringify(v)); } catch (e) {} }
+
+  function giaTri() {
+    var v = {};
+    truong.forEach(function (t) { v[t.khoa] = $('o_' + t.khoa).value; });
+    return v;
+  }
+
+  // ── Ruby đẩy danh sách ô + mặc định từ lõi ──
+  window.khoiDau = function (ds) {
+    truong = ds;
+    var nho = docNho(), html = '';
+    ds.forEach(function (t) {
+      if (NHOM[t.khoa]) html += '<div class="nhom">' + NHOM[t.khoa] + '</div>';
+      var v = nho[t.khoa] != null ? nho[t.khoa] : t.mac_dinh;
+      html += '<div class="o" id="dong_' + t.khoa + '"><label for="o_' + t.khoa + '">' + t.nhan +
+              '</label><input class="lh-input" id="o_' + t.khoa + '" type="number" min="0" step="0.5" value="' + v + '"></div>';
+    });
+    $('form').innerHTML = html;
+    ds.forEach(function (t) {
+      var o = $('o_' + t.khoa);
+      o.addEventListener('input', guiTinh);
+      o.addEventListener('focus', function () { chon(t.khoa); });
+      o.addEventListener('blur', function () { chon(null); });
+      o.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !$('dung').disabled) bamDung(); });
+    });
+    guiTinh();
+  };
+
+  function chon(k) {
+    dangSua = k;
+    truong.forEach(function (t) { $('dong_' + t.khoa).classList.toggle('dang', t.khoa === k); });
+    if (cuoi) ve(cuoi);
+  }
+
+  function guiTinh() {
+    clearTimeout(hen);
+    hen = setTimeout(function () {
+      var v = giaTri();
+      ghiNho(v);
+      if (window.sketchup) sketchup.tinh(JSON.stringify(v));
+    }, 120);
+  }
+
+  function nhac(msg, loai) {
+    $('nhac').textContent = msg || '';
+    $('nhac').className = 'lh-status' + (loai ? ' lh-status--' + loai : '');
+  }
+
+  window.veLai = function (d) { cuoi = d; nhac(''); $('dung').disabled = false; ve(d); };
+  window.baoLoi = function (m) { nhac(m, 'bad'); $('dung').disabled = true; };   // thông số sai
+  window.baoLoiDung = function (m) { nhac(m, 'bad'); $('dung').disabled = false; };
+  window.xong = function (m) { nhac(m, 'ok'); $('dung').disabled = false; };
+
+  function bamDung() {
+    $('dung').disabled = true;
+    nhac('Đang dựng…');
+    if (window.sketchup) sketchup.dung(JSON.stringify(giaTri()));
+  }
+  $('dung').addEventListener('click', bamDung);
+
+  // ── Vẽ ──────────────────────────────────────────────
+  function el(cha, ten, attr, chu) {
+    var e = document.createElementNS(NS, ten);
+    for (var k in attr) e.setAttribute(k, attr[k]);
+    if (chu != null) e.textContent = chu;
+    cha.appendChild(e);
+    return e;
+  }
+  function so(v) { return Math.round(v * 10) / 10; }
+
+  // khung nhìn: u ngang, v dọc (v lên trên) → toạ độ svg lật dọc
+  // vùng nhìn u0..u1 × v0..v1 (mm); hình tấm bị cắt gọn trong vùng, kích thước vẽ ra lề
+  function manHinh(svg, u0, u1, v0, v1) {
+    var rU = u1 - u0, rV = v1 - v0, le = Math.max(rU, rV) * 0.16;
+    svg.innerHTML = '';
+    svg.setAttribute('viewBox', [u0 - le, -le * 0.6, rU + 2 * le, rV + le * 1.6].join(' '));
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    var id = svg.id + '_cat';
+    var cp = el(el(svg, 'defs', {}), 'clipPath', { id: id });
+    el(cp, 'rect', { x: u0, y: 0, width: rU, height: rV });
+    // 1px màn hình = bao nhiêu mm trong hình (preserveAspectRatio meet lấy tỉ lệ lớn hơn)
+    var r = svg.getBoundingClientRect();
+    var px = Math.max((rU + 2 * le) / Math.max(r.width, 1), (rV + le * 1.6) / Math.max(r.height, 1));
+    var k = { svg: svg, co: 12 * px, le: le, y: function (v) { return v1 - v; } };
+    k.ve = el(svg, 'g', { 'clip-path': 'url(#' + id + ')' });
+    return k;
+  }
+
+  function hop(k, u0, u1, v0, v1, lop) {
+    el(k.ve, 'rect', { x: u0, y: k.y(v1), width: u1 - u0, height: v1 - v0, 'class': lop });
+  }
+
+  // đường kích thước: dọc (u cố định) hoặc ngang (v cố định); khoa = ô tương ứng
+  function dim(k, huong, co_dinh, a, b, nhan, khoa) {
+    var sang = khoa && khoa === dangSua;   // số tự tính (khoa null) không bao giờ sáng
+    var g = el(k.svg, 'g', { 'class': 'dim' + (sang ? ' sang' : '') + (khoa ? '' : ' tu') });
+    var t = k.co * 0.35, fs = k.co * (sang ? 0.95 : 0.8);
+    if (huong === 'doc') {
+      el(g, 'line', { x1: co_dinh, y1: k.y(a), x2: co_dinh, y2: k.y(b) });
+      el(g, 'line', { x1: co_dinh - t, y1: k.y(a), x2: co_dinh + t, y2: k.y(a) });
+      el(g, 'line', { x1: co_dinh - t, y1: k.y(b), x2: co_dinh + t, y2: k.y(b) });
+      var ym = k.y((a + b) / 2);
+      el(g, 'text', { x: co_dinh - t * 1.4, y: ym, 'font-size': fs, 'text-anchor': 'middle',
+                      transform: 'rotate(-90 ' + (co_dinh - t * 1.4) + ' ' + ym + ')' }, nhan);
+    } else {
+      el(g, 'line', { x1: a, y1: k.y(co_dinh), x2: b, y2: k.y(co_dinh) });
+      el(g, 'line', { x1: a, y1: k.y(co_dinh) - t, x2: a, y2: k.y(co_dinh) + t });
+      el(g, 'line', { x1: b, y1: k.y(co_dinh) - t, x2: b, y2: k.y(co_dinh) + t });
+      el(g, 'text', { x: (a + b) / 2, y: k.y(co_dinh) + fs * 1.25, 'font-size': fs, 'text-anchor': 'middle' }, nhan);
+    }
+  }
+
+  function ve(d) {
+    var p = d.tham_so, tam = d.tam;
+    var W = p.rong, D = p.sau, H = p.cao, Hd = p.cao_tu_lanh, Hb = p.cao_ba_noc;
+    var coLen = p.len_day > 0 && p.len_cao > 0;
+    $('tutren').textContent = so(H - Hd - Hb) + ' mm';
+
+    // Mặt đứng: tấm sau vẽ trước, tấm trước đè lên (như mắt nhìn)
+    var k = manHinh($('truoc'), 0, W, 0, H);
+    tam.slice().sort(function (a, b) { return b.y[0] - a.y[0]; }).forEach(function (s) {
+      hop(k, s.x[0], s.x[1], s.z[0], s.z[1], 'tam' + (s.ten.indexOf('Cánh') === 0 ? ' canh' : ''));
+    });
+    var l = k.le * 0.45;
+    dim(k, 'ngang', -l, 0, W, so(W), 'rong');
+    dim(k, 'doc', -l, 0, H, so(H), 'cao');
+    dim(k, 'doc', W + l, 0, Hd, so(Hd), 'cao_tu_lanh');
+    dim(k, 'doc', W + l, Hd, H - Hb, so(H - Hd - Hb), null);
+    dim(k, 'doc', W + l, H - Hb, H, so(Hb), 'cao_ba_noc');
+    dim(k, 'ngang', -l * 1.9, 0, p.van, so(p.van), 'van');
+    // hậu nằm sau cánh, không thấy từ trước → chỉ vẽ nét đứt khi đang sửa rãnh hậu
+    var hau = tam.filter(function (s) { return s.ten === 'Hậu trên'; })[0];
+    var soHau = ['van_hau', 'hau_lui', 'ranh_hau'].indexOf(dangSua) >= 0;
+    if (hau && soHau)
+      el(k.svg, 'rect', { x: hau.x[0], y: k.y(hau.z[1]), width: hau.x[1] - hau.x[0], height: hau.z[1] - hau.z[0], 'class': 'an' });
+
+    // Mặt cắt cạnh (toàn tủ) + chi tiết chân (phóng to góc sau-dưới): cùng một cách vẽ
+    var c = manHinh($('canh'), 0, D * 1.12, 0, H);
+    catCanh(c, d, W, D, H, coLen);
+    dim(c, 'ngang', -c.le * 0.45, 0, D, so(D), 'sau');
+
+    // Hai khung chi tiết luôn hiện: hậu (ván, hậu dày, cách tường, rãnh) + chân tường (len)
+    if (hau) veHau(p, hau, D);
+    var vTren = Math.max(p.len_cao, 60) + 100;
+    var uTrai = D - Math.max(vTren, 160);
+    var ch = manHinh($('chan'), uTrai, D + 40, 0, vTren);
+    catCanh(ch, d, W, D, H, coLen, true);
+    var lch = ch.le * 0.45;
+    if (coLen) {
+      dim(ch, 'ngang', -lch * 0.8, D - p.len_day, D, so(p.len_day), 'len_day');
+      dim(ch, 'doc', D - p.len_day - lch * 0.8, 0, p.len_cao, so(p.len_cao), 'len_cao');
+    }
+  }
+
+  // Góc sau-trái nhìn từ trên: hông trái, hậu ăn rãnh vào hông, tường phía trên
+  function veHau(p, hau, D) {
+    var t = p.van, m = Math.max(t, 18) * 7;
+    var k = manHinh($('hau'), -m * 0.25, m, D - m * 0.9, D + m * 0.25);
+    hop(k, -m, 2 * m, D, D + m, 'tuong');
+    hop(k, 0, t, 0, D, 'tam nen');
+    hop(k, hau.x[0], hau.x[1], hau.y[0], hau.y[1], 'tam');
+    var l = k.co * 1.4;
+    dim(k, 'ngang', hau.y[0] - l, hau.x[0], t, so(p.ranh_hau), 'ranh_hau');
+    dim(k, 'ngang', D - m * 0.75, 0, t, so(t), 'van');
+    dim(k, 'doc', t + m * 0.35, hau.y[1], D, so(p.hau_lui), 'hau_lui');
+    dim(k, 'doc', t + m * 0.6, hau.y[0], hau.y[1], so(p.van_hau), 'van_hau');
+  }
+
+  // Vẽ mặt cắt cạnh vào khung k: tường, hông (nền, thấy chỗ khoét), tấm bị mặt cắt x = W/4 đi qua, len.
+  // chiNen: chỉ hông + len + tường (khung chi tiết chân — Khoa 24/09: không cần thể hiện bạ)
+  function catCanh(k, d, W, D, H, coLen, chiNen) {
+    var p = d.tham_so, tam = d.tam;
+    hop(k, D, D * 1.12 + 40, 0, H, 'tuong');
+    tam.forEach(function (s) {
+      if (s.x[0] !== 0) return;              // hông trái + bạ nóc trái: nền
+      if (s.khoet) {
+        var q = [[s.y[0], s.z[0]], [s.khoet.y[0], s.z[0]], [s.khoet.y[0], s.khoet.z[1]],
+                 [s.y[1], s.khoet.z[1]], [s.y[1], s.z[1]], [s.y[0], s.z[1]]];
+        el(k.ve, 'polygon', { points: q.map(function (t) { return t[0] + ',' + k.y(t[1]); }).join(' '), 'class': 'tam nen' });
+      } else hop(k, s.y[0], s.y[1], s.z[0], s.z[1], 'tam nen');
+    });
+    var xc = W / 4;
+    tam.forEach(function (s) {
+      if (chiNen || s.x[0] === 0 || s.x[1] === W) return;
+      if (s.x[0] <= xc && xc <= s.x[1]) hop(k, s.y[0], s.y[1], s.z[0], s.z[1], 'tam' + (s.ten.indexOf('Cánh') === 0 ? ' canh' : ''));
+    });
+    if (coLen) hop(k, D - p.len_day, D, 0, p.len_cao, 'len');
+  }
+
+  window.addEventListener('resize', function () { if (cuoi) ve(cuoi); });
+  if (window.sketchup) sketchup.ready();
+</script>
+</body></html>

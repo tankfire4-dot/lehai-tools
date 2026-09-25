@@ -12,6 +12,28 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-09-25 — 1.9.66: tool mới Tạo Modul Nhanh (khung bao tủ lạnh)
+
+**Vấn đề:** Dựng khung bao tủ lạnh bằng tay mỗi công trình: 20 tấm, nhiều quan hệ ngầm (nóc thụt =
+dày cánh + khe, hậu ăn rãnh vào hông, hông khoét né len). Component co giãn thì "nhảy tứ tung" khi
+đổi ván vì hình học bị kéo theo tỉ lệ.
+
+**Quyết định:** Nhập thông số → **lõi tính thuần Ruby** (`tao_modul_nhanh/khung_bao_tu_lanh.rb`, không
+gọi SketchUp) ra danh sách tấm → dựng mỗi tấm một group có tên, gói trong group ngoài lưu thông số +
+phiên bản quy tắc (attribute `TaoModulNhanh`). Bảng HtmlDialog có hình 2D (mặt đứng, mặt cắt, chi
+tiết hậu, chi tiết chân) vẽ từ CHÍNH danh sách tấm của lõi. Nút đứng ngay trước khiên Check Chốt.
+
+**Vì sao:** Quy tắc rút từ module mẫu Khoa vẽ tay 24/09, dò bằng Ruby rồi so khớp tới 0,15mm:
+lõi khớp 17/19 tấm mẫu (2 lệch = bạ lưng chia đều, cố ý), dựng thật dò lại khớp 19/19. Mỗi tấm tính
+lại từ quy tắc nên đổi ván 17,5 → 18/25 hay hậu 9 → 12 không tấm nào đâm vào nhau (đã thử). Đồ dev
+(bộ dò, so khớp, mẫu chuẩn, bảng quy tắc kèm nguồn) ở lab `projects/tao-modul-nhanh/` — không phát.
+
+**Bài học/Rủi ro:** (1) Suýt dùng MỘT số cho hai quy tắc (hậu cách tường 10 ≈ rãnh hậu 10) — khớp mẫu
+hoàn hảo, chỉ lộ khi đổi số → tách hai thông số; thử đổi số là cách bắt loại lỗi này. (2) Chưa chạy
+trên máy thợ. Ván/khe/rãnh là thông số chung của cả tủ, chưa có ca cánh dày khác thân.
+
+---
+
 ## 2026-09-24 — 1.9.65: tool mới Hình Nhân (kiểm công năng) — và vì sao TÁCH số chuẩn khỏi số ước lượng
 
 **Vấn đề.** Khoa: người trong 3D Warehouse chỉ có dáng đứng, mỗi lần kiếm rất phiền; cần một

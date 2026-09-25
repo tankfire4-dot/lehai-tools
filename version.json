@@ -1,5 +1,5 @@
 {
-  "version": "1.9.65",
+  "version": "1.9.66",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -72,6 +72,11 @@
     "LeHai_Tools/tam_go/icons/tamgo_16.png",
     "LeHai_Tools/tam_go/icons/tamgo_24.png",
     "LeHai_Tools/tam_go/ui/dialog.html",
+    "LeHai_Tools/tao_modul_nhanh/khung_bao_tu_lanh.rb",
+    "LeHai_Tools/tao_modul_nhanh/main.rb",
+    "LeHai_Tools/tao_modul_nhanh/icons/tao_modul_16.png",
+    "LeHai_Tools/tao_modul_nhanh/icons/tao_modul_24.png",
+    "LeHai_Tools/tao_modul_nhanh/ui/khung_bao.html",
     "LeHai_Tools/thu_vien/main.rb",
     "LeHai_Tools/thu_vien/components/HUONG_DAN.txt",
     "LeHai_Tools/thu_vien/core/library.rb",

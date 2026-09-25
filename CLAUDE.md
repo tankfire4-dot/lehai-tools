@@ -205,7 +205,7 @@ toolbar rỗng tên `X` mà SketchUp nhớ — gỡ ở **View → Toolbars → 
 
 **Đọc kỹ cột "Nút" — hai cách đếm khác nhau, đừng trộn.** Số module ≠ số nút trên toolbar.
 Có module **không có nút riêng**: nó chạy từ trong dashboard Check Chốt Sản Xuất (icon khiên cuối
-hàng). Tính tới 24/09/2026: **26 module, 16 nút** (Hạ Nền + Kiểm Tra Độ Dày đã cất nút — code còn;
+hàng). Tính tới 25/09/2026: **27 module, 17 nút** (Hạ Nền + Kiểm Tra Độ Dày đã cất nút — code còn;
 đếm lại từ thư mục + mảng `groups`, không chép số cũ).
 
 Nguồn sự thật cho từng cột: cột Module = thư mục trong `LeHai_Tools/`; cột Nút = mảng `groups`
@@ -235,6 +235,7 @@ là danh sách nút. Muốn biết đủ module thì `ls LeHai_Tools/*/`.
 | Trục Tọa Độ | `TK::AxisFix` | ✓ |
 | Dim Nhanh | `TK::QuickDim` | ✓ |
 | **Chống Bay** (quét đổi tag chi tiết nhỏ, sau nesting) | `TK::ChongBay` | ✓ |
+| **Tạo Modul Nhanh** (dựng khung bao tủ lạnh theo kết cấu chuẩn; đồ dev ở lab `projects/tao-modul-nhanh/`) | `TK::TaoModulNhanh` | ✓ |
 | **Check Chốt Sản Xuất** (dashboard, cuối toolbar, icon khiên) | `TK::PreExportCheck` | ✓ |
 | Trùng Tấm | `TK::DuplicateCheck` | — chạy trong dashboard |
 | Bản Lề Cánh | `TK::HingeCheck` | — chạy trong dashboard |

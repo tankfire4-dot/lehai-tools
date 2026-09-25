@@ -29,6 +29,7 @@ module LeHai
         File.join(path, 'kiem_tra_lien_ket','main'),
         File.join(path, 'kiem_tra_led',     'main'),
         File.join(path, 'kiem_tra_ten',     'main'),
+        File.join(path, 'tao_modul_nhanh',  'main'),
         File.join(path, 'soat_truoc_xuat',  'main')
       ].each do |f|
         begin
@@ -60,6 +61,7 @@ module LeHai
       puts "[LeHai_Tools] Defined? TK::DuplicateCheck     = #{defined?(::TK::DuplicateCheck).inspect}"
       puts "[LeHai_Tools] Defined? TK::HingeCheck         = #{defined?(::TK::HingeCheck).inspect}"
       puts "[LeHai_Tools] Defined? TK::JointCheck         = #{defined?(::TK::JointCheck).inspect}"
+      puts "[LeHai_Tools] Defined? TK::TaoModulNhanh      = #{defined?(::TK::TaoModulNhanh).inspect}"
       puts "[LeHai_Tools] Defined? TK::PreExportCheck     = #{defined?(::TK::PreExportCheck).inspect}"
 
       # Build toolbar — sắp theo CỤM (cụm DC để cuối). SketchUp không hỗ trợ
@@ -118,6 +120,10 @@ module LeHai
         # TRƯỚC khiên: cùng là việc làm sau nesting, ngay trước khi xuất DXF.
         [defined?(::TK::ChongBay) && ::TK::ChongBay.respond_to?(:create_cmd),
          -> { ::TK::ChongBay.create_cmd }],
+        # Tạo Modul Nhanh — dựng tủ theo kết cấu chuẩn xưởng (khung bao tủ lạnh). Khoa
+        # chốt 25/09: đứng NGAY TRƯỚC khiên Check Chốt Sản Xuất.
+        [defined?(::TK::TaoModulNhanh) && ::TK::TaoModulNhanh.respond_to?(:create_cmd),
+         -> { ::TK::TaoModulNhanh.create_cmd }],
         # ── Cụm CUỐI: CHỐT CHẶN trước khi xuất DXF ──
         # Check Chốt Sản Xuất — dashboard gom các check (Độ Dày/Khoảng Cách/Trùng
         # Tấm/Bản Lề/Rãnh Hậu/Ngàm). Đặt CUỐI hàng, icon khiên nổi bật.

@@ -12,6 +12,17 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-09-25 — 1.9.67: Tạo Modul Nhanh — không có len thì bạ chân cách sàn 30
+
+**Vấn đề:** 1.9.66 tính bạ lưng chân khi không có len = 0 + 20 (cách sàn 20). Con số đó Claude tự suy
+từ quy tắc "cao hơn chỗ khoét 20", chưa hỏi Khoa.
+**Quyết định:** Khoa chốt 25/09: không có len → đáy bạ chân cách sàn **30**, cố định. Thêm thông số
+riêng `ba_chan_cach_san` (không đưa ra bảng), không suy 30 từ 20.
+**Bài học:** soát lại trang kiến thức (`kien-thuc/noi-that/ket-cau.md`) theo trạng thái rõ ràng mới lòi
+ra giả định này — trước đó nó mang dấu ✓ lẫn với các quy tắc Khoa đã chốt.
+
+---
+
 ## 2026-09-25 — 1.9.66: tool mới Tạo Modul Nhanh (khung bao tủ lạnh)
 
 **Vấn đề:** Dựng khung bao tủ lạnh bằng tay mỗi công trình: 20 tấm, nhiều quan hệ ngầm (nóc thụt =

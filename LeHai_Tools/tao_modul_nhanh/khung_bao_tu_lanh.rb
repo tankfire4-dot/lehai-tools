@@ -29,6 +29,7 @@ module TK
         len_day: 10.0,      # len chân tường hiện trạng — dày (đo từ tường ra)
         len_cao: 60.0,      #                            — cao
         ba_chan_cach_len: 20.0, # bạ lưng chân: đáy bạ cao hơn đỉnh chỗ khoét len — CỐ ĐỊNH, không đưa ra bảng hỏi (Khoa chốt 24/09)
+        ba_chan_cach_san: 30.0, # KHÔNG có len: đáy bạ lưng chân cách sàn — CỐ ĐỊNH (Khoa chốt 25/09)
         ba_rong: 60.0,      # bản rộng bạ nóc trước / bạ lưng / xương bạ nóc trước
         xuong_ben: 50.0     # bản rộng xương bạ nóc hai bên
       }.freeze
@@ -95,8 +96,9 @@ module TK
         # ── Chỗ tủ lạnh: nóc dưới + 4 bạ lưng sát sau, không hậu ──
         tam << hop('Nóc dưới', t, lot, lui, y_sau, hd - t, hd)
         z_ba1 = hd - t - ba             # bạ lưng 1 sát ngay dưới nóc dưới
-        # Bạ lưng chân: sát chân, đáy cao hơn đỉnh chỗ khoét len ba_chan_cach_len (Khoa 24/09)
-        z_chan = (co_len ? p[:len_cao] : 0.0) + p[:ba_chan_cach_len]
+        # Bạ lưng chân: có len → đáy cao hơn đỉnh chỗ khoét 20 (Khoa 24/09);
+        # không len → đáy cách sàn 30 (Khoa 25/09). Hai số riêng, không suy từ nhau.
+        z_chan = co_len ? p[:len_cao] + p[:ba_chan_cach_len] : p[:ba_chan_cach_san]
         # 2 bạ giữa: 3 khoảng hở bằng nhau từ đỉnh bạ chân tới đáy bạ lưng 1 (Khoa oke 24/09)
         ho = (z_ba1 - (z_chan + ba) - 2 * ba) / 3.0
         raise "Chỗ tủ lạnh #{hd}mm quá thấp để đặt 4 bạ lưng." if ho <= 0

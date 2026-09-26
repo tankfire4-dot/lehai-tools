@@ -1,6 +1,8 @@
 # encoding: UTF-8
-# Mộng xương chó: tạo mộng dương (dogbone) trên tấm đứng + dấu âm _ABF_Intersect
-# trên tấm ngang tiếp giáp. Giao diện sơ đồ 2D (HtmlDialog) để chỉnh thông số.
+# Mộng xương chó: tạo mộng dương (dogbone) trên các TẤM NGÀM + dấu âm _ABF_Intersect trên các
+# TẤM NHẬN áp vào chúng. Người dùng chỉ phân loại hai nhóm tấm; tool tự ghép cặp theo tiếp giáp.
+# Tấm ngàm được GHI NHỚ việc đã làm (dict LeHai_MXC) để lần sau làm thêm: thêm đầu mới hoặc
+# đóng dấu lên tấm nhận mới — không cho sửa mộng đã làm (dấu cũ sẽ lệch).
 # Giữ mộng dương dày bằng thân ván; thông số dày/bên giữ chỉ đổi DẤU ÂM.
 # Toolbar do LeHai_Tools/main.rb quản lý — file này chỉ expose create_cmd.
 # CHƯA nghiệm thu ABF/nesting/DXF trên máy thật (đưa vào 16/09/2026).
@@ -12,6 +14,17 @@ module TK
 module MongXuongCho
 
   PATH = File.dirname(__FILE__).freeze
+  AXES = [X_AXIS, Y_AXIS, Z_AXIS].freeze
+  # Chừa ít nhất 1mm giữa các đầu mộng và từ mép mộng tới đầu tấm để tránh
+  # hình học chạm nhau/quá ngắn. Đây là giới hạn dựng hình, không phải tiêu chuẩn CNC.
+  MIN_GAP = 1.mm
+  MEM = 'LeHai_MXC'.freeze # dict ghi nhớ trên tấm ngàm: 'box' (hộp gốc) + 'edges' (JSON từng đầu)
+  SPEC_KEYS = %w[count head height neck bevel inset side fit slackT slackL cutter].freeze
+  TEN_SO = {'count' => 'số mộng', 'head' => 'rộng đầu', 'height' => 'cao mộng', 'neck' => 'đường kính cổ',
+            'bevel' => 'vát đỉnh', 'inset' => 'lùi tâm', 'fit' => 'dày tính dấu', 'slackT' => 'dư dày',
+            'slackL' => 'dư dài', 'cutter' => 'dao góc dấu âm'}.freeze
+  TEN_CANH = {1 => 'trên', 2 => 'phải', 3 => 'dưới', 4 => 'trái'}.freeze
+
   # Biên đo từ mẫu Khoa: thân chữ nhật và bốn nửa đường tròn lồi ở hai đầu.
   # t = bề dày + tổng độ dư; length = rộng mộng + tổng độ dư chiều dài.
   # Hai nửa đường tròn mỗi đầu cần t > 4r để còn đoạn thẳng giữa chúng.
@@ -32,6 +45,9 @@ module MongXuongCho
     points
   end
 
+  # ── Nhận dạng tấm ──────
+
+  # Tấm nguyên: hộp 6 mặt/12 cạnh song song trục local, không có gì khác bên trong.
   def self.plain_box?(group)
     ents = group.entities
     edges = ents.grep(Sketchup::Edge)
@@ -42,419 +58,75 @@ module MongXuongCho
       }
   end
 
-  def self.apply_geometry(input = nil, context = nil)
-    model = Sketchup.active_model
-    picked = context ? context[:groups] : model.selection.to_a
-    source = picked.first
-    receiver = nil
-    if picked.length == 2 && picked.all? { |g| g.is_a?(Sketchup::Group) }
-      horizontal = picked.select { |g|
-        b = g.definition.bounds
-        b.depth < b.width && b.depth < b.height
-      }
-      if horizontal.length == 1
-        receiver = horizontal.first
-        source = (picked - horizontal).first
-      end
-    end
-    if context
-      source = context[:source]
-      receiver = context[:receiver]
-    end
-    unless (picked.length == 1 && source.is_a?(Sketchup::Group)) || receiver
-      UI.messagebox('Chọn một tấm đứng, hoặc chọn cả tấm đứng và tấm ngang tiếp giáp. Dùng group tấm nguyên chưa có mộng.')
-      return
-    end
-    entities = source.entities
-    faces = entities.grep(Sketchup::Face)
-    edges = entities.grep(Sketchup::Edge)
-    unless faces.length == 6 && edges.length == 12 && entities.to_a.length == 18
-      UI.messagebox('Bản thử chỉ nhận tấm hộp chữ nhật: 6 mặt, 12 cạnh, không có group con.')
-      return
-    end
-    bb = source.definition.bounds
-    size = [bb.width, bb.height, bb.depth]
-    thick_axis = size.each_with_index.min_by { |v, _i| v }[1]
-    if thick_axis == 2
-      UI.messagebox('Chọn tấm đứng có trục Z local là chiều cao; không chọn tấm ngang.')
-      return
-    end
-    # Tấm đứng: trục mỏng là X hoặc Y; trục ngang còn lại là chiều đặt mộng.
-    width_axis = 1 - thick_axis
-    width = size[width_axis]
-    thickness = size[thick_axis]
-    # Chỉ nhận hộp song song các trục local; không suy kích thước từ hộp bao tấm xiên.
-    rectangular = edges.all? do |edge|
-      d = edge.end.position - edge.start.position
-      [d.x, d.y, d.z].count { |v| v.abs > 0.001.mm } == 1
-    end
-    axes = [X_AXIS, Y_AXIS, Z_AXIS]
-    unit_scale = axes.all? { |axis| ((source.transformation * axis).length - 1.0).abs < 0.000001 }
-    unless rectangular && unit_scale
-      UI.messagebox('Bản thử cần hộp vuông theo trục local, chưa Scale. Hãy dùng tấm mẫu ban đầu.')
-      return
-    end
-    # Chuẩn hóa cạnh được chọn về cạnh trên của hệ tính toán; không xoay group thật.
-    frame_data = frame_for(source, input ? input.fetch('edge', 1).to_i : 1)
-    frame = frame_data[:frame]
-    bb = frame_data[:bounds]
-    size = [bb.width, bb.height, bb.depth]
-    width = size[width_axis]
-    source_tr = source.transformation * frame
-    if receiver
-      unless plain_box?(receiver)
-        re = receiver.entities
-        detail = "Tấm ngang: #{re.grep(Sketchup::Face).length} mặt, #{re.grep(Sketchup::Edge).length} cạnh, #{re.to_a.length} đối tượng."
-        puts "KIEM TAM NGANG: #{detail}"
-        UI.messagebox("#{detail}\nCần hộp nguyên 6 mặt/12 cạnh song song trục local, không có dấu/group con. Nếu đúng tấm nguyên, gửi dòng KIEM TAM NGANG cho tao.")
-        return
-      end
-      # Cho phép xoay/lật group; vẫn chặn scale/xiên để thông số mm không bị đổi.
-      rigid = [source, receiver].all? { |g|
-        transformed = axes.map { |axis| g.transformation * axis }
-        transformed.all? { |axis| (axis.length - 1.0).abs < 0.000001 } &&
-          [[0, 1], [0, 2], [1, 2]].all? { |a, b| transformed[a].dot(transformed[b]).abs < 0.000001 }
-      }
-      unless rigid
-        UI.messagebox('Một tấm đang bị Scale hoặc xiên ở cấp group. Bản thử chưa xử lý hệ số Scale; cần tấm đúng kích thước hình học.')
-        return
-      end
-      # Kiểm tra tiếp giáp trong hệ tọa độ tấm nhận, không dùng hộp bao world.
-      # Tấm nhận có thể xoay hoặc lật: chọn mặt min/max Z thực sự tiếp xúc.
-      map_to_receiver = receiver.transformation.inverse * source_tr
-      rb = receiver.definition.bounds
-      receiver_sizes = [rb.width, rb.height, rb.depth]
-      receiver_axis = receiver_sizes.each_with_index.min_by { |v, _i| v }[1]
-      receiver_plane_axes = [0, 1, 2] - [receiver_axis]
-      top_corners = [[bb.min.x, bb.min.y, bb.max.z], [bb.max.x, bb.min.y, bb.max.z],
-                     [bb.max.x, bb.max.y, bb.max.z], [bb.min.x, bb.max.y, bb.max.z]].map { |p|
-        map_to_receiver * Geom::Point3d.new(p)
-      }
-      upward = map_to_receiver * Z_AXIS
-      up_components = [upward.x, upward.y, upward.z]
-      contact_z = up_components[receiver_axis] > 0 ? rb.min.to_a[receiver_axis] : rb.max.to_a[receiver_axis]
-      if receiver_plane_axes.any? { |i| up_components[i].abs > 0.000001 } ||
-          top_corners.any? { |p| (p.to_a[receiver_axis] - contact_z).abs > 0.01.mm }
-        error_mm = top_corners.map { |p| (p.to_a[receiver_axis] - contact_z).abs.to_mm }.max
-        puts "KIEM TIEP GIAP: lệch mặt tối đa #{error_mm.round(4)}mm; hướng=#{[upward.x, upward.y, upward.z].inspect}"
-        UI.messagebox('Đỉnh tấm đứng chưa trùng mặt tiếp giáp của tấm ngang, hoặc hai trục chiều cao không song song. Gửi dòng KIEM TIEP GIAP trong Console.')
-        return
-      end
-    end
-    values = input ? [input['count'], input['head'], input['height'], input['neck'], input['bevel'], input['inset'],
-                      {'none' => 'Không giảm', 'A' => 'Giữ mặt A', 'B' => 'Giữ mặt B'}[input['side']], input['fit']] : UI.inputbox(
-      ['Số lượng mộng (số nguyên)', 'Rộng đầu mộng (mm)', 'Cao mộng (mm)', 'Đường kính khoét cổ (mm)',
-       'Vát đỉnh (mm)', 'Tâm mộng ngoài cùng cách đầu tấm (mm; bỏ qua khi có 1 mộng)',
-       'Thu dấu âm — chọn bên giữ bằng mặt ván', 'Dày dùng tính dấu âm (mm; Không giảm thì bỏ qua)'],
-      [3.0, 35.0, 10.0, 6.0, 1.0, 50.0, 'Không giảm', [14.0, thickness.to_mm].min],
-      ['', '', '', '', '', '', 'Không giảm|Giữ mặt đang nhìn|Giữ mặt đối diện', ''],
-      'Mộng xương chó — chia đều')
-    return unless values
-    mode = values[6]
-    unless (values.first(6) + (mode == 'Không giảm' ? [] : [values[7]])).all? { |v| v.is_a?(Numeric) && v.finite? }
-      UI.messagebox('Nhập các kích thước bằng số.')
-      return
-    end
-    quantity = values.first
-    unless quantity >= 1 && quantity == quantity.to_i
-      UI.messagebox('Số lượng mộng phải là số nguyên từ 1 trở lên.')
-      return
-    end
-    quantity = quantity.to_i
-    head, height, diameter, bevel, inset = values[1, 5].map { |v| v.mm }
-    unless ['Không giảm', 'Giữ mặt đang nhìn', 'Giữ mặt đối diện', 'Giữ mặt A', 'Giữ mặt B'].include?(mode)
-      UI.messagebox('Chọn một trong ba chế độ tính dấu âm có sẵn.')
-      return
-    end
-    fit_thickness = mode == 'Không giảm' ? thickness : values[7].mm
-    unless fit_thickness >= 1.mm && fit_thickness <= thickness
-      UI.messagebox("Dày dùng tính dấu âm cần từ 1mm đến bề dày ván #{thickness.to_mm.round(3)}mm.")
-      return
-    end
-    # Chỉ thu/dịch dấu âm theo thông số này. Hình mộng dương luôn dày bằng thân ván.
-    narrow_mark = thickness - fit_thickness > 0.001.mm
-    keep_low = true
-    fit_offset = 0.0
-    if narrow_mark
-      if ['Giữ mặt A', 'Giữ mặt B'].include?(mode)
-        keep_low = mode == 'Giữ mặt A'
-      else
-      # Phía đang nhìn được xác định theo hướng camera lúc chạy, kể cả trong group lồng.
-      path_tr = (model.active_path || []).inject(Geom::Transformation.new) { |t, inst| t * inst.transformation }
-      world_tr = path_tr * source.transformation
-      thickness_world = world_tr * axes[thick_axis]
-      camera = model.active_view.camera
-      # Phối cảnh dùng tia từ tâm tấm tới mắt; chiếu song song dùng ngược hướng nhìn.
-      toward_eye = camera.perspective? ? camera.eye - (world_tr * bb.center) : camera.direction.reverse
-      facing = toward_eye.dot(thickness_world)
-      if toward_eye.length < 0.001.mm || facing.abs < 0.05 * thickness_world.length * toward_eye.length
-        UI.messagebox('Đang nhìn gần như dọc cạnh tấm nên chưa phân biệt được hai mặt. Xoay nhìn rõ mặt lớn tấm đứng rồi chạy lại.')
-        return
-      end
-      near_is_low = facing < 0
-      keep_low = mode == 'Giữ mặt đang nhìn' ? near_is_low : !near_is_low
-      end
-      # Giữ mặt nhỏ: dấu bắt đầu ở 0 trước khi cộng dư. Giữ mặt lớn: lùi dấu bằng phần giảm.
-      fit_offset = keep_low ? 0.0 : thickness - fit_thickness
-    else
-      fit_thickness = thickness
-    end
-    # Cung cổ bán kính bằng nửa đường kính dao; hai cổ không được chạm nhau.
-    radius = diameter / 2.0
-    unless head > diameter && diameter > 0 && height > diameter + bevel &&
-        bevel >= 0 && bevel < head / 2.0
-      UI.messagebox('Kích thước không hợp lệ: rộng đầu phải lớn hơn đường kính cổ; cổ và vát phải thấp hơn đầu.')
-      return
-    end
-    # Chừa ít nhất 1mm giữa các đầu mộng và từ mép mộng tới đầu tấm để tránh
-    # hình học chạm nhau/quá ngắn. Đây là giới hạn dựng hình, không phải tiêu chuẩn CNC.
-    min_gap = 1.mm
-    if quantity == 1
-      if width - head < 2.0 * min_gap
-        UI.messagebox('Tấm quá ngắn: một mộng cũng cần chừa ít nhất 1mm ở mỗi đầu tấm.')
-        return
-      end
-      centers = [width / 2.0] # Một mộng đặt chính giữa, không dùng khoảng lùi hai đầu.
-    else
-      if inset - head / 2.0 < min_gap || inset >= width / 2.0
-        UI.messagebox('Khoảng lùi không hợp lệ: mép mộng cần cách đầu tấm ít nhất 1mm; tâm ngoài cùng phải nằm trước giữa tấm.')
-        return
-      end
-      # Nhịp tâm = phần dài giữa hai tâm ngoài cùng / số khoảng giữa các mộng.
-      # Số mộng tối đa = số nhịp đủ rộng đầu + khe 1mm, cộng một tâm đầu tiên.
-      span = width - 2.0 * inset
-      maximum = (span / (head + min_gap) + 1.0e-9).floor + 1
-      if quantity > maximum
-        UI.messagebox("Không đủ chỗ cho #{quantity} mộng. Với cạnh #{width.to_mm.round(2)}mm, đầu #{head.to_mm.round(2)}mm và lùi tâm #{inset.to_mm.round(2)}mm: tối đa #{maximum} mộng trong cách chia này (khe tối thiểu 1mm). Giảm số lượng, giảm rộng đầu hoặc giảm khoảng lùi.")
-        return
-      end
-      pitch = span / (quantity - 1)
-      centers = Array.new(quantity) { |i| inset + i * pitch }
-    end
-    mortise_points = []
-    if receiver
-      options = input ? [input['slackT'], input['slackL'], input['cutter']] : UI.inputbox(
-        ['Dư bề dày TỔNG (mm; chia đôi mỗi bên)', 'Dư chiều dài TỔNG (mm; chia đôi mỗi đầu)',
-         'Đường kính khoét góc mộng âm (mm)'],
-        [0.1, 0.5, 6.0], 'Dấu mộng âm trên tấm ngang')
-      return unless options
-      unless options.all? { |v| v.is_a?(Numeric) && v.finite? }
-        UI.messagebox('Nhập độ dư và đường kính bằng số.')
-        return
-      end
-      slack_t, slack_l, cutter = options.map { |v| v.mm }
-      # Độ dư nhập là tổng, không cộng lại hai lần; cung lồi làm bao dài thêm 2R.
-      mortise_t = fit_thickness + slack_t
-      mortise_l = head + slack_l
-      mortise_r = cutter / 2.0
-      if slack_t < 0 || slack_l < 0 || cutter <= 0 || mortise_t - 2.0 * cutter < 1.mm
-        UI.messagebox("Độ dư phải không âm, đường kính phải dương. Với dấu rộng #{mortise_t.to_mm.round(3)}mm, dao cần không quá #{((mortise_t - 1.mm) / 2.0).to_mm.round(3)}mm để bốn cung không chạm nhau. Giảm dao hoặc tăng dày mộng.")
-        return
-      end
-      if height >= receiver_sizes[receiver_axis]
-        UI.messagebox('Mộng cao bằng hoặc vượt bề dày tấm ngang; bản thử mộng âm cần thấp hơn bề dày tấm.')
-        return
-      end
-      # Khe dấu tính theo cả hai cung lồi, không chỉ theo rộng đầu mộng dương.
-      if quantity > 1 && centers[1] - centers[0] < mortise_l + cutter + min_gap - 0.000001.mm
-        limit = ((width - 2.0 * inset) / (mortise_l + cutter + min_gap) + 1.0e-9).floor + 1
-        UI.messagebox("Các dấu mộng âm quá sát/chồng nhau. Với độ dư và dao này, tối đa #{limit} mộng trong khoảng tâm đã chọn. Giảm số lượng rồi chạy lại.")
-        return
-      end
-      base = mortise_outline(mortise_t, mortise_l, mortise_r)
-      rb = receiver.definition.bounds
-      thickness_direction = map_to_receiver * axes[thick_axis]
-      thickness_components = [thickness_direction.x, thickness_direction.y, thickness_direction.z]
-      mortise_points = centers.map do |center|
-        base.map do |t, u|
-          # Dấu bám bề dày tính toán và bên giữ; hình mộng dương không bị giảm.
-          p = [bb.min.x, bb.min.y, bb.max.z]
-          p[thick_axis] += fit_offset + t - slack_t / 2.0
-          p[width_axis] += center - mortise_l / 2.0 + u
-          point = map_to_receiver * Geom::Point3d.new(p)
-          # Mẫu thực có dấu nhô khỏi cạnh bên 0.05mm do độ dư bề dày 0.1mm.
-          # Chỉ cho phép phần nhô bằng nửa độ dư ấy; theo chiều dài phải ở trong tấm.
-          coords = point.to_a
-          lower = rb.min.to_a
-          upper = rb.max.to_a
-          inside = receiver_plane_axes.all? { |axis|
-            allowance = thickness_components[axis].abs * slack_t / 2.0
-            coords[axis] >= lower[axis] - allowance - 0.001.mm &&
-              coords[axis] <= upper[axis] + allowance + 0.001.mm
-          }
-          unless inside
-            UI.messagebox('Dấu mộng âm vượt mép tấm ngang. Kiểm tra vị trí hai tấm, khoảng lùi và kích thước dấu.')
-            return
-          end
-          coords[receiver_axis] = contact_z
-          Geom::Point3d.new(coords)
-        end
-      end
-    end
-    # Biên 2D đi qua các mộng từ trái sang phải; cung lõm mỗi bên có 12 đoạn.
-    outline = [[0, 0], [0, size[2]]]
-    arc_seams = []
-    top = size[2]
-    centers.each do |center|
-      left = center - head / 2.0
-      right = center + head / 2.0
-      outline << [left, top]
-      1.upto(12) do |i|
-        angle = -Math::PI / 2.0 + Math::PI * i / 12.0
-        outline << [left + radius * Math.cos(angle), top + radius + radius * Math.sin(angle)]
-        arc_seams << outline.last if i < 12
-      end
-      outline << [left, top + height - bevel]
-      outline << [left + bevel, top + height]
-      outline << [right - bevel, top + height]
-      outline << [right, top + height - bevel]
-      outline << [right, top + diameter]
-      1.upto(12) do |i|
-        angle = Math::PI / 2.0 - Math::PI * i / 12.0
-        outline << [right - radius * Math.cos(angle), top + radius + radius * Math.sin(angle)]
-        arc_seams << outline.last if i < 12
-      end
-    end
-    outline.concat([[width, top], [width, 0]])
-    points = outline.chunk_while { |a, b| a == b }.map(&:first).map do |u, z|
-      p = [bb.min.x, bb.min.y, bb.min.z]
-      p[width_axis] += u
-      p[2] += z
-      Geom::Point3d.new(p)
-    end
-    model.start_operation('Tao mong xuong cho truc tiep', true)
-    begin
-      # Group copy có thể dùng chung definition. Tách trước khi sửa để không đổi
-      # các bản khác; lấy lại entities sau make_unique, không dùng danh sách cũ.
-      source.make_unique
-      receiver.make_unique if receiver
-      raise 'Group không còn hợp lệ sau khi tách bản dùng chung.' unless source.valid? && (!receiver || receiver.valid?)
-      # ABF chỉ NHẬN + GÁN NHÃN group nào đeo ABF/is-board ở vỏ tấm (đo thật 17/09/2026,
-      # probes/so_sanh_ranh_tag.rb). Tấm thiếu dấu này bị nesting bỏ qua dù tag và dấu
-      # rãnh _ABF_Intersect đều đúng — đó là gốc "nesting không gán nhãn được tấm mình".
-      dam_bao_la_van(source)
-      dam_bao_la_van(receiver) if receiver
-      result = source
-      # Đã kiểm đầu vào là hộp nguyên 6 mặt/12 cạnh, nên chỉ thay hình học tấm này.
-      # Giữ group, transformation, tên, tag và thuộc tính cấp group của người dùng.
-      result.entities.erase_entities(result.entities.to_a)
-      # Theo yêu cầu 16/09: giữ hình mộng dương đủ bề dày để thử nhận dạng ABF.
-      # Không dùng fit_thickness/fit_offset cho hình khối; chỉ dùng cho dấu âm.
-      face = result.entities.add_face(points)
-      raise 'Không dựng được mặt biên mộng.' unless face
-      face.reverse! if face.normal.dot(axes[thick_axis]) < 0
-      face.pushpull(thickness)
-      softened = 0
-      result.entities.grep(Sketchup::Edge).each do |edge|
-        a = edge.start.position
-        b = edge.end.position
-        ac = [a.x, a.y, a.z]
-        bc = [b.x, b.y, b.z]
-        next unless (ac[thick_axis] - bc[thick_axis]).abs > 0.001.mm
-        next unless (ac[width_axis] - bc[width_axis]).abs < 0.001.mm && (a.z - b.z).abs < 0.001.mm
-        next unless arc_seams.any? { |u, z|
-          (ac[width_axis] - [bb.min.x, bb.min.y][width_axis] - u).abs < 0.001.mm &&
-            (a.z - bb.min.z - z).abs < 0.001.mm
-        }
-        edge.soft = true
-        edge.smooth = true
-        softened += 1
-      end
-      # Mỗi mộng có hai cung, mỗi cung 12 đoạn nên có 11 cạnh chia bên trong.
-      expected_soft = quantity * 2 * 11
-      raise "Làm mềm thiếu cạnh cung: #{softened}/#{expected_soft}." unless softened == expected_soft
-      new_edges = result.entities.grep(Sketchup::Edge)
-      raise 'Khối có cạnh hở hoặc cạnh nối hơn hai mặt.' unless new_edges.all? { |edge| edge.faces.length == 2 }
-      # DẤU PHAY MỘNG (Khoa): khi THU MỘT MẶT, đánh ô chữ nhật phủ đầu mộng (rộng đầu × cao mộng)
-      # lên MẶT BỊ THU = mặt đối diện mặt giữ, để báo CNC phay bớt. Tag riêng 'khoa_phaymong'
-      # (khác dấu âm). Thêm TRƯỚC transform_entities để dấu đi theo cùng khung với mộng.
-      if narrow_mark
-        phay_tag = model.layers.to_a.find { |layer| layer.name == 'ABF_PHAYDAUMONG_K' } || model.layers.add('ABF_PHAYDAUMONG_K')
-        # keep_low = giữ mặt thấp (bb.min trục dày) -> phay mặt CAO (bb.min+dày); ngược lại -> mặt THẤP.
-        reduced_coord = keep_low ? bb.min.to_a[thick_axis] + thickness : bb.min.to_a[thick_axis]
-        centers.each_with_index do |center, index|
-          rect = [[center - head / 2.0, top], [center + head / 2.0, top],
-                  [center + head / 2.0, top + height], [center - head / 2.0, top + height]].map do |u, z|
-            p = [bb.min.x, bb.min.y, bb.min.z]
-            p[thick_axis] = reduced_coord
-            p[width_axis] = bb.min.to_a[width_axis] + u
-            p[2] = bb.min.z + z
-            Geom::Point3d.new(p)
-          end
-          mark = result.entities.add_group
-          # DẤU PHAY = _ABF_Intersect chuẩn ABF. ABF chỉ công nhận intersect là CẶP A↔B:
-          # b-id phải trỏ tấm ĐỐI TÁC, KHÔNG tự trỏ mình (đo thật 17/09 probes/soi_bid_intersect.rb:
-          # dấu tự trỏ -> DXF rớt LAYER0; rãnh hậu thật trỏ tấm khác -> layer đúng). Phay đầu mộng
-          # do tấm NHẬN gây ra nên b-id trỏ receiver. Không có receiver thì không thành cặp hợp lệ.
-          mark.name = '_ABF_Intersect'
-          mark.layer = phay_tag
-          mark_face = mark.entities.add_face(rect)
-          raise "Không tạo được dấu phay mộng #{index + 1}." unless mark_face
-          mark.entities.grep(Sketchup::Edge).each { |edge| edge.layer = phay_tag }
-          mark.set_attribute('ABF', 'is-intersect', true)
-          mark.set_attribute('ABF', 'intersect-offset', 0.0)
-          mark.set_attribute('ABF', 'intersect-x', (thickness - fit_thickness).to_mm)
-          mark.set_attribute('ABF', 'intersect-group-b-id', receiver ? receiver.persistent_id : result.persistent_id)
-          mark.set_attribute('ABF', 'setting-name', 'PHAYDAUMONG_KHOA')
-        end
-      end
-      result.entities.transform_entities(frame, result.entities.to_a)
-      if receiver
-        # DẤU MỘNG ÂM = hốc khoét trên tấm NHẬN do mộng dương tấm ĐỨNG (source) đâm vào. ABF chỉ công
-        # nhận intersect là CẶP A↔B: mark trên tấm nhận phải trỏ b-id sang tấm ĐỨNG (source), không tự
-        # trỏ mình (đo thật 17/09 probes/soi_bid_intersect.rb). intersect-x = độ sâu hốc = cao mộng.
-        tag = model.layers.to_a.find { |layer| layer.name == 'ABF_PHAYRANHHAU10LY' } || model.layers.add('ABF_PHAYRANHHAU10LY')
-        mortise_points.each_with_index do |polygon, index|
-          mark = receiver.entities.add_group
-          mark.name = '_ABF_Intersect'
-          mark.layer = tag
-          mark_face = mark.entities.add_face(polygon)
-          raise "Không tạo được dấu âm #{index + 1}." unless mark_face
-          mark_face.reverse! if mark_face.normal.dot(upward) > 0
-          mark_edges = mark.entities.grep(Sketchup::Edge)
-          raise "Dấu âm #{index + 1} không đủ 52 cạnh." unless mark_edges.length == 52
-          mark_edges.each { |edge| edge.layer = tag }
-          mark.set_attribute('ABF', 'is-intersect', true)
-          mark.set_attribute('ABF', 'intersect-offset', 0.0)
-          mark.set_attribute('ABF', 'intersect-x', height.to_mm)
-          mark.set_attribute('ABF', 'setting-name', 'PHÂY RÃNH HẬU 10LY')
-          mark.set_attribute('ABF', 'intersect-group-b-id', result.persistent_id)
-        end
-      end
-      model.commit_operation
-      puts "XUONG CHO: sửa trực tiếp tấm đã chọn, #{quantity} mộng; #{result.entities.grep(Sketchup::Face).length} mặt; #{new_edges.length} cạnh; mọi cạnh có 2 mặt."
-      puts "Tâm mộng tính từ đầu cạnh (mm): #{centers.map { |c| c.to_mm.round(3) }.join(', ')}"
-      puts "DAY MONG 3D: thân và mộng dương đều #{thickness.to_mm.round(3)}mm; không tạo bậc."
-      puts "TINH DAU AM: dày #{fit_thickness.to_mm.round(3)}mm trước dư; #{narrow_mark ? mode : 'Không giảm'}; lùi #{fit_offset.to_mm.round(3)}mm."
-      puts 'Giữ vị trí các tấm, không tạo cặp bản sao. Ctrl+Z một lần để hoàn tác cả mộng và dấu âm.'
-      puts "CUNG MUOT: #{softened}/#{expected_soft} cạnh trong cung đã soft + smooth; giữ cạnh biên và vát."
-      puts "PHAY MONG: #{quantity} dấu _ABF_Intersect (tag ABF_PHAYDAUMONG_K, setting PHAYDAUMONG_KHOA) ở mặt #{keep_low ? 'B (thu)' : 'A (thu)'}; intersect-x #{(thickness - fit_thickness).to_mm.round(3)}mm." if narrow_mark
-      if receiver
-        puts "MONG AM: #{quantity} dấu _ABF_Intersect (tag ABF_PHAYRANHHAU10LY, setting PHÂY RÃNH HẬU, b-id tấm nhận, sâu #{height.to_mm.round(3)}mm) — coi như hốc phay."
-        puts "Bao dấu (mm): #{mortise_t.to_mm.round(3)} x #{(mortise_l + cutter).to_mm.round(3)}; ABF nesting/DXF chưa nghiệm thu."
-      end
-      return true
-    rescue => ex
-      model.abort_operation
-      puts "LOI: #{ex.class}: #{ex.message}"
-      UI.messagebox("Không tạo được mộng: #{ex.message}")
-    end
+  # Không Scale, không xiên ở cấp group: thông số mm mới đúng với hình học.
+  def self.rigid?(group)
+    t = AXES.map { |axis| group.transformation * axis }
+    t.all? { |axis| (axis.length - 1.0).abs < 0.000001 } &&
+      [[0, 1], [0, 2], [1, 2]].all? { |a, b| t[a].dot(t[b]).abs < 0.000001 }
+  end
+
+  def self.dau_abf?(entity)
+    entity.is_a?(Sketchup::Group) &&
+      (entity.name == '_ABF_Intersect' || entity.get_attribute('ABF', 'is-intersect') == true)
+  end
+
+  # Kích thước tấm nhận lấy từ cạnh của CHÍNH nó, không từ definition.bounds: dấu âm cũ được
+  # phép nhô khỏi mép nửa độ dư (0.05mm) nên hộp bao cả group sẽ phình và lệch lần ráp sau.
+  # Tấm nhận có mộng sẵn vẫn đúng bề dày vì mộng dương luôn dày bằng thân ván.
+  def self.board_bounds(group)
+    box = Geom::BoundingBox.new
+    group.entities.grep(Sketchup::Edge).each { |e| box.add(e.start.position, e.end.position) }
+    box
+  end
+
+  # ── Ghi nhớ trên tấm ngàm ──────
+  # 'box' = hộp tấm nguyên TRƯỚC khi mọc mộng (local, inch); 'edges' = {"2" => spec + 'nhan' (pid
+  # các tấm đã đóng dấu) + 'phay_b' (pid tấm đối tác của dấu phay)}. Nằm trong cùng thao tác
+  # dựng nên Ctrl+Z xóa luôn ghi nhớ.
+  def self.memory(group)
+    box = group.get_attribute(MEM, 'box')
+    raw = group.get_attribute(MEM, 'edges')
+    return nil unless box.is_a?(Array) && box.length == 6 && raw.is_a?(String)
+    edges = JSON.parse(raw)
+    bb = Geom::BoundingBox.new
+    bb.add(Geom::Point3d.new(box[0, 3]), Geom::Point3d.new(box[3, 3]))
+    {box: bb, edges: edges.map { |k, v| [k.to_i, v] }.to_h}
+  rescue JSON::ParserError
+    nil # ghi nhớ hỏng thì coi như không có: tấm sẽ bị từ chối nếu đã có mộng
+  end
+
+  def self.write_memory(group, box, edges)
+    group.set_attribute(MEM, 'box', box.min.to_a + box.max.to_a)
+    group.set_attribute(MEM, 'edges', JSON.generate(edges.map { |k, v| [k.to_s, v] }.to_h))
+  end
+
+  # Hộp gốc của tấm ngàm: ghi nhớ nếu đã làm, hộp nguyên nếu chưa; nil nếu không dùng được.
+  def self.tenon_box(group)
+    mem = memory(group)
+    return mem[:box] if mem
+    return nil unless plain_box?(group)
+    # Chép ra hộp mới: hộp gốc phải giữ nguyên dù hình tấm đổi ngay sau đó.
+    b = group.definition.bounds
+    Geom::BoundingBox.new.add(b.min, b.max)
+  end
+
+  # Lý do tấm không làm ngàm được, hoặc nil nếu được.
+  def self.tenon_problem(group)
+    box = tenon_box(group)
+    return 'đã có mộng/khoét nhưng không phải do tool này làm (hoặc làm bằng bản cũ) — Undo về tấm nguyên rồi làm lại' unless box
+    return 'đang bị Scale hoặc xiên ở cấp group' unless rigid?(group)
+    sizes = [box.width, box.height, box.depth]
+    return 'là tấm nằm ngang — tool chỉ mọc mộng trên tấm đứng (trục Z local là chiều cao)' if sizes.each_with_index.min_by { |v, _i| v }[1] == 2
     nil
   end
 
-  # Đóng dấu "đây là tấm ván" mà ABF dùng để nhận + gán nhãn (is-board ở vỏ tấm).
-  # Chỉ ghi key CÒN THIẾU, không đè giá trị ABF có thể đã có. board-index để ABF tự
-  # đánh khi nesting nên không set ở đây (set cứng dễ trùng số giữa các tấm).
-  def self.dam_bao_la_van(group)
-    return unless group && group.valid?
-    dict = (group.attribute_dictionary('ABF') rescue nil)
-    group.set_attribute('ABF', 'is-board', true)    unless dict && dict.keys.include?('is-board')
-    group.set_attribute('ABF', 'label-rotation', 0) unless dict && dict.keys.include?('label-rotation')
-  end
+  # ── Hình học một đầu ──────
 
-  def self.frame_for(group, edge)
+  # Hệ cạnh: cạnh `edge` của hộp `box` thành cạnh trên, u chạy dọc cạnh, z hướng ra ngoài,
+  # trục dày giữ nguyên (mặt A = mặt thấp của trục dày).
+  def self.frame_for(group, edge, box = nil)
     raise 'Chọn cạnh từ 1 đến 4.' unless (1..4).include?(edge)
-    b = group.definition.bounds
+    b = box || group.definition.bounds
     lengths = [b.width, b.height, b.depth]
     thin = lengths.each_with_index.min_by { |v, _i| v }[1]
     raise 'Tấm tạo mộng cần là tấm đứng với trục Z dọc mặt lớn.' if thin == 2
@@ -480,158 +152,668 @@ module MongXuongCho
     end
     dimensions = lengths.dup
     dimensions[u], dimensions[2] = lengths[2], lengths[u] if [2, 4].include?(edge)
-    box = Geom::BoundingBox.new
-    box.add(Geom::Point3d.new(0, 0, 0), Geom::Point3d.new(dimensions))
-    {frame: Geom::Transformation.axes(Geom::Point3d.new(origin), *basis), bounds: box,
+    bounds = Geom::BoundingBox.new
+    bounds.add(Geom::Point3d.new(0, 0, 0), Geom::Point3d.new(dimensions))
+    {frame: Geom::Transformation.axes(Geom::Point3d.new(origin), *basis), bounds: bounds,
      thin: thin, u: u, width: lengths[u].to_mm, height: lengths[2].to_mm, thickness: lengths[thin].to_mm}
   end
 
-  def self.dialog_context(index)
-    raise 'Model đã đổi. Đóng bảng và chọn lại tấm.' unless Sketchup.active_model == @dialog_model
-    raise 'Đã đổi cấp chỉnh sửa. Đóng bảng và mở lại.' unless (Sketchup.active_model.active_path || []) == @dialog_path
-    raise 'Tấm đã bị xóa.' unless @dialog_groups.all?(&:valid?)
-    raise 'Chỉ số tấm không hợp lệ.' unless index >= 0 && index < @dialog_groups.length
-    source = @dialog_groups[index]
-    {groups: @dialog_groups, source: source, receiver: (@dialog_groups - [source]).first}
+  # Đầu `edge` của tấm ngàm có áp phẳng vào một mặt lớn của tấm nhận VÀ nằm trong phạm vi mặt đó
+  # không (tấm ở xa mà tình cờ cùng mặt phẳng thì không tính). Trả thông tin trong hệ tấm nhận.
+  def self.contact_info(source, edge, receiver, box)
+    fd = frame_for(source, edge, box)
+    map = receiver.transformation.inverse * source.transformation * fd[:frame]
+    rb = board_bounds(receiver)
+    sizes = [rb.width, rb.height, rb.depth]
+    axis = sizes.each_with_index.min_by { |v, _i| v }[1]
+    plane_axes = [0, 1, 2] - [axis]
+    upward = map * Z_AXIS
+    up = upward.to_a
+    return nil unless plane_axes.all? { |i| up[i].abs < 0.000001 }
+    # Tấm nhận có thể xoay hoặc lật: chọn mặt min/max thực sự đối diện cạnh mộng.
+    contact = up[axis] > 0 ? rb.min.to_a[axis] : rb.max.to_a[axis]
+    fb = fd[:bounds]
+    corners = [[0, 0, fb.max.z], [fb.max.x, 0, fb.max.z], [fb.max.x, fb.max.y, fb.max.z], [0, fb.max.y, fb.max.z]].map { |p|
+      (map * Geom::Point3d.new(p)).to_a
+    }
+    return nil unless corners.all? { |c| (c[axis] - contact).abs <= 0.01.mm }
+    return nil unless corners.all? { |c|
+      plane_axes.all? { |i| c[i] >= rb.min.to_a[i] - 0.5.mm && c[i] <= rb.max.to_a[i] + 0.5.mm }
+    }
+    {map: map, bounds: rb, axis: axis, plane_axes: plane_axes, upward: upward, contact: contact,
+     thickness: sizes[axis]}
   end
 
-  def self.dialog_data(index = 0)
-    context = dialog_context(index)
-    group = context[:source]
-    base = frame_for(group, 1)
-    available = (1..4).map do |edge|
-      next true unless context[:receiver]
-      receiver = context[:receiver]
-      fd = frame_for(group, edge)
-      relative = receiver.transformation.inverse * group.transformation * fd[:frame]
-      rb = receiver.definition.bounds
-      dims = [rb.width, rb.height, rb.depth]
-      raxis = dims.each_with_index.min_by { |v, _i| v }[1]
-      direction = (relative * Z_AXIS).to_a
-      contact = direction[raxis] > 0 ? rb.min.to_a[raxis] : rb.max.to_a[raxis]
-      fb = fd[:bounds]
-      points = [[0, 0, fb.max.z], [fb.max.x, 0, fb.max.z],
-                [fb.max.x, fb.max.y, fb.max.z], [0, fb.max.y, fb.max.z]]
-      ([0, 1, 2] - [raxis]).all? { |i| direction[i].abs < 0.000001 } &&
-        points.all? { |p| ((relative * Geom::Point3d.new(p)).to_a[raxis] - contact).abs <= 0.01.mm }
+  # Tính một đầu trong hệ cạnh. Kiểm hết trước khi đụng model; sai thì raise câu tiếng Việt.
+  # receiver = nil: chỉ tính răng mộng (đầu cũ dựng lại, hoặc đầu không có tấm nhận).
+  def self.plan_edge(source, spec, receiver, box, label)
+    edge = spec.fetch('edge').to_i
+    number = lambda do |key|
+      v = spec[key]
+      raise "#{label}nhập #{TEN_SO[key]} bằng số." unless v.is_a?(Numeric) && v.finite?
+      v
     end
-    {width: base[:width], height: base[:height], thickness: base[:thickness], source: index,
-     boards: @dialog_groups.each_with_index.map { |g, i| "#{i + 1}. #{g.name.empty? ? 'Tấm chưa đặt tên' : g.name}" },
-     receiver: !!context[:receiver], available: available, live: true}
-  end
-
-  def self.send_dialog(data)
-    @dlg.execute_script("window.receiveModel(#{JSON.generate(data)})") if @dlg
-  end
-
-  class EdgeTool
-    attr_accessor :index, :edge, :side
-    def initialize(dialog)
-      @dlg, @index, @edge, @side = dialog, 0, 1, 'none'
-    end
-    def corners(face_side = 'A')
-      context = TK::MongXuongCho.dialog_context(@index)
-      group = context[:source]
-      b = group.definition.bounds
-      fd = TK::MongXuongCho.frame_for(group, 1)
-      t = fd[:thin]; u = fd[:u]
-      path = (Sketchup.active_model.active_path || []).inject(Geom::Transformation.new) { |tr, g| tr * g.transformation }
-      [[0,1],[1,1],[1,0],[0,0]].map do |x,z|
-        p = b.min.to_a
-        p[t] = face_side == 'B' ? b.max.to_a[t] : b.min.to_a[t]
-        p[u] = x == 0 ? b.min.to_a[u] : b.max.to_a[u]
-        p[2] = z == 0 ? b.min.z : b.max.z
-        path * group.transformation * Geom::Point3d.new(p)
+    fd = frame_for(source, edge, box)
+    thin = fd[:thin]
+    u_axis = fd[:u]
+    bb = fd[:bounds]
+    size = [bb.width, bb.height, bb.depth]
+    width = size[u_axis]
+    thickness = size[thin]
+    top = size[2]
+    quantity = number.call('count')
+    raise "#{label}số mộng phải là số nguyên từ 1 trở lên." unless quantity >= 1 && quantity == quantity.to_i
+    quantity = quantity.to_i
+    head, height, diameter, bevel = %w[head height neck bevel].map { |k| number.call(k).mm }
+    side = spec.fetch('side', 'none')
+    raise "#{label}chọn Không thu / Giữ mặt A / Giữ mặt B." unless %w[none A B].include?(side)
+    # Chỉ thu/dịch dấu âm theo thông số này. Hình mộng dương luôn dày bằng thân ván.
+    fit_thickness = thickness
+    fit_offset = 0.0
+    keep_low = true
+    narrow_mark = false
+    if side != 'none'
+      fit_thickness = number.call('fit').mm
+      unless fit_thickness >= 1.mm && fit_thickness <= thickness + 0.001.mm
+        raise "#{label}dày tính dấu cần từ 1mm đến bề dày ván #{thickness.to_mm.round(3)}mm."
+      end
+      narrow_mark = thickness - fit_thickness > 0.001.mm
+      if narrow_mark
+        # Giữ A: dấu bắt đầu ở mặt thấp; giữ B: lùi dấu bằng phần giảm.
+        keep_low = side == 'A'
+        fit_offset = keep_low ? 0.0 : thickness - fit_thickness
+      else
+        fit_thickness = thickness
       end
     end
-    def draw(view)
-      pts = corners(@side == 'B' ? 'B' : 'A').map { |p| view.screen_coords(p) }
-      4.times do |i|
-        view.line_width = @edge == i + 1 ? 5 : 2
-        view.drawing_color = @edge == i + 1 ? '#b45309' : '#718096'
-        a, b = pts[i], pts[(i + 1) % 4]
-        view.draw2d(GL_LINES, [a, b])
-        view.draw_text(Geom::Point3d.new((a.x+b.x)/2, (a.y+b.y)/2, 0), "  #{i+1}", color: '#7c2d12', size: 15, bold: true)
+    # Cung cổ bán kính bằng nửa đường kính dao; hai cổ không được chạm nhau.
+    radius = diameter / 2.0
+    unless head > diameter && diameter > 0 && height > diameter + bevel && bevel >= 0 && bevel < head / 2.0
+      raise "#{label}rộng đầu phải lớn hơn đường kính cổ; cổ và vát phải thấp hơn đầu."
+    end
+    if quantity == 1
+      raise "#{label}đầu tấm quá ngắn: một mộng cũng cần chừa ít nhất 1mm mỗi bên." if width - head < 2.0 * MIN_GAP
+      centers = [width / 2.0] # Một mộng đặt chính giữa, không dùng khoảng lùi hai đầu.
+    else
+      inset = number.call('inset').mm
+      if inset - head / 2.0 < MIN_GAP || inset >= width / 2.0
+        raise "#{label}mép mộng cần cách đầu tấm ít nhất 1mm; tâm ngoài cùng phải nằm trước giữa đầu tấm."
       end
-      a, b = pts[0], pts[2]
-      view.draw_text(Geom::Point3d.new((a.x+b.x)/2, (a.y+b.y)/2, 0), @side == 'B' ? 'MẶT B' : 'MẶT A', color: '#24627c', size: 17, bold: true)
+      # Nhịp tâm = phần dài giữa hai tâm ngoài cùng / số khoảng giữa các mộng.
+      span = width - 2.0 * inset
+      maximum = (span / (head + MIN_GAP) + 1.0e-9).floor + 1
+      if quantity > maximum
+        raise "#{label}không đủ chỗ cho #{quantity} mộng trên đầu dài #{width.to_mm.round(2)}mm — tối đa #{maximum}."
+      end
+      pitch = span / (quantity - 1)
+      centers = Array.new(quantity) { |i| inset + i * pitch }
+    end
+    # Răng mộng đi từ trái sang phải trên cạnh trên; cung lõm mỗi bên có 12 đoạn.
+    teeth = []
+    arc_seams = []
+    centers.each do |center|
+      left = center - head / 2.0
+      right = center + head / 2.0
+      teeth << [left, top]
+      1.upto(12) do |i|
+        angle = -Math::PI / 2.0 + Math::PI * i / 12.0
+        teeth << [left + radius * Math.cos(angle), top + radius + radius * Math.sin(angle)]
+        arc_seams << teeth.last if i < 12
+      end
+      teeth << [left, top + height - bevel]
+      teeth << [left + bevel, top + height]
+      teeth << [right - bevel, top + height]
+      teeth << [right, top + height - bevel]
+      teeth << [right, top + diameter]
+      1.upto(12) do |i|
+        angle = Math::PI / 2.0 - Math::PI * i / 12.0
+        teeth << [right - radius * Math.cos(angle), top + radius + radius * Math.sin(angle)]
+        arc_seams << teeth.last if i < 12
+      end
+    end
+    # DẤU PHAY MỘNG (Khoa): khi THU MỘT MẶT, ô chữ nhật phủ đầu mộng (rộng đầu × cao mộng)
+    # lên MẶT BỊ THU = mặt đối diện mặt giữ, để báo CNC phay bớt.
+    phay_rects = []
+    if narrow_mark
+      reduced = keep_low ? thickness : 0.0
+      phay_rects = centers.map do |center|
+        [[center - head / 2.0, top], [center + head / 2.0, top],
+         [center + head / 2.0, top + height], [center - head / 2.0, top + height]].map do |u, z|
+          p = [0.0, 0.0, z]
+          p[thin] = reduced
+          p[u_axis] = u
+          Geom::Point3d.new(p)
+        end
+      end
+    end
+    plan = {edge: edge, fd: fd, quantity: quantity, centers: centers, teeth: teeth, arc_seams: arc_seams,
+            height: height, thickness: thickness, fit_thickness: fit_thickness, narrow_mark: narrow_mark,
+            keep_low: keep_low, phay_rects: phay_rects, receiver: receiver, mortises: []}
+    return plan unless receiver
+    raise "#{label}tấm nhận đang bị Scale hoặc xiên ở cấp group." unless rigid?(receiver)
+    info = contact_info(source, edge, receiver, box)
+    raise "#{label}đầu này không còn áp phẳng vào tấm nhận. Bấm Làm mới rồi kiểm vị trí." unless info
+    slack_t, slack_l, cutter = %w[slackT slackL cutter].map { |k| number.call(k).mm }
+    # Độ dư nhập là tổng, không cộng lại hai lần; cung lồi làm bao dài thêm 2R.
+    mortise_t = fit_thickness + slack_t
+    mortise_l = head + slack_l
+    if slack_t < 0 || slack_l < 0 || cutter <= 0 || mortise_t - 2.0 * cutter < 1.mm
+      raise "#{label}độ dư phải không âm, dao phải dương. Với dấu rộng #{mortise_t.to_mm.round(3)}mm, dao cần không quá #{((mortise_t - 1.mm) / 2.0).to_mm.round(3)}mm."
+    end
+    raise "#{label}mộng cao bằng hoặc vượt bề dày tấm nhận." if height >= info[:thickness]
+    # Khe dấu tính theo cả hai cung lồi, không chỉ theo rộng đầu mộng dương.
+    if quantity > 1 && centers[1] - centers[0] < mortise_l + cutter + MIN_GAP - 0.000001.mm
+      raise "#{label}các dấu mộng âm quá sát/chồng nhau với độ dư và dao này. Giảm số mộng."
+    end
+    axis = info[:axis]
+    rb = info[:bounds]
+    thickness_direction = (info[:map] * AXES[thin]).to_a
+    to_receiver = lambda do |t, u|
+      p = [0.0, 0.0, top]
+      p[thin] = t
+      p[u_axis] = u
+      coords = (info[:map] * Geom::Point3d.new(p)).to_a
+      coords[axis] = info[:contact]
+      coords
+    end
+    # Mặt tiếp giáp của tấm nhận: chỉ mặt nằm đúng mặt phẳng áp. Tấm nhận được phép có mộng/dấu
+    # sẵn ở chỗ khác, nhưng chỗ mộng mới cắm vào phải là mặt ván phẳng liền.
+    contact_faces = receiver.entities.grep(Sketchup::Face).select { |f|
+      f.normal.to_a[axis].abs > 0.999999 && (f.vertices.first.position.to_a[axis] - info[:contact]).abs < 0.001.mm
+    }
+    on_face = [Sketchup::Face::PointInside, Sketchup::Face::PointOnEdge, Sketchup::Face::PointOnVertex]
+    old_marks = receiver.entities.grep(Sketchup::Group).select { |g| dau_abf?(g) }.map(&:bounds).select { |b|
+      (b.min.to_a[axis] - info[:contact]).abs < 0.01.mm && (b.max.to_a[axis] - info[:contact]).abs < 0.01.mm
+    }
+    base = mortise_outline(mortise_t, mortise_l, cutter / 2.0)
+    plan[:mortises] = centers.each_with_index.map do |center, index|
+      # Chân mộng (rộng đầu × dày tính dấu) phải nằm trọn trên mặt phẳng của tấm nhận.
+      foot = [[0.0, -head / 2.0], [fit_thickness, -head / 2.0], [fit_thickness, head / 2.0],
+              [0.0, head / 2.0], [fit_thickness / 2.0, 0.0]].map { |t, du|
+        Geom::Point3d.new(to_receiver.call(fit_offset + t, center + du))
+      }
+      unless foot.all? { |pt| contact_faces.any? { |f| on_face.include?(f.classify_point(pt)) } }
+        raise "#{label}mộng #{index + 1} rơi vào chỗ mặt tấm nhận không phẳng (mộng cũ, lỗ hoặc ngoài mép)."
+      end
+      polygon = base.map do |t, u|
+        # Dấu bám bề dày tính toán và bên giữ; hình mộng dương không bị giảm.
+        coords = to_receiver.call(fit_offset + t - slack_t / 2.0, center - mortise_l / 2.0 + u)
+        # Mẫu thực có dấu nhô khỏi cạnh bên 0.05mm do độ dư bề dày 0.1mm.
+        # Chỉ cho phép phần nhô bằng nửa độ dư ấy; theo chiều dài phải ở trong tấm.
+        inside = info[:plane_axes].all? { |i|
+          allowance = thickness_direction[i].abs * slack_t / 2.0
+          coords[i] >= rb.min.to_a[i] - allowance - 0.001.mm && coords[i] <= rb.max.to_a[i] + allowance + 0.001.mm
+        }
+        raise "#{label}dấu mộng âm vượt mép tấm nhận." unless inside
+        Geom::Point3d.new(coords)
+      end
+      # Chặn đóng dấu chồng lên dấu cũ (vd bấm áp dụng hai lần cho cùng cặp).
+      lo = info[:plane_axes].map { |i| polygon.map { |pt| pt.to_a[i] }.min }
+      hi = info[:plane_axes].map { |i| polygon.map { |pt| pt.to_a[i] }.max }
+      clash = old_marks.any? { |b|
+        info[:plane_axes].each_with_index.all? { |i, k| [hi[k], b.max.to_a[i]].min - [lo[k], b.min.to_a[i]].max > 0.01.mm }
+      }
+      raise "#{label}chỗ mộng #{index + 1} trên tấm nhận đã có dấu sẵn — không đóng chồng." if clash
+      polygon
+    end
+    plan[:upward] = info[:upward]
+    plan
+  end
+
+  # ── Ghép cặp ──────
+
+  # Tên đầu tấm "trái/phải" khi NHÌN TỪ MẶT A (đứng phía mặt A, nhìn vào tấm, Z hướng lên).
+  # Tấm mỏng theo Y: u = +X hướng sang phải. Tấm mỏng theo X: nhìn từ mặt A thì +Y lại
+  # hướng sang TRÁI, nên đầu 2/4 đổi tên cho khớp với bản vẽ xem trước.
+  def self.edge_name(edge, thin)
+    edge = {2 => 4, 4 => 2}.fetch(edge, edge) if thin == 0
+    TEN_CANH[edge]
+  end
+
+  def self.board_label(group, role, index)
+    "#{role == :ngam ? 'Ngàm' : 'Nhận'} #{index + 1}#{group.name.empty? ? '' : " · #{group.name}"}"
+  end
+
+  # Mọi cặp (tấm ngàm, đầu) ↔ tấm nhận đang áp vào. Trạng thái:
+  #   moi     — đầu chưa làm: dựng mộng + đóng dấu
+  #   chi_dau — đầu đã có mộng, tấm nhận MỚI: chỉ đóng dấu theo thông số đã ghi
+  #   da_lam  — đầu đã có mộng và đã đóng dấu lên tấm này: không làm gì
+  def self.pairs(tenons, receivers)
+    list = []
+    tenons.each_with_index do |t, ti|
+      next if tenon_problem(t)
+      box = tenon_box(t)
+      mem = memory(t)
+      (1..4).each do |edge|
+        r = receivers.find { |g| contact_info(t, edge, g, box) }
+        next unless r
+        stored = mem && mem[:edges][edge]
+        state = if stored.nil? then 'moi'
+                elsif (stored['nhan'] || []).include?(r.persistent_id) then 'da_lam'
+                else 'chi_dau'
+                end
+        fd = frame_for(t, edge, box)
+        list << {key: "#{ti}-#{edge}", tenon: t, ti: ti, edge: edge, receiver: r, ri: receivers.index(r),
+                 state: state, stored: stored, length: edge_length(fd, edge),
+                 thickness: fd[:thickness], edge_name: edge_name(edge, fd[:thin])}
+      end
+    end
+    list
+  end
+
+  # Độ dài đầu tấm (mm) = chiều u của hệ cạnh.
+  def self.edge_length(fd, edge)
+    [1, 3].include?(edge) ? fd[:width] : fd[:height]
+  end
+
+  # ── Dựng ──────
+
+  # Dựng lại biên tấm ngàm từ hộp gốc với mọi đầu trong `plans`, rồi dấu phay các đầu thu mặt.
+  def self.build_tenon(model, source, box, plans)
+    fd1 = frame_for(source, 1, box)
+    thin = fd1[:thin]
+    u_axis = fd1[:u]
+    thickness = [box.width, box.height, box.depth][thin]
+    # Biên chung: đi vòng 4 cạnh theo chiều kim đồng hồ (cạnh 1 trái→phải, cạnh 2 trên→dưới…);
+    # đoạn u tăng dần của mỗi cạnh trong hệ cạnh trùng đúng chiều đi vòng này.
+    # Điểm (u, z) hệ cạnh nằm trên mặt A (trục dày = 0) rồi đổi về tọa độ local của tấm.
+    local = lambda do |fd, u, z|
+      p = [0.0, 0.0, z]
+      p[u_axis] = u
+      fd[:frame] * Geom::Point3d.new(p)
+    end
+    ring = []
+    seams = []
+    (1..4).each do |edge|
+      fd = frame_for(source, edge, box)
+      top = [fd[:bounds].width, fd[:bounds].height, fd[:bounds].depth][2]
+      plan = plans.find { |pl| pl[:edge] == edge }
+      ring << local.call(fd, 0.0, top)
+      next unless plan
+      plan[:teeth].each { |u, z| ring << local.call(fd, u, z) }
+      plan[:arc_seams].each { |u, z| seams << local.call(fd, u, z) }
+    end
+    ring = ring.chunk_while { |a, b| a == b }.map(&:first)
+    # Giữ group, transformation, tên, tag và thuộc tính cấp group; chỉ thay hình bên trong.
+    source.entities.erase_entities(source.entities.to_a)
+    face = source.entities.add_face(ring)
+    raise 'Không dựng được mặt biên mộng.' unless face
+    face.reverse! if face.normal.dot(AXES[thin]) < 0
+    face.pushpull(thickness)
+    softened = 0
+    source.entities.grep(Sketchup::Edge).each do |e|
+      a = e.start.position.to_a
+      b = e.end.position.to_a
+      next unless (a[thin] - b[thin]).abs > 0.001.mm
+      next unless (a[u_axis] - b[u_axis]).abs < 0.001.mm && (a[2] - b[2]).abs < 0.001.mm
+      next unless seams.any? { |s| (a[u_axis] - s[u_axis]).abs < 0.001.mm && (a[2] - s.z).abs < 0.001.mm }
+      e.soft = true
+      e.smooth = true
+      softened += 1
+    end
+    # Mỗi mộng có hai cung, mỗi cung 12 đoạn nên có 11 cạnh chia bên trong.
+    expected = plans.sum { |pl| pl[:quantity] * 2 * 11 }
+    raise "Làm mềm thiếu cạnh cung: #{softened}/#{expected}." unless softened == expected
+    raise 'Khối có cạnh hở hoặc cạnh nối hơn hai mặt.' unless source.entities.grep(Sketchup::Edge).all? { |e| e.faces.length == 2 }
+    phay_tag = nil
+    plans.each do |plan|
+      plan[:phay_rects].each_with_index do |rect, index|
+        phay_tag ||= model.layers.to_a.find { |l| l.name == 'ABF_PHAYDAUMONG_K' } || model.layers.add('ABF_PHAYDAUMONG_K')
+        mark = source.entities.add_group
+        # DẤU PHAY = _ABF_Intersect chuẩn ABF. ABF chỉ công nhận intersect là CẶP A↔B:
+        # b-id phải trỏ tấm ĐỐI TÁC, KHÔNG tự trỏ mình (đo thật 17/09 probes/soi_bid_intersect.rb:
+        # dấu tự trỏ -> DXF rớt LAYER0). Phay đầu mộng do tấm NHẬN gây ra nên b-id trỏ tấm nhận.
+        mark.name = '_ABF_Intersect'
+        mark.layer = phay_tag
+        mark_face = mark.entities.add_face(rect.map { |p| plan[:fd][:frame] * p })
+        raise "Đầu #{plan[:edge]}: không tạo được dấu phay mộng #{index + 1}." unless mark_face
+        mark.entities.grep(Sketchup::Edge).each { |e| e.layer = phay_tag }
+        mark.set_attribute('ABF', 'is-intersect', true)
+        mark.set_attribute('ABF', 'intersect-offset', 0.0)
+        mark.set_attribute('ABF', 'intersect-x', (plan[:thickness] - plan[:fit_thickness]).to_mm)
+        mark.set_attribute('ABF', 'intersect-group-b-id', plan[:phay_b] || source.persistent_id)
+        mark.set_attribute('ABF', 'setting-name', 'PHAYDAUMONG_KHOA')
+      end
+    end
+    softened
+  end
+
+  # DẤU MỘNG ÂM = hốc khoét trên tấm NHẬN do mộng dương tấm NGÀM đâm vào; b-id trỏ tấm ngàm.
+  # intersect-x = độ sâu hốc = cao mộng.
+  def self.stamp_marks(model, source, plan)
+    receiver = plan[:receiver]
+    tag = model.layers.to_a.find { |l| l.name == 'ABF_PHAYRANHHAU10LY' } || model.layers.add('ABF_PHAYRANHHAU10LY')
+    plan[:mortises].each_with_index do |polygon, index|
+      mark = receiver.entities.add_group
+      mark.name = '_ABF_Intersect'
+      mark.layer = tag
+      mark_face = mark.entities.add_face(polygon)
+      raise "Đầu #{plan[:edge]}: không tạo được dấu âm #{index + 1}." unless mark_face
+      mark_face.reverse! if mark_face.normal.dot(plan[:upward]) > 0
+      mark_edges = mark.entities.grep(Sketchup::Edge)
+      raise "Đầu #{plan[:edge]}: dấu âm #{index + 1} không đủ 52 cạnh." unless mark_edges.length == 52
+      mark_edges.each { |e| e.layer = tag }
+      mark.set_attribute('ABF', 'is-intersect', true)
+      mark.set_attribute('ABF', 'intersect-offset', 0.0)
+      mark.set_attribute('ABF', 'intersect-x', plan[:height].to_mm)
+      mark.set_attribute('ABF', 'setting-name', 'PHÂY RÃNH HẬU 10LY')
+      mark.set_attribute('ABF', 'intersect-group-b-id', source.persistent_id)
+    end
+  end
+
+  # data = {'shape' => {head, height, neck, bevel, slackT, slackL, cutter},
+  #         'rows' => [{'key' => "ti-edge", 'count', 'inset', 'side', 'fit'}, ...]}
+  # Chỉ các cặp moi/chi_dau có trong rows mới được làm. Tất cả trong MỘT thao tác Ctrl+Z.
+  def self.apply_pairs(data, tenons, receivers)
+    model = Sketchup.active_model
+    shape = data.fetch('shape')
+    rows = data.fetch('rows').map { |r| [r.fetch('key'), r] }.to_h
+    todo = pairs(tenons, receivers).select { |p| p[:state] != 'da_lam' && rows.key?(p[:key]) }
+    raise 'Không có cặp nào cần làm.' if todo.empty?
+    raise 'Danh sách tấm đã đổi so với bảng. Bấm Làm mới rồi áp dụng lại.' unless todo.length == rows.length
+    # Tính hết mọi đầu trước khi đụng model: một đầu sai thì không đầu nào bị sửa.
+    jobs = todo.group_by { |p| p[:tenon] }.map do |tenon, list|
+      box = tenon_box(tenon)
+      mem = memory(tenon)
+      edges = mem ? mem[:edges].dup : {}
+      name = board_label(tenon, :ngam, list.first[:ti])
+      mark_plans = []
+      fresh = []
+      list.each do |p|
+        label = "#{name}, đầu #{p[:edge_name]} → #{board_label(p[:receiver], :nhan, p[:ri])}: "
+        if p[:state] == 'moi'
+          spec = shape.merge(rows[p[:key]].slice('count', 'inset', 'side', 'fit')).merge('edge' => p[:edge])
+          plan = plan_edge(tenon, spec, p[:receiver], box, label)
+          plan[:phay_b] = p[:receiver].persistent_id
+          fresh << plan
+          edges[p[:edge]] = spec.slice(*SPEC_KEYS).merge('edge' => p[:edge], 'nhan' => [p[:receiver].persistent_id],
+                                                            'phay_b' => p[:receiver].persistent_id)
+        else
+          # Đầu đã làm: đóng dấu theo đúng thông số đã ghi, không theo bảng.
+          plan = plan_edge(tenon, p[:stored], p[:receiver], box, label)
+          edges[p[:edge]] = p[:stored].merge('nhan' => (p[:stored]['nhan'] || []) + [p[:receiver].persistent_id])
+        end
+        mark_plans << plan
+      end
+      # Có đầu mới thì dựng lại cả tấm: đầu cũ tính lại từ thông số đã ghi (không đóng dấu lại).
+      rebuild = nil
+      unless fresh.empty?
+        old = (mem ? mem[:edges] : {}).reject { |e, _| fresh.any? { |pl| pl[:edge] == e } }.map { |e, s|
+          pl = plan_edge(tenon, s, nil, box, "#{name}, đầu #{edge_name(e, frame_for(tenon, 1, box)[:thin])} (đã làm): ")
+          pl[:phay_b] = s['phay_b']
+          pl
+        }
+        rebuild = old + fresh
+      end
+      {tenon: tenon, box: box, edges: edges, marks: mark_plans, rebuild: rebuild}
+    end
+    model.start_operation('Tao mong xuong cho', true)
+    begin
+      # Group copy có thể dùng chung definition. Tách trước khi sửa để không đổi các bản khác.
+      touched = (jobs.map { |j| j[:tenon] } + jobs.flat_map { |j| j[:marks].map { |pl| pl[:receiver] } }).uniq
+      touched.each(&:make_unique)
+      raise 'Group không còn hợp lệ sau khi tách bản dùng chung.' unless touched.all?(&:valid?)
+      # ABF chỉ NHẬN + GÁN NHÃN group nào đeo ABF/is-board ở vỏ tấm (đo thật 17/09/2026).
+      touched.each { |g| dam_bao_la_van(g) }
+      teeth = 0
+      marks = 0
+      jobs.each do |job|
+        if job[:rebuild]
+          build_tenon(model, job[:tenon], job[:box], job[:rebuild])
+          teeth += job[:rebuild].sum { |pl| pl[:quantity] }
+        end
+        job[:marks].each do |plan|
+          stamp_marks(model, job[:tenon], plan)
+          marks += plan[:mortises].length
+        end
+        write_memory(job[:tenon], job[:box], job[:edges])
+      end
+      model.commit_operation
+      puts "XUONG CHO: #{jobs.length} tấm ngàm, #{jobs.count { |j| j[:rebuild] }} tấm dựng lại (#{teeth} mộng), #{marks} dấu âm."
+      "Đã làm #{todo.length} cặp: #{marks} dấu âm#{teeth > 0 ? ", dựng lại #{jobs.count { |j| j[:rebuild] }} tấm ngàm" : ''}. Ctrl+Z một lần để hoàn tác cả lượt."
     rescue => ex
-      puts "XUONG CHO overlay: #{ex.message}" unless @failed
+      model.abort_operation
+      puts "LOI: #{ex.class}: #{ex.message}"
+      raise
+    end
+  end
+
+  # Đóng dấu "đây là tấm ván" mà ABF dùng để nhận + gán nhãn (is-board ở vỏ tấm).
+  # Chỉ ghi key CÒN THIẾU, không đè giá trị ABF có thể đã có. board-index để ABF tự
+  # đánh khi nesting nên không set ở đây (set cứng dễ trùng số giữa các tấm).
+  def self.dam_bao_la_van(group)
+    return unless group && group.valid?
+    dict = (group.attribute_dictionary('ABF') rescue nil)
+    group.set_attribute('ABF', 'is-board', true)    unless dict && dict.keys.include?('is-board')
+    group.set_attribute('ABF', 'label-rotation', 0) unless dict && dict.keys.include?('label-rotation')
+  end
+
+  # ── Vẽ trên model + bắt cú bấm ──────
+  # Công cụ chiếm chuột trong lúc bảng mở, nên nó tự bắt cú bấm: bấm tấm = thêm/bớt tấm đó
+  # vào nhóm đang chọn trên bảng (ngàm/nhận). Vẽ bằng draw2d để luôn nổi trên hình.
+  class RoleTool
+    ORANGE = Sketchup::Color.new(234, 88, 12)
+    BLUE   = Sketchup::Color.new(37, 99, 235)
+    HOT    = Sketchup::Color.new(219, 39, 119)
+
+    def initialize
+      @lines = []
+      @texts = []
+      @focus = []
+    end
+
+    # lines: [[color, width, [p1, p2, ...]]]; texts: [[point, text, color, size]] (world)
+    def set(lines, texts, focus)
+      @lines, @texts = lines, texts
+      self.focus = focus
+    end
+
+    def focus=(lines)
+      @focus = lines
+      view = Sketchup.active_model.active_view
+      view.invalidate if view
+    end
+
+    def draw(view)
+      (@lines + @focus).each do |color, width, pts|
+        next if pts.empty?
+        view.line_width = width
+        view.drawing_color = color
+        view.draw2d(GL_LINES, pts.map { |p| view.screen_coords(p) })
+      end
+      @texts.each do |pt, text, color, size|
+        s = view.screen_coords(pt)
+        view.draw_text(Geom::Point3d.new(s.x, s.y, 0), text, color: color, size: size, bold: true, align: TextAlignCenter)
+      end
+    rescue => ex
+      puts "XUONG CHO vẽ: #{ex.message}" unless @failed
       @failed = true
     end
+
     def onLButtonDown(_flags, x, y, view)
-      pts = corners(@side == 'B' ? 'B' : 'A').map { |p| view.screen_coords(p) }
-      distances = 4.times.map do |i|
-        a,b = pts[i],pts[(i+1)%4]
-        dx,dy = b.x-a.x,b.y-a.y
-        denominator = dx*dx+dy*dy
-        ratio = denominator > 0 ? [[((x-a.x)*dx+(y-a.y)*dy)/denominator, 0].max, 1].min : 0
-        [(x-a.x-ratio*dx)**2+(y-a.y-ratio*dy)**2, i+1]
+      ph = view.pick_helper
+      ph.do_pick(x, y)
+      active = Sketchup.active_model.active_entities.to_a
+      group = nil
+      ph.count.times do |i|
+        group = ph.path_at(i).find { |e| e.is_a?(Sketchup::Group) && active.include?(e) }
+        break if group
       end
-      distance, selected = distances.min
-      if distance < 24**2
-        @edge = selected
-        @dlg.execute_script("window.chooseEdge(#{selected})")
-        view.invalidate
-      end
+      TK::MongXuongCho.toggle_board(group) if group
     rescue => ex
-      puts "XUONG CHO chọn cạnh: #{ex.message}"
+      puts "XUONG CHO bấm tấm: #{ex.message}"
     end
+
     def deactivate(view); view.invalidate; end
     def resume(view); view.invalidate; end
   end
 
+  # ── Bảng ──────
+
+  def self.check_context
+    raise 'Model đã đổi. Đóng bảng rồi mở lại.' unless Sketchup.active_model == @model
+    raise 'Đã đổi cấp chỉnh sửa (mở/đóng group). Đóng bảng rồi mở lại.' unless (@model.active_path || []) == @path
+    @tenons.select!(&:valid?)
+    @receivers.select!(&:valid?)
+  end
+
+  def self.toggle_board(group)
+    check_context
+    mine, other = @mode == :ngam ? [@tenons, @receivers] : [@receivers, @tenons]
+    if mine.include?(group)
+      mine.delete(group)
+    else
+      other.delete(group)
+      mine << group
+    end
+    refresh
+  rescue => ex
+    show_error(ex.message)
+  end
+
+  def self.take_selection(role)
+    check_context
+    picked = @model.selection.grep(Sketchup::Group)
+    raise 'Chưa chọn group tấm nào trên model (bấm phím Space để quét chọn, rồi bấm lại nút này).' if picked.empty?
+    mine, other = role == :ngam ? [@tenons, @receivers] : [@receivers, @tenons]
+    picked.each do |g|
+      other.delete(g)
+      mine << g unless mine.include?(g)
+    end
+    @mode = role
+    @model.select_tool(@tool)
+    refresh
+  rescue => ex
+    show_error(ex.message)
+  end
+
+  # Bọc callback của bảng: lỗi hiện lên dòng trạng thái thay vì chết im trong Console.
+  def self.safely
+    yield
+  rescue => ex
+    puts "XUONG CHO UI: #{ex.class}: #{ex.message}"
+    show_error(ex.message)
+  end
+
+  def self.show_error(message)
+    @dlg.execute_script("window.showMessage(#{("Lỗi: " + message).to_json}, true)") if @dlg
+  end
+
+  def self.path_transform
+    (@model.active_path || []).inject(Geom::Transformation.new) { |t, g| t * g.transformation }
+  end
+
+  # Tính lại toàn bộ: cặp, dữ liệu bảng, hình vẽ trên model.
+  def self.refresh
+    check_context
+    world = path_transform
+    @pairs = pairs(@tenons, @receivers)
+    lines = []
+    texts = []
+    board_lines = lambda do |g, color|
+      tr = world * g.transformation
+      pts = g.entities.grep(Sketchup::Edge).flat_map { |e| [tr * e.start.position, tr * e.end.position] }
+      lines << [color, 3, pts]
+    end
+    tenon_rows = @tenons.each_with_index.map do |g, i|
+      problem = tenon_problem(g)
+      board_lines.call(g, problem ? RoleTool::HOT : RoleTool::ORANGE)
+      box = tenon_box(g) || g.definition.bounds
+      tr = world * g.transformation
+      texts << [tr * box.center, "Ngàm #{i + 1}", RoleTool::ORANGE, 16]
+      sizes = [box.width, box.height, box.depth]
+      thin = sizes.each_with_index.min_by { |v, _i| v }[1]
+      row = {label: board_label(g, :ngam, i), problem: problem}
+      next row if thin == 2
+      # Chữ A/B đặt NGOÀI hai mặt lớn, cách mặt 60mm theo pháp tuyến: nhìn xiên là tách hẳn
+      # hai phía, không đè lên nhãn "Ngàm" ở giữa tấm.
+      { 'A' => box.min.to_a[thin] - 60.mm, 'B' => box.max.to_a[thin] + 60.mm }.each do |name, v|
+        c = box.center.to_a
+        c[thin] = v
+        texts << [tr * Geom::Point3d.new(c), "mặt #{name}", Sketchup::Color.new(36, 98, 124), 14]
+      end
+      # Dữ liệu vẽ xem trước: mặt tấm (u × z) nhìn từ mặt A + các đầu đã làm từ trước.
+      fd = frame_for(g, 1, box)
+      mem = memory(g)
+      row.merge(faceW: fd[:width], faceH: fd[:height], thickness: fd[:thickness], mirror: thin == 0,
+                done: mem ? mem[:edges].map { |e, spec| spec.merge('edge' => e) } : [])
+    end
+    receiver_rows = @receivers.each_with_index.map do |g, i|
+      board_lines.call(g, RoleTool::BLUE)
+      texts << [world * g.transformation * board_bounds(g).center, "Nhận #{i + 1}", RoleTool::BLUE, 16]
+      {label: board_label(g, :nhan, i)}
+    end
+    @tool.set(lines, texts, focus_lines(@focus))
+    rows = @pairs.map do |p|
+      {key: p[:key], ti: p[:ti], tenon: board_label(p[:tenon], :ngam, p[:ti]), edge: p[:edge], edgeName: p[:edge_name],
+       receiver: board_label(p[:receiver], :nhan, p[:ri]), state: p[:state], length: p[:length],
+       thickness: p[:thickness], stored: p[:stored]}
+    end
+    data = {mode: @mode.to_s, tenons: tenon_rows, receivers: receiver_rows, pairs: rows, live: true}
+    @dlg.execute_script("window.receiveModel(#{JSON.generate(data)})") if @dlg
+  end
+
+  # Cặp đang chọn trên bảng: tô hồng đậm đầu tấm ngàm + viền tấm nhận.
+  def self.focus_lines(key)
+    pair = (@pairs || []).find { |p| p[:key] == key }
+    return [] unless pair
+    world = path_transform
+    fd = frame_for(pair[:tenon], pair[:edge], tenon_box(pair[:tenon]))
+    b = fd[:bounds]
+    tr = world * pair[:tenon].transformation * fd[:frame]
+    edge_pts = [[0, 0], [b.max.x, 0], [b.max.x, b.max.y], [0, b.max.y]].map { |x, y| tr * Geom::Point3d.new(x, y, b.max.z) }
+    rtr = world * pair[:receiver].transformation
+    rpts = pair[:receiver].entities.grep(Sketchup::Edge).flat_map { |e| [rtr * e.start.position, rtr * e.end.position] }
+    [[RoleTool::HOT, 7, edge_pts.each_cons(2).to_a.flatten + [edge_pts.last, edge_pts.first]], [RoleTool::HOT, 4, rpts]]
+  end
+
   def self.run
-    @dlg.close if @dlg
-    @dialog_model = Sketchup.active_model
-    @dialog_path = (@dialog_model.active_path || []).dup
-    @dialog_groups = @dialog_model.selection.to_a
-    unless (1..2).include?(@dialog_groups.length) && @dialog_groups.all? { |g| g.is_a?(Sketchup::Group) && plain_box?(g) }
-      UI.messagebox('Chọn 1–2 group tấm nguyên. Nếu tấm đã có mộng, Undo về trước khi tạo rồi mở lại bảng.')
+    if @dlg && @dlg.visible?
+      @dlg.bring_to_front
       return
     end
-    @dialog_groups.sort_by! { |g| b=g.definition.bounds; b.depth < [b.width,b.height].min ? 1 : 0 }
-    initial = dialog_data
-    @dlg = UI::HtmlDialog.new(dialog_title: 'Mộng xương chó', preferences_key: 'khoa.mong.visual.v1',
-      width: 1130, height: 860, min_width: 900, min_height: 700, resizable: true)
+    @model = Sketchup.active_model
+    @path = (@model.active_path || []).dup
+    @tenons = []
+    @receivers = []
+    @pairs = []
+    @focus = nil
+    @mode = :ngam
+    @tool = RoleTool.new
+    @dlg = UI::HtmlDialog.new(dialog_title: 'Mộng xương chó', preferences_key: 'khoa.mong.visual.v2',
+      width: 1000, height: 780, min_width: 760, min_height: 560, resizable: true)
     dialog = @dlg
-    @edge_tool = EdgeTool.new(dialog)
-    dialog.set_file(File.join(File.dirname(__FILE__), 'giao_dien.html'))
-    dialog.add_action_callback('ready') { |_c| send_dialog(initial); @dialog_model.select_tool(@edge_tool) }
-    dialog.add_action_callback('preview') do |_c, json|
-      begin
-        data = JSON.parse(json)
-        @edge_tool.index = data.fetch('source').to_i
-        @edge_tool.edge = data.fetch('edge').to_i
-        @edge_tool.side = data.fetch('side')
-        @dialog_model.active_view.invalidate
-      rescue => ex
-        dialog.execute_script("window.showMessage(#{ex.message.to_json}, true)")
-      end
+    dialog.set_file(File.join(PATH, 'giao_dien.html'))
+    dialog.add_action_callback('ready') do |_c|
+      @model.select_tool(@tool)
+      safely { refresh }
     end
-    dialog.add_action_callback('source') do |_c, index|
-      begin
-        send_dialog(dialog_data(Integer(index)))
-      rescue => ex
-        dialog.execute_script("window.showMessage(#{ex.message.to_json}, true)")
-      end
+    dialog.add_action_callback('mode') { |_c, m| @mode = m == 'nhan' ? :nhan : :ngam; @model.select_tool(@tool) }
+    dialog.add_action_callback('take') { |_c, m| take_selection(m == 'nhan' ? :nhan : :ngam) }
+    dialog.add_action_callback('clear') do |_c, m|
+      (m == 'nhan' ? @receivers : @tenons).clear
+      @focus = nil
+      safely { refresh }
     end
-    dialog.add_action_callback('pick') { |_c| @dialog_model.select_tool(@edge_tool) }
+    dialog.add_action_callback('refresh') { |_c| safely { refresh } }
+    dialog.add_action_callback('focus') do |_c, key|
+      @focus = key
+      safely { @tool.focus = focus_lines(key) }
+    end
     dialog.add_action_callback('apply') do |_c, json|
       begin
-        data = JSON.parse(json)
-        context = dialog_context(data.fetch('source').to_i)
-        result = apply_geometry(data, context)
-        dialog.execute_script("window.applyFinished(#{!!result})")
-        @dialog_model.select_tool(nil) if result
+        check_context
+        message = apply_pairs(JSON.parse(json), @tenons, @receivers)
+        refresh
+        dialog.execute_script("window.applyFinished(true, #{message.to_json})")
       rescue => ex
         puts "XUONG CHO UI: #{ex.class}: #{ex.message}"
-        dialog.execute_script("window.showMessage(#{ex.message.to_json}, true); window.applyFinished(false)")
+        dialog.execute_script("window.applyFinished(false, #{("Lỗi: " + ex.message).to_json})")
       end
     end
     dialog.add_action_callback('cancel') { |_c| dialog.close }
     dialog.set_on_closed do
-      @dialog_model.select_tool(nil) if Sketchup.active_model == @dialog_model
+      @model.select_tool(nil) if Sketchup.active_model == @model
       @dlg = nil if @dlg == dialog
     end
     dialog.show
@@ -644,8 +826,8 @@ module MongXuongCho
   def self.create_cmd
     icons = File.join(PATH, 'icons')
     cmd = UI::Command.new('Mộng xương chó') { TK::MongXuongCho.run }
-    cmd.tooltip         = 'Tạo mộng xương chó (dogbone) + dấu âm trên tấm nhận'
-    cmd.status_bar_text = 'Chọn 1–2 tấm nguyên rồi chỉnh trên sơ đồ; tạo mộng dương + dấu âm ABF.'
+    cmd.tooltip         = 'Tạo mộng xương chó (dogbone) + dấu âm trên các tấm nhận'
+    cmd.status_bar_text = 'Phân loại tấm ngàm / tấm nhận; tool tự ghép cặp theo tiếp giáp rồi mọc mộng + đóng dấu.'
     s16 = File.join(icons, 'mong_xuong_cho_16.png')
     s24 = File.join(icons, 'mong_xuong_cho_24.png')
     cmd.small_icon = s16 if File.exist?(s16)

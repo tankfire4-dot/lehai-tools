@@ -12,6 +12,26 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-09-26 — 1.9.68: Mộng Xương Chó — phân loại tấm ngàm / tấm nhận, tool tự ghép cặp
+
+**Vấn đề:** Khoa không đóng thêm dấu âm được lên tấm nhận đã có dấu từ lần ráp trước, và không làm
+được ca "tấm bạ giữa mọc mộng hai đầu vào hai hông đã có mộng sẵn". Tool cũ bắt đúng 1 tấm đứng + 1
+tấm ngang, cả hai phải là hộp trơn, mỗi lần một cạnh.
+
+**Quyết định:** qua 3 vòng với Khoa. Bản đầu cho chọn nhiều cạnh 1–4 thì Khoa thấy khó hiểu: hình tự
+xoay, thông số chép sai chỗ. Chốt cuối cùng: **người dùng chỉ phân loại hai nhóm tấm** (ngàm / nhận),
+không giới hạn số lượng, tool tự ghép cặp theo tiếp giáp. Mỗi cặp là một dòng (số mộng / lùi tâm /
+thu dấu), hình mộng dùng chung. Tấm ngàm **ghi nhớ** việc đã làm (dict `LeHai_MXC`: hộp gốc + từng
+đầu) để lần sau làm thêm: thêm đầu mới hoặc đóng dấu lên tấm nhận mới, nhưng không cho sửa mộng cũ.
+Tấm nhận được phép có mộng/dấu sẵn, tool chỉ kiểm chỗ mộng cắm vào có phẳng không (`classify_point`)
+và có đè dấu cũ không. Có khung xem trước 2D vẽ đúng chiều nhìn từ mặt A.
+
+**Vì sao:** Khoa nghĩ theo TẤM, không nghĩ theo "cạnh 1–4". Bắt người dùng chọn cạnh là bắt họ dịch
+từ đầu mình sang hệ tọa độ của tool.
+
+**Rủi ro:** tấm làm bằng bản ≤1.9.67 không có ghi nhớ, nên chỉ dùng được làm tấm nhận. Nghiệm thu mới
+có một lượt ghép cặp của Khoa trên máy (26/09); ABF nesting/DXF với dấu mới chưa đo lại.
+
 ## 2026-09-25 — 1.9.67: Tạo Modul Nhanh — không có len thì bạ chân cách sàn 30
 
 **Vấn đề:** 1.9.66 tính bạ lưng chân khi không có len = 0 + 20 (cách sàn 20). Con số đó Claude tự suy
@@ -1128,6 +1148,7 @@ Tóm tắt 1 dòng mỗi version. Lý do chi tiết của các thay đổi gần
 
 | Phiên bản | Ngày       | Nội dung |
 |-----------|------------|----------|
+| 1.9.68    | 2026-09-26 | Mộng Xương Chó viết lại: phân loại tấm ngàm/nhận (không giới hạn), tự ghép cặp theo tiếp giáp, mỗi cặp thông số riêng, ghi nhớ để làm thêm lần sau, xem trước 2D |
 | 1.9.65    | 2026-09-24 | Tool mới **Hình Nhân**: hình nhân đúng kích thước theo cao/nặng, 13 dáng nội thất theo phòng; hộp thoại chỉ nhắc "thông số tương đối, không dùng làm thông số thiết kế"; tỉ lệ đối chiếu Atlat người Việt 1986 |
 | 1.9.64    | 2026-09-23 | Vá sau lượt soát: Trục Tọa Độ không còn đơ câm khi vùng chọn lẫn ghi chú; Chia Lam lỗi giữa chừng thì hoàn tác sạch + báo; updater tải đủ mới ghi (hết cảnh lẫn bản); 1 nút lỗi không chặn toolbar + tự cập nhật |
 | 1.9.48    | 2026-07-20 | Chống Bay: trần 9 đợt (một chữ số → Aspire sắp tên bằng chuỗi vẫn ra đúng thứ tự số); mỗi lượt kéo nhận tối đa `đợt_cuối−đợt_đầu+1` chi tiết, dư thì cắt bớt + báo, KHÔNG quay vòng (quay vòng làm hai chi tiết cùng lượt trùng số trùng màu) |

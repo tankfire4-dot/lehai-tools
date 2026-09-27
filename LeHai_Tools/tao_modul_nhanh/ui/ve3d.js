@@ -10,6 +10,7 @@
 //
 //  Cách vẽ: xoay 8 đỉnh mỗi hộp, sắp tấm xa camera vẽ trước (hai hộp tách nhau theo một
 //  trục thì biết chắc cái nào sau), bỏ mặt quay lưng. Chỉ vẽ khi có thao tác — không vòng lặp nền.
+//  MỘT hướng nhìn chuẩn (GOC): bấm ô chỉ phóng + làm mờ tấm che, không xoay góc (Khoa 27/09).
 // ============================================================
 (function () {
   // 6 mặt của hộp: chỉ số đỉnh (bit 1 = x1, 2 = y1, 4 = z1) + pháp tuyến ra ngoài
@@ -43,23 +44,25 @@
 
   window.Ve3D = function (cv, tro) {
     var g = cv.getContext('2d'), self = this;
-    var cam = {}, hop = [], bien = null, kich = [], cat = null, daVe = [], dangTro = null, keo = null, hen = 0;
+    var cam = {}, hop = [], bien = null, kich = [], daVe = [], dangTro = null, keo = null, hen = 0;
     var pitchMin = -1.5, pitchMax = 1.5;
     for (var k in GOC) cam[k] = GOC[k];
 
     self.mau = mauMacDinh;
     self.tachKhoet = tachKhoet;
 
-    // ds: [{ s: tấm, loai: 'tam' (đặc) | 'nen' (mờ: khoang, tường, len), dy? }]
+    // ds: [{ s: tấm, loai: 'tam' (đặc) | 'nen' (mờ: khoang, tường, len), dy?, mo?, noi? }]
+    //   mo  = tấm làm MỜ, nhìn xuyên được (không liên quan ô đang sửa, đang che chỗ cần xem)
+    //   noi = tấm liên quan ô đang sửa: đặc + viền cam
     // khungOm: [[x0,y0,z0],[x1,y1,z1]] — vùng để căn giữa + tỉ lệ; bỏ trống = ôm mọi hộp
     self.dat = function (ds, khungOm) { hop = ds || []; bien = khungOm || null; self.ve(); };
     // đường kích thước: [{ a:[x,y,z], b:[x,y,z], chu:'10', sang:bool }]
     self.kich = function (ds) { kich = ds || []; };
-    // mặt cắt: { truc: 0|1|2, max: v, min?: v } → chỉ giữ phần tấm trong [min, max] theo trục đó
-    // (lát cắt mỏng nhìn vào trong tủ, như mặt cắt 2D)
-    self.cat = function (c) { cat = c || null; };
     self.gioiHanPitch = function (a, b) { pitchMin = a; pitchMax = b; };
     self.datGoc = function () { self.bay(GOC); };
+    // Phóng tới một điểm, GIỮ hướng nhìn chuẩn (Khoa 27/09: mỗi ô một góc camera làm hình mất liền
+    // mạch — bấm ô chỉ trượt + phóng, không xoay). tam null + zoom 1 = cả khung.
+    self.phong = function (tam, zoom, ms) { self.bay({ yaw: GOC.yaw, pitch: GOC.pitch, zoom: zoom || 1, tam: tam || null }, ms); };
 
     // Bay camera tới góc nhìn đích — chuyển động ngắn cho mắt theo kịp
     self.bay = function (dich, ms) {
@@ -117,18 +120,12 @@
         return { x: W / 2 + q[0] * k, y: H / 2 - q[2] * k, sau: q[1] };
       }
 
-      // Hộp để vẽ: tách khoét, áp mặt cắt
+      // Hộp để vẽ (tấm khoét tách 2 hộp)
       var ds = [];
       hop.forEach(function (h) {
         tachKhoet(h.s).forEach(function (s) {
           var lo = [s.x[0], s.y[0] + (h.dy || 0), s.z[0]], hi = [s.x[1], s.y[1] + (h.dy || 0), s.z[1]];
-          if (cat) {
-            var tr = cat.truc, mn = cat.min == null ? -1e9 : cat.min;
-            if (lo[tr] >= cat.max || hi[tr] <= mn) return;
-            hi[tr] = Math.min(hi[tr], cat.max);
-            lo[tr] = Math.max(lo[tr], mn);
-          }
-          ds.push({ s: s.goc || s, loai: h.loai, lo: lo, hi: hi });
+          ds.push({ s: s.goc || s, loai: h.loai, mo: h.mo, noi: h.noi, lo: lo, hi: hi });
         });
       });
 
@@ -150,7 +147,7 @@
         var dinh = [];
         for (var i = 0; i < 8; i++) dinh.push(chieu([h[i & 1 ? 'hi' : 'lo'][0], h[i & 2 ? 'hi' : 'lo'][1], h[i & 4 ? 'hi' : 'lo'][2]]));
         MAT.forEach(function (m) {
-          if (xoay(m[1])[1] >= 0 && h.loai !== 'nen') return;   // mặt quay lưng: bỏ (nền mờ thì vẽ cả)
+          if (xoay(m[1])[1] >= 0 && h.loai !== 'nen' && !h.mo) return;   // mặt quay lưng: bỏ (tấm mờ thì vẽ cả)
           var pts = m[0].map(function (i) { return dinh[i]; });
           g.beginPath();
           pts.forEach(function (p, i) { if (i) g.lineTo(p.x, p.y); else g.moveTo(p.x, p.y); });
@@ -158,10 +155,13 @@
           if (h.loai === 'nen') {
             g.fillStyle = 'rgba(124,45,18,0.06)'; g.fill();
             g.strokeStyle = 'rgba(124,45,18,0.35)'; g.lineWidth = 1; g.stroke();
+          } else if (h.mo) {                                  // tấm mờ: màu gỗ loãng, nét nhạt
+            g.fillStyle = 'rgba(' + self.mau(h.s.ten).join(',') + ',0.14)'; g.fill();
+            g.strokeStyle = 'rgba(28,10,0,0.22)'; g.lineWidth = 1; g.stroke();
           } else {
             var c = self.mau(h.s.ten), n = m[1];
             var sang = 0.78 + 0.22 * (n[2] > 0 ? 1 : n[0] !== 0 ? 0.35 : n[1] < 0 ? 0.7 : 0);   // nóc sáng, hông tối
-            var chon = dangTro === h.s;
+            var chon = dangTro === h.s || h.noi;
             g.fillStyle = 'rgb(' + c.map(function (v) { return Math.round(v * sang); }).join(',') + ')';
             g.fill();
             g.strokeStyle = chon ? '#b45309' : 'rgba(28,10,0,0.55)'; g.lineWidth = chon ? 2 : 1; g.stroke();

@@ -20,7 +20,6 @@
   .nhom-nut { display: flex; align-items: center; justify-content: space-between; }
   .nhom-nut .lh-btn { padding: 3px 10px; font-size: 11px; letter-spacing: 0; text-transform: none; width: auto; }
   .o.dang { background: var(--lh-chip); border-radius: var(--lh-radius-sm); }
-  #cheDo { font-size: 12px; color: var(--lh-ink-soft); margin: 6px 4px 0; min-height: 1.2em; }
   .o { display: grid; grid-template-columns: 1fr 76px; align-items: center; gap: 8px; padding: 3px 0; }
   .o label { font-size: 12.5px; color: var(--lh-ink-soft); }
   .o .lh-input, .o select { width: 100%; box-sizing: border-box; text-align: right; }
@@ -91,10 +90,9 @@
       <span class="ten">Xem 3D</span>
       <button class="lh-btn lh-btn--ghost" id="rut">Rút hộc ra</button>
       <button class="lh-btn lh-btn--ghost" id="goc">Nhìn lại</button>
-      <span class="goi">bấm vào ô số → 3D quay tới chỗ đó · kéo chuột: xoay · lăn: phóng · rê vào tấm: kích thước</span>
+      <span class="goi">bấm vào ô số → 3D phóng tới chỗ đó · kéo chuột: xoay · lăn: phóng · rê vào tấm: kích thước</span>
     </div>
     <div id="nen"><canvas id="c3d"></canvas><div id="tro"></div></div>
-    <div id="cheDo"></div>
     <div id="tom"></div>
   </div>
 </div>
@@ -147,7 +145,7 @@
       ve(); return;
     }
     var k = d.khung, moi = [k.x, k.z, k.y_truoc].join();
-    if (moi !== khoaCu) { khoaCu = moi; bo = []; if (cheDo(khoa3d) !== 'tong') setTimeout(function () { bayToi(khoa3d, 0); }, 0); }
+    if (moi !== khoaCu) { khoaCu = moi; bo = []; if (khoa3d) setTimeout(function () { bayToi(khoa3d, 0); }, 0); }
     khung = k; tamKhung = d.tam_khung; daKhoa = d.khoa;
     $('khung').innerHTML =
       (daKhoa ? '<b style="color:#15803d">ĐÃ CHỌN</b>' : '<span class="mo">Đang xem — click trên model để chọn</span>') + '<br>' +
@@ -252,32 +250,22 @@
     if (Math.abs(b) < 0.01) { rut = rutDich; ve(); return; }
     rut += b * 0.2; ve(); requestAnimationFrame(chay);
   }
-  // ── Bảng tra: ô nào → đứng nhìn ở đâu, cắt chỗ nào, kẻ số gì (khuôn chung các modul, Khoa 27/09) ──
-  // Số lấy nguyên từ thông số + vị trí tấm lõi Ruby trả về; JS chỉ đặt camera và kẻ đường.
+  // ── Bảng tra: ô nào → phóng tới đâu + tấm nào nổi (khuôn chung các modul, Khoa 27/09) ──
+  // MỘT hướng nhìn chuẩn: bấm ô chỉ trượt + phóng, tấm liên quan đặc + viền cam, tấm khác làm mờ.
+  // Mọi khe chính luôn kẻ mờ ở ĐÚNG vị trí thật; ô đang sửa thì số sáng. Số lấy nguyên từ thông số
+  // + vị trí tấm lõi Ruby trả về — JS chỉ kẻ đường, không công thức kết cấu.
   var khoa3d = null;
-  function cheDo(k) {
-    if (k === 'khe_ray') return 'ngang';                          // cắt ngang giữa thùng, nhìn từ trên
-    if (k === 'van_day' || k === 'ranh_day') return 'day';        // cắt đứng qua thùng, nhìn từ trước
-    if (k === 'cach_day' || k === 'thap_hon_noc') return 'doc';   // cắt dọc giữa thùng, nhìn từ cạnh
-    if (k === 'khe_mat') return 'mat';                            // nhìn thẳng mặt trước
-    if (k === 'khe_phu') return 'phu';                            // cắt ngang, góc trước
-    if (k === 'khe_sau') return 'sau';                            // cắt ngang, phía sau
-    return 'tong';
-  }
-  var TEN_CHE_DO = {
-    ngang: 'Cắt ngang giữa thùng, nhìn từ trên: hông khoang · khe ray · hông hộc',
-    day: 'Cắt đứng qua thùng, nhìn từ trước: đáy hộc ăn rãnh vào hai hông',
-    doc: 'Cắt dọc giữa thùng, nhìn từ cạnh phải: đáy lòng · khe dưới · thùng · khe trên · nóc lòng',
-    mat: 'Nhìn thẳng mặt trước: khe quanh mặt hộc',
-    phu: 'Cắt ngang, góc trước-trái nhìn từ trên: mép tủ · khe · mặt phủ',
-    sau: 'Cắt ngang, phía sau nhìn từ trên: đuôi thùng · khe · hậu',
-    tong: ''
+  // Tấm liên quan từng ô (tên phần sau "Hộc N · ")
+  var TAM_CUA_O = {
+    van: ['hông trái'], khe_ray: ['hông trái'], van_day: ['đáy'], ranh_day: ['đáy', 'hông phải'],
+    cach_day: ['đáy'], thap_hon_noc: ['hông trái', 'hông phải'], khe_mat: ['mat'], khe_phu: ['mat'],
+    khe_sau: ['hông sau'], ray: ['hông trái', 'hông phải']
   };
 
   // Tấm của hộc đang xem (hộc có số nhỏ nhất còn gắn) + khoang của nó
   function hocDau() {
     if (!kq || !kq.tam.length) return null;
-    var so1 = kq.tam[0].ten.split(' · ')[0], h = {};
+    var so1 = kq.tam[0].ten.split(' · ')[0], h = { so: so1 };
     kq.tam.forEach(function (s) {
       var p = s.ten.split(' · ');
       if (p[0] === so1) h[p[1] === 'mặt lọt' || p[1] === 'mặt phủ' ? 'mat' : p[1]] = s;
@@ -287,35 +275,48 @@
     return h;
   }
 
+  // Đường kích thước của hộc đang xem: { khoa: [a, b, chữ] } — vị trí thật, dùng cho cả vẽ lẫn phóng
+  function duongKich() {
+    var h = hocDau();
+    if (!h || !kq) return {};
+    var p = kq.tham_so, x0 = khung.x[0], T = h['hông trái'], P = h['hông phải'], D = h['đáy'], S = h['hông sau'], M = h.mat;
+    var kz = h.khoang, yt = khung.y_truoc - 1, xd = x0 + 40;   // kẻ trên mặt trước khoang, lệch vào 40
+    var d = {
+      khe_ray: [[x0, T.y[0], T.z[1]], [T.x[0], T.y[0], T.z[1]], so(T.x[0] - x0)],
+      van: [[T.x[0], T.y[0] + 60, T.z[1]], [T.x[1], T.y[0] + 60, T.z[1]], so(T.x[1] - T.x[0])],
+      cach_day: [[xd, yt, kz[0]], [xd, yt, T.z[0]], so(T.z[0] - kz[0])],
+      thap_hon_noc: [[xd, yt, T.z[1]], [xd, yt, kz[1]], so(kz[1] - T.z[1])],
+      khe_sau: [[T.x[0] + 30, T.y[1], T.z[1]], [T.x[0] + 30, khung.y_sau, T.z[1]], so(khung.y_sau - T.y[1]) + ' (cần ≥ ' + so(p.khe_sau) + ')'],
+      ray: [[P.x[1] + 25, T.y[0], T.z[1]], [P.x[1] + 25, T.y[1], T.z[1]], 'ray ' + so(kq.ray)]
+    };
+    if (D) {
+      d.van_day = [[P.x[0] - 30, D.y[0], D.z[0]], [P.x[0] - 30, D.y[0], D.z[1]], so(D.z[1] - D.z[0])];
+      d.ranh_day = [[P.x[0], D.y[0], D.z[0] - 8], [D.x[1], D.y[0], D.z[0] - 8], so(D.x[1] - P.x[0])];
+    }
+    if (M && p.kieu_mat === 'lot' && M.x[0] > x0) d.khe_mat = [[x0, M.y[0] - 1, (M.z[0] + M.z[1]) / 2], [M.x[0], M.y[0] - 1, (M.z[0] + M.z[1]) / 2], so(M.x[0] - x0)];
+    if (M && p.kieu_mat === 'phu') d.khe_phu = [[x0 + 30, M.y[1], M.z[1] - 30], [x0 + 30, khung.y_truoc, M.z[1] - 30], so(khung.y_truoc - M.y[1])];
+    return d;
+  }
+
   function chonO(k) {
     Array.prototype.forEach.call(document.querySelectorAll('.o'), function (o) { o.classList.remove('dang'); });
     var el = k && $(k === 'ray' || k === 'so_hoc' ? k : 'o_' + k);
     if (el && el.closest) el.closest('.o').classList.add('dang');
-    var cu = cheDo(khoa3d);
     khoa3d = k;
-    if (cheDo(k) !== 'tong' && rutDich) { rutDich = 0; rut = 0; $('rut').textContent = 'Rút hộc ra'; }
+    if (k && TAM_CUA_O[k] && rutDich) { rutDich = 0; rut = 0; $('rut').textContent = 'Rút hộc ra'; }
     ve();
-    if (!k || cheDo(k) !== cu || cheDo(k) !== 'tong') bayToi(k);
+    bayToi(k);
   }
 
+  // Phóng tới giữa đường kích thước của ô (giữ hướng nhìn); ô không có đường → cả khoang
   function bayToi(k, ms) {
-    var h = hocDau(), c = cheDo(k);
-    if (!khung || !h || c === 'tong') { v3.bay({ yaw: -0.6, pitch: 0.35, zoom: 1, tam: null }, ms); return; }
-    var x0 = khung.x[0], x1 = khung.x[1], T = h['hông trái'], zm = (T.z[0] + T.z[1]) / 2;
-    var ym = (T.y[0] + T.y[1]) / 2, xm = (x0 + x1) / 2, kz = h.khoang;
-    var R = Math.sqrt(Math.pow(x1 - x0, 2) + Math.pow(khung.y_sau - khung.y_truoc, 2) + Math.pow(khung.z[1] - khung.z[0], 2)) / 2;
-    var UP = Math.PI / 2;
-    if (c === 'ngang') v3.bay({ yaw: 0, pitch: UP, zoom: R / 70, tam: [x0 + 15, T.y[0] + 60, zm] }, ms);
-    else if (c === 'day') v3.bay({ yaw: 0, pitch: 0, zoom: R / 55, tam: [h['hông phải'].x[1] - 5, ym, T.z[0] + 15] }, ms);
-    else if (c === 'doc') v3.bay({ yaw: -UP, pitch: 0, zoom: R / ((kz[1] - kz[0]) * 0.75), tam: [xm, T.y[0] + 60, (kz[0] + kz[1]) / 2] }, ms);
-    else if (c === 'mat') v3.bay({ yaw: 0, pitch: 0.05, zoom: R / 90, tam: [x0 + 20, khung.y_truoc, h.mat.z[1] - 20] }, ms);
-    else if (c === 'phu') v3.bay({ yaw: 0, pitch: UP, zoom: R / 60, tam: [x0, khung.y_truoc, zm] }, ms);
-    else if (c === 'sau') v3.bay({ yaw: 0, pitch: UP, zoom: R / 90, tam: [xm, T.y[1] + 20, zm] }, ms);
+    var d = duongKich()[k];
+    if (!khung || !d) { v3.phong(null, 1, ms); return; }
+    v3.phong([0, 1, 2].map(function (i) { return (d[0][i] + d[1][i]) / 2; }), 1.7, ms);   // phóng vừa phải: thấy khe mà vẫn thấy cả thùng xung quanh
   }
 
   function ve() {
-    $('cheDo').textContent = TEN_CHE_DO[cheDo(khoa3d)] || '';
-    if (!khung) { v3.kich([]); v3.cat(null); v3.dat([]); return; }
+    if (!khung) { v3.kich([]); v3.dat([]); return; }
     var dich = kq ? rut * kq.ray * 0.6 : 0;   // rút hộc ra 60% chiều dài ray
     // căn giữa + tỉ lệ theo KHOANG (không theo hộc) → rút hộc ra không làm hình co giãn
     var lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
@@ -323,42 +324,19 @@
       [s.x, s.y, s.z].forEach(function (a, i) { lo[i] = Math.min(lo[i], a[0]); hi[i] = Math.max(hi[i], a[1]); });
     });
     var ds = tamKhung.map(function (s) { return { s: s, loai: 'nen' }; });
-    if (kq) kq.tam.forEach(function (s) { ds.push({ s: s, loai: 'tam', dy: -dich }); });
+    var h = hocDau(), noi = khoa3d && TAM_CUA_O[khoa3d];
+    if (kq) kq.tam.forEach(function (s) {
+      var p = s.ten.split(' · '), phan = p[1] === 'mặt lọt' || p[1] === 'mặt phủ' ? 'mat' : p[1];
+      var laNoi = !!noi && h && p[0] === h.so && noi.indexOf(phan) >= 0;
+      ds.push({ s: s, loai: 'tam', dy: -dich, noi: laNoi, mo: !!noi && !laNoi });
+    });
 
-    // Lát cắt + đường kích thước theo ô đang chọn; ô đang sửa thì số sáng
-    var K = [], c = cheDo(khoa3d), h = hocDau(), cat = null;
-    function kk(a, b, chu, khoa) { K.push({ a: a, b: b, chu: chu, sang: !!khoa && khoa === khoa3d }); }
-    if (h && kq) {
-      var p = kq.tham_so, x0 = khung.x[0], x1 = khung.x[1], T = h['hông trái'], P = h['hông phải'];
-      var zm = (T.z[0] + T.z[1]) / 2, ym = (T.y[0] + T.y[1]) / 2, xm = (x0 + x1) / 2, kz = h.khoang;
-      if (c === 'ngang' || c === 'phu' || c === 'sau') cat = { truc: 2, max: zm, min: zm - 30 };
-      if (c === 'day') cat = { truc: 1, min: ym, max: ym + 30 };
-      if (c === 'doc') cat = { truc: 0, min: xm - 30, max: xm };
-      if (c === 'ngang') {
-        kk([x0, T.y[0] + 60, zm], [T.x[0], T.y[0] + 60, zm], so(T.x[0] - x0), 'khe_ray');
-        kk([T.x[0], T.y[0] + 110, zm], [T.x[1], T.y[0] + 110, zm], so(T.x[1] - T.x[0]), 'van');
-      } else if (c === 'day' && h['đáy']) {
-        var D = h['đáy'];
-        kk([P.x[1] - 5, ym, D.z[0]], [P.x[1] - 5, ym, D.z[1]], so(D.z[1] - D.z[0]), 'van_day');
-        kk([D.x[1] - p.ranh_day, ym, D.z[0] - 10], [D.x[1], ym, D.z[0] - 10], so(p.ranh_day), 'ranh_day');
-      } else if (c === 'doc') {
-        kk([xm, T.y[0] + 60, kz[0]], [xm, T.y[0] + 60, T.z[0]], so(T.z[0] - kz[0]), 'cach_day');
-        kk([xm, T.y[0] + 60, T.z[1]], [xm, T.y[0] + 60, kz[1]], so(kz[1] - T.z[1]), 'thap_hon_noc');
-      } else if (c === 'mat' && h.mat) {
-        var M = h.mat, yt = M.y[0] - 1, tren = Math.min(kz[1], khung.z[1]);
-        if (M.x[0] > x0) kk([x0, yt, M.z[1] - 20], [M.x[0], yt, M.z[1] - 20], so(M.x[0] - x0), 'khe_mat');
-        if (M.z[1] < tren) kk([x0 + 20, yt, M.z[1]], [x0 + 20, yt, tren], so(tren - M.z[1]), 'khe_mat');
-      } else if (c === 'phu' && h.mat && p.kieu_mat === 'phu') {
-        kk([x0 + 20, h.mat.y[1], zm], [x0 + 20, khung.y_truoc, zm], so(khung.y_truoc - h.mat.y[1]), 'khe_phu');
-      } else if (c === 'sau') {
-        kk([xm, T.y[1], zm], [xm, khung.y_sau, zm], so(khung.y_sau - T.y[1]) + ' (cần ≥ ' + so(p.khe_sau) + ')', 'khe_sau');
-      } else if (c === 'tong') {
-        var o = 40;
-        kk([T.x[0], T.y[0], T.z[1] + o], [P.x[1], T.y[0], T.z[1] + o], so(P.x[1] - T.x[0]), 'van');
-        kk([P.x[1] + o, T.y[0], T.z[1]], [P.x[1] + o, T.y[1], T.z[1]], 'ray ' + so(kq.ray), 'ray');
-      }
+    // Mọi khe chính kẻ mờ ở vị trí thật; ô đang sửa sáng. Đang rút hộc thì thôi kẻ (thùng đã dời chỗ).
+    var K = [];
+    if (!dich) {
+      var d = duongKich();
+      Object.keys(d).forEach(function (k) { K.push({ a: d[k][0], b: d[k][1], chu: d[k][2], sang: k === khoa3d }); });
     }
-    v3.cat(cat);
     v3.kich(K);
     v3.dat(ds, tamKhung.length ? [lo, hi] : null);
   }

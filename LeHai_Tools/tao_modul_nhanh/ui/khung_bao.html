@@ -38,7 +38,6 @@
   #c3d.keo { cursor: grabbing; }
   #tro { position: absolute; pointer-events: none; background: var(--lh-ink); color: #fff; font-size: 12px;
          padding: 4px 8px; border-radius: 6px; white-space: nowrap; display: none; }
-  #cheDo { font-size: 12px; color: var(--lh-ink-soft); margin: 6px 4px 2px; min-height: 1.4em; }
   #nhac:empty { display: none; }
 </style></head>
 <body class="lh"><div class="khung">
@@ -58,10 +57,9 @@
     <div class="cu">
       <span class="ten">Xem 3D</span>
       <button class="lh-btn lh-btn--ghost" id="goc">Nhìn cả tủ</button>
-      <span class="goi">bấm vào ô số → 3D quay tới chỗ đó · kéo chuột: xoay · lăn: phóng · rê vào tấm: kích thước</span>
+      <span class="goi">bấm vào ô số → 3D phóng tới chỗ đó · kéo chuột: xoay · lăn: phóng · rê vào tấm: kích thước</span>
     </div>
     <div id="nen"><canvas id="c3d"></canvas><div id="tro"></div></div>
-    <div id="cheDo"></div>
   </div>
 </div>
 
@@ -110,9 +108,8 @@
     dangSua = k;
     truong.forEach(function (t) { $('dong_' + t.khoa).classList.toggle('dang', t.khoa === k); });
     if (!k) return;
-    var cu = cheDo(khoa3d);
     khoa3d = k;
-    if (cuoi) { ve(cuoi); if (cheDo(k) !== cu || cheDo(k) !== 'tong') bayToi(k); }
+    if (cuoi) { ve(cuoi); bayToi(k); }
   }
 
   function guiTinh() {
@@ -151,68 +148,75 @@
   // camera và kẻ đường kích thước từ số lõi trả về — không công thức kết cấu thứ hai.
   var v3 = new Ve3D($('c3d'), $('tro'));
   v3.gioiHanPitch(-0.2, 1.55);            // tủ cao 2,5m: không cho lật ngửa khó nhìn
-  var khoa3d = null;                      // ô gần nhất đã chọn → quyết định chỗ đứng 3D + số sáng
-  $('goc').addEventListener('click', function () { khoa3d = null; if (cuoi) ve(cuoi); bayToi(null); });
+  var khoa3d = null;                      // ô gần nhất đã chọn → chỗ phóng tới + số sáng
+  $('goc').addEventListener('click', function () { khoa3d = null; if (cuoi) ve(cuoi); v3.phong(null, 1); });
 
-  // Ô nào nhìn ở đâu (Khoa chốt 27/09: sửa ô nào 3D tự quay tới chỗ đó)
-  function cheDo(k) {
-    if (['van', 'van_hau', 'hau_lui', 'ranh_hau'].indexOf(k) >= 0) return 'hau';   // cắt ngang tủ trên, nhìn từ trên
-    if (['len_day', 'len_cao'].indexOf(k) >= 0) return 'len';               // góc sau-dưới, nhìn từ cạnh phải
-    return 'tong';                                                          // cả tủ
-  }
-  var TEN_CHE_DO = {
-    hau: 'Cắt ngang tủ trên, nhìn từ trên xuống: tường · hậu · rãnh hậu ăn vào hông · bề dày ván',
-    len: 'Góc sau-dưới, nhìn từ cạnh phải: len chân tường + chỗ khoét hông',
-    tong: ''
+  // ── Bảng tra: ô nào → phóng tới đâu + tấm nào nổi (khuôn chung các modul, Khoa 27/09) ──
+  // MỘT hướng nhìn chuẩn: bấm ô chỉ trượt + phóng, tấm liên quan đặc + viền cam, tấm khác làm mờ
+  // (nhìn xuyên thấy hậu nằm trong tủ, chỗ khoét hông). Ô kích thước tổng → cả tủ, không làm mờ.
+  var TAM_CUA_O = {
+    van: ['Hông trên trái'],
+    van_hau: ['Hậu trên', 'Hông trên trái'], hau_lui: ['Hậu trên', 'Hông trên trái'], ranh_hau: ['Hậu trên', 'Hông trên trái'],
+    len_day: ['Hông dưới trái'], len_cao: ['Hông dưới trái']
   };
+  // Nhóm khe nhỏ: chỉ kẻ khi đang sửa một ô trong nhóm (ở cỡ cả tủ các số 10/9 chồng lên nhau)
+  var NHOM_KHE = { van: 'hau', van_hau: 'hau', hau_lui: 'hau', ranh_hau: 'hau', len_day: 'len', len_cao: 'len' };
 
+  // Đường kích thước { khoa: [a, b, chữ, nhóm?] } — vị trí thật, dùng cho cả vẽ lẫn phóng
+  function duongKich(d) {
+    var p = d.tham_so, tam = d.tam;
+    var W = p.rong, D = p.sau, H = p.cao, Hd = p.cao_tu_lanh, Hb = p.cao_ba_noc, t = p.van, o = 90;
+    var k = {
+      rong: [[0, -o, 0], [W, -o, 0], so(W)],
+      cao: [[-o, 0, 0], [-o, 0, H], so(H)],
+      sau: [[-o, 0, 0], [-o, D, 0], so(D)],
+      cao_tu_lanh: [[W + o, 0, 0], [W + o, 0, Hd], so(Hd)],
+      tu_tren: [[W + o, 0, Hd], [W + o, 0, H - Hb], so(H - Hd - Hb)],   // tự tính, không có ô
+      cao_ba_noc: [[W + o, 0, H - Hb], [W + o, 0, H], so(Hb)]
+    };
+    var hau = tam.filter(function (s) { return s.ten === 'Hậu trên'; })[0];
+    if (hau) {
+      var zh = hau.z[1];   // đỉnh hậu, ngay dưới nóc trên
+      k.ranh_hau = [[hau.x[0], hau.y[0], zh], [t, hau.y[0], zh], so(p.ranh_hau), 'hau'];
+      k.hau_lui = [[t + 40, hau.y[1], zh], [t + 40, D, zh], so(p.hau_lui), 'hau'];
+      k.van_hau = [[t + 80, hau.y[0], zh], [t + 80, hau.y[1], zh], so(p.van_hau), 'hau'];
+      k.van = [[0, D - 120, zh], [t, D - 120, zh], so(t), 'hau'];
+    }
+    if (p.len_day > 0 && p.len_cao > 0) {
+      k.len_day = [[-5, D - p.len_day, p.len_cao + 25], [-5, D, p.len_cao + 25], so(p.len_day), 'len'];
+      k.len_cao = [[-5, D - p.len_day - 25, 0], [-5, D - p.len_day - 25, p.len_cao], so(p.len_cao), 'len'];
+    }
+    return k;
+  }
+
+  // Phóng tới giữa đường kích thước của ô (giữ hướng nhìn); ô kích thước tổng → cả tủ
   function bayToi(k) {
     if (!cuoi) return;
-    var p = cuoi.tham_so, W = p.rong, D = p.sau, H = p.cao, Hd = p.cao_tu_lanh, Hb = p.cao_ba_noc, t = p.van;
-    var R = Math.sqrt(W * W + D * D + H * H) / 2;   // bán kính cả tủ = mốc tỉ lệ của bộ vẽ
-    var c = cheDo(k);
-    if (c === 'hau') v3.bay({ yaw: 0, pitch: Math.PI / 2, zoom: R / 130, tam: [t + 45, D - 45, (Hd + H - Hb) / 2] });
-    else if (c === 'len') v3.bay({ yaw: -Math.PI / 2, pitch: 0.1, zoom: R / 320, tam: [W, D - 140, Math.max(p.len_cao, 60) + 60] });
-    else v3.bay({ yaw: -0.6, pitch: 0.3, zoom: 1, tam: null });
+    var d = duongKich(cuoi)[k];
+    if (!d || !NHOM_KHE[k]) { v3.phong(null, 1); return; }
+    var p = cuoi.tham_so, R = Math.sqrt(p.rong * p.rong + p.sau * p.sau + p.cao * p.cao) / 2;
+    v3.phong([0, 1, 2].map(function (i) { return (d[0][i] + d[1][i]) / 2; }), R / 170);   // ~ vùng 170mm quanh khe
   }
 
   function ve(d) {
-    var p = d.tham_so, tam = d.tam;
-    var W = p.rong, D = p.sau, H = p.cao, Hd = p.cao_tu_lanh, Hb = p.cao_ba_noc, t = p.van;
-    $('tutren').textContent = so(H - Hd - Hb) + ' mm';
-    var c = cheDo(khoa3d);
-    $('cheDo').textContent = TEN_CHE_DO[c];
-
-    var ds = tam.map(function (s) { return { s: s, loai: 'tam' }; });
+    var p = d.tham_so;
+    $('tutren').textContent = so(p.cao - p.cao_tu_lanh - p.cao_ba_noc) + ' mm';
+    var noi = khoa3d && TAM_CUA_O[khoa3d];
+    var ds = d.tam.map(function (s) {
+      var laNoi = !!noi && noi.indexOf(s.ten) >= 0;
+      return { s: s, loai: 'tam', noi: laNoi, mo: !!noi && !laNoi };
+    });
     (d.nen || []).forEach(function (s) { ds.push({ s: s, loai: 'nen' }); });
 
-    // Đường kích thước: số lấy từ thông số + vị trí tấm lõi trả về; ô đang sửa thì sáng
-    var K = [];
-    function kk(a, b, chu, khoa) { K.push({ a: a, b: b, chu: chu, sang: !!khoa && khoa === khoa3d }); }
-    var hau = tam.filter(function (s) { return s.ten === 'Hậu trên'; })[0];
-    var zc = (Hd + H - Hb) / 2;             // cao độ cắt ngang giữa tủ trên
-    v3.cat(c === 'hau' && hau ? { truc: 2, max: zc, min: zc - 40 } : null);   // lát mỏng 40mm quanh chỗ cắt
-    if (c === 'hau' && hau) {
-      kk([hau.x[0], hau.y[0] - 25, zc], [t, hau.y[0] - 25, zc], so(p.ranh_hau), 'ranh_hau');
-      kk([t + 40, hau.y[1], zc], [t + 40, D, zc], so(p.hau_lui), 'hau_lui');
-      kk([t + 75, hau.y[0], zc], [t + 75, hau.y[1], zc], so(p.van_hau), 'van_hau');
-      kk([0, D - 100, zc], [t, D - 100, zc], so(t), 'van');
-    } else if (c === 'len') {
-      if (p.len_day > 0 && p.len_cao > 0) {
-        kk([W + 5, D - p.len_day, p.len_cao + 25], [W + 5, D, p.len_cao + 25], so(p.len_day), 'len_day');
-        kk([W + 5, D - p.len_day - 25, 0], [W + 5, D - p.len_day - 25, p.len_cao], so(p.len_cao), 'len_cao');
-      }
-    } else {
-      var o = 90;                           // kẻ lệch ra ngoài tủ cho khỏi đè tấm
-      kk([0, -o, 0], [W, -o, 0], so(W), 'rong');
-      kk([-o, 0, 0], [-o, 0, H], so(H), 'cao');
-      kk([-o, 0, 0], [-o, D, 0], so(D), 'sau');
-      kk([W + o, 0, 0], [W + o, 0, Hd], so(Hd), 'cao_tu_lanh');
-      kk([W + o, 0, Hd], [W + o, 0, H - Hb], so(H - Hd - Hb), null);   // tủ trên tự tính
-      kk([W + o, 0, H - Hb], [W + o, 0, H], so(Hb), 'cao_ba_noc');
-    }
+    // Kích thước tổng luôn kẻ; nhóm khe nhỏ chỉ kẻ khi đang sửa ô trong nhóm; ô đang sửa sáng
+    var K = [], dk = duongKich(d), nhom = NHOM_KHE[khoa3d];
+    Object.keys(dk).forEach(function (k) {
+      var x = dk[k];
+      if (x[3] && x[3] !== nhom) return;
+      K.push({ a: x[0], b: x[1], chu: x[2], sang: k === khoa3d });
+    });
     v3.kich(K);
-    v3.dat(ds, [[0, 0, 0], [W, D, H]]);   // căn theo tủ, không theo tường
+    v3.dat(ds, [[0, 0, 0], [p.rong, p.sau, p.cao]]);   // căn theo tủ, không theo tường
   }
 
   function so(v) { return Math.round(v * 10) / 10; }

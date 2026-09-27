@@ -12,7 +12,18 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
-## 2026-09-27 — 1.9.76: Tạo Modul Nhanh — khung bao tủ lạnh sang 3D; bấm ô số → 3D bay tới chỗ đó
+## 2026-09-27 — 1.9.77: Bảng 3D — MỘT hướng nhìn, bấm ô chỉ phóng + làm mờ (bỏ nhảy góc / lát cắt)
+
+**Vấn đề (Khoa test 1.9.76 trên máy mình, chưa push):** bấm mỗi ô camera xoay sang một hướng khác (nhìn
+từ trên, từ cạnh, từ trước, lát cắt). Từng hình đúng số nhưng ghép lại mất liền mạch: Khoa đọc hình nhìn từ
+cạnh (trái = mặt trước, phải = hậu) tưởng là hình nhìn trước, hỏi "2 chỗ này phải cách 13mm chứ".
+**Sửa (Khoa duyệt, áp cả hộc kéo + tủ lạnh, thành khuôn các modul sau):** giữ MỘT hướng nhìn chuẩn (chéo
+trước-trái, từ trên). Bấm ô → camera chỉ trượt + phóng tới giữa đường kích thước của ô; tấm liên quan đặc
++ viền cam, tấm khác làm mờ (nhìn xuyên thấy hậu trong tủ, đáy ăn rãnh trong hông); khe chính luôn kẻ mờ
+ở vị trí thật, ô đang sửa sáng. `ve3d.js`: bỏ lát cắt, thêm tấm `mo`/`noi`, `phong()` giữ hướng nhìn.
+1.9.76 không push — phát gộp trong 1.9.77.
+
+## 2026-09-27 — 1.9.76: Tạo Modul Nhanh — khung bao tủ lạnh sang 3D; bấm ô số → 3D phóng tới chỗ đó
 
 **Quyết định (Khoa chốt 27/09):** khung bao tủ lạnh bỏ 4 khung 2D, chỉ còn MỘT khung 3D (có tường + len
 nền). Lúc đầu Khoa định giữ 2D vì khe nhỏ (rãnh hậu 10, hậu lùi 10) nhìn tổng thể không thấy → giải bằng

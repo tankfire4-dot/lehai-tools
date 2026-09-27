@@ -27,26 +27,18 @@
   .day { margin-top: auto; }
   .day .lh-btn { width: 100%; }
   .day .lh-btn:disabled { opacity: .45; cursor: not-allowed; }
-  .phai { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 2fr 1.5fr 1.5fr; gap: 12px; min-height: 0; }
-  .phai .dai { grid-row: span 3; }
-  .hinh { display: flex; flex-direction: column; min-height: 0; background: var(--lh-surface);
+  .phai { display: flex; flex-direction: column; min-height: 0; background: var(--lh-surface);
           border-radius: var(--lh-radius); box-shadow: var(--lh-shadow); padding: 8px; }
-  .hinh .ten { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-               color: var(--lh-muted); margin: 2px 4px 6px; }
-  .hinh svg { flex: 1; min-height: 0; width: 100%; }
-  /* nét vẽ — mọi nét giữ độ dày theo pixel dù hình co giãn */
-  svg * { vector-effect: non-scaling-stroke; }
-  .tam  { fill: #fff; stroke: var(--lh-ink-soft); stroke-width: 1; }
-  .tam.canh { fill: #f6efe4; }
-  .tam.nen  { fill: var(--lh-line-2); stroke: var(--lh-line); }
-  .tuong { fill: var(--lh-fill-2); stroke: none; }
-  .len   { fill: #e7b9a8; stroke: var(--lh-walnut); stroke-width: 1; }
-  .dim line { stroke: var(--lh-muted); stroke-width: 1; }
-  .dim text { fill: var(--lh-muted); font-family: var(--lh-font); }
-  .dim.tu line { stroke-dasharray: 4 3; }
-  .dim.sang line { stroke: var(--lh-amber); stroke-width: 2.2; }
-  .dim.sang text { fill: var(--lh-amber-2); font-weight: 700; }
-  .an { fill: none; stroke: var(--lh-amber); stroke-width: 1.5; stroke-dasharray: 5 3; }
+  .cu { display: flex; align-items: center; gap: 8px; margin: 2px 4px 6px; }
+  .cu .ten { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--lh-muted); }
+  .cu .lh-btn { width: auto; flex: none; padding: 5px 12px; font-size: 12px; }
+  .cu .goi { margin-left: auto; font-size: 11px; color: var(--lh-muted); text-align: right; }
+  #nen { flex: 1; min-height: 0; position: relative; }
+  #c3d { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
+  #c3d.keo { cursor: grabbing; }
+  #tro { position: absolute; pointer-events: none; background: var(--lh-ink); color: #fff; font-size: 12px;
+         padding: 4px 8px; border-radius: 6px; white-space: nowrap; display: none; }
+  #cheDo { font-size: 12px; color: var(--lh-ink-soft); margin: 6px 4px 2px; min-height: 1.4em; }
   #nhac:empty { display: none; }
 </style></head>
 <body class="lh"><div class="khung">
@@ -63,16 +55,19 @@
     </div>
   </div>
   <div class="phai">
-    <div class="hinh dai"><div class="ten">Mặt đứng — nhìn từ trước</div><svg id="truoc"></svg></div>
-    <div class="hinh"><div class="ten">Mặt cắt cạnh — tường bên phải</div><svg id="canh"></svg></div>
-    <div class="hinh"><div class="ten">Chi tiết hậu — nhìn từ trên</div><svg id="hau"></svg></div>
-    <div class="hinh"><div class="ten">Chi tiết chân tường</div><svg id="chan"></svg></div>
+    <div class="cu">
+      <span class="ten">Xem 3D</span>
+      <button class="lh-btn lh-btn--ghost" id="goc">Nhìn cả tủ</button>
+      <span class="goi">bấm vào ô số → 3D quay tới chỗ đó · kéo chuột: xoay · lăn: phóng · rê vào tấm: kích thước</span>
+    </div>
+    <div id="nen"><canvas id="c3d"></canvas><div id="tro"></div></div>
+    <div id="cheDo"></div>
   </div>
 </div>
 
+<script src="ve3d.js"></script>
 <script>
   var $ = function (id) { return document.getElementById(id); };
-  var NS = 'http://www.w3.org/2000/svg';
   var NHO = 'lehai.taomodul.khungbao.v1';
   // ô nào thuộc nhóm nào — chỉ để chia tiêu đề, không chứa số liệu
   var NHOM = { rong: 'Kích thước tủ', cao_tu_lanh: 'Chia chiều cao', len_day: 'Len chân tường (0 = không có)', van: 'Ván & hậu' };
@@ -109,10 +104,15 @@
     guiTinh();
   };
 
+  // Ô đang sửa: tô dòng; 3D nhảy tới đúng chỗ của ô đó (khoa3d). Rời ô (bấm sang canvas để xoay)
+  // KHÔNG đổi chỗ đứng 3D — nếu không, vừa bấm vào hình để xoay là hình bay mất.
   function chon(k) {
     dangSua = k;
     truong.forEach(function (t) { $('dong_' + t.khoa).classList.toggle('dang', t.khoa === k); });
-    if (cuoi) ve(cuoi);
+    if (!k) return;
+    var cu = cheDo(khoa3d);
+    khoa3d = k;
+    if (cuoi) { ve(cuoi); if (cheDo(k) !== cu || cheDo(k) !== 'tong') bayToi(k); }
   }
 
   function guiTinh() {
@@ -146,136 +146,77 @@
     guiTinh();
   });
 
-  // ── Vẽ ──────────────────────────────────────────────
-  function el(cha, ten, attr, chu) {
-    var e = document.createElementNS(NS, ten);
-    for (var k in attr) e.setAttribute(k, attr[k]);
-    if (chu != null) e.textContent = chu;
-    cha.appendChild(e);
-    return e;
-  }
-  function so(v) { return Math.round(v * 10) / 10; }
+  // ── 3D: bộ vẽ dùng chung ui/ve3d.js ─────────────────
+  // Hình lấy NGUYÊN từ danh sách tấm lõi Ruby gửi (tam) + tường/len nền (nen). JS chỉ đặt
+  // camera và kẻ đường kích thước từ số lõi trả về — không công thức kết cấu thứ hai.
+  var v3 = new Ve3D($('c3d'), $('tro'));
+  v3.gioiHanPitch(-0.2, 1.55);            // tủ cao 2,5m: không cho lật ngửa khó nhìn
+  var khoa3d = null;                      // ô gần nhất đã chọn → quyết định chỗ đứng 3D + số sáng
+  $('goc').addEventListener('click', function () { khoa3d = null; if (cuoi) ve(cuoi); bayToi(null); });
 
-  // khung nhìn: u ngang, v dọc (v lên trên) → toạ độ svg lật dọc
-  // vùng nhìn u0..u1 × v0..v1 (mm); hình tấm bị cắt gọn trong vùng, kích thước vẽ ra lề
-  function manHinh(svg, u0, u1, v0, v1) {
-    var rU = u1 - u0, rV = v1 - v0, le = Math.max(rU, rV) * 0.16;
-    svg.innerHTML = '';
-    svg.setAttribute('viewBox', [u0 - le, -le * 0.6, rU + 2 * le, rV + le * 1.6].join(' '));
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    var id = svg.id + '_cat';
-    var cp = el(el(svg, 'defs', {}), 'clipPath', { id: id });
-    el(cp, 'rect', { x: u0, y: 0, width: rU, height: rV });
-    // 1px màn hình = bao nhiêu mm trong hình (preserveAspectRatio meet lấy tỉ lệ lớn hơn)
-    var r = svg.getBoundingClientRect();
-    var px = Math.max((rU + 2 * le) / Math.max(r.width, 1), (rV + le * 1.6) / Math.max(r.height, 1));
-    var k = { svg: svg, co: 12 * px, le: le, y: function (v) { return v1 - v; } };
-    k.ve = el(svg, 'g', { 'clip-path': 'url(#' + id + ')' });
-    return k;
+  // Ô nào nhìn ở đâu (Khoa chốt 27/09: sửa ô nào 3D tự quay tới chỗ đó)
+  function cheDo(k) {
+    if (['van', 'van_hau', 'hau_lui', 'ranh_hau'].indexOf(k) >= 0) return 'hau';   // cắt ngang tủ trên, nhìn từ trên
+    if (['len_day', 'len_cao'].indexOf(k) >= 0) return 'len';               // góc sau-dưới, nhìn từ cạnh phải
+    return 'tong';                                                          // cả tủ
   }
+  var TEN_CHE_DO = {
+    hau: 'Cắt ngang tủ trên, nhìn từ trên xuống: tường · hậu · rãnh hậu ăn vào hông · bề dày ván',
+    len: 'Góc sau-dưới, nhìn từ cạnh phải: len chân tường + chỗ khoét hông',
+    tong: ''
+  };
 
-  function hop(k, u0, u1, v0, v1, lop) {
-    el(k.ve, 'rect', { x: u0, y: k.y(v1), width: u1 - u0, height: v1 - v0, 'class': lop });
-  }
-
-  // đường kích thước: dọc (u cố định) hoặc ngang (v cố định); khoa = ô tương ứng
-  function dim(k, huong, co_dinh, a, b, nhan, khoa) {
-    var sang = khoa && khoa === dangSua;   // số tự tính (khoa null) không bao giờ sáng
-    var g = el(k.svg, 'g', { 'class': 'dim' + (sang ? ' sang' : '') + (khoa ? '' : ' tu') });
-    var t = k.co * 0.35, fs = k.co * (sang ? 0.95 : 0.8);
-    if (huong === 'doc') {
-      el(g, 'line', { x1: co_dinh, y1: k.y(a), x2: co_dinh, y2: k.y(b) });
-      el(g, 'line', { x1: co_dinh - t, y1: k.y(a), x2: co_dinh + t, y2: k.y(a) });
-      el(g, 'line', { x1: co_dinh - t, y1: k.y(b), x2: co_dinh + t, y2: k.y(b) });
-      var ym = k.y((a + b) / 2);
-      el(g, 'text', { x: co_dinh - t * 1.4, y: ym, 'font-size': fs, 'text-anchor': 'middle',
-                      transform: 'rotate(-90 ' + (co_dinh - t * 1.4) + ' ' + ym + ')' }, nhan);
-    } else {
-      el(g, 'line', { x1: a, y1: k.y(co_dinh), x2: b, y2: k.y(co_dinh) });
-      el(g, 'line', { x1: a, y1: k.y(co_dinh) - t, x2: a, y2: k.y(co_dinh) + t });
-      el(g, 'line', { x1: b, y1: k.y(co_dinh) - t, x2: b, y2: k.y(co_dinh) + t });
-      el(g, 'text', { x: (a + b) / 2, y: k.y(co_dinh) + fs * 1.25, 'font-size': fs, 'text-anchor': 'middle' }, nhan);
-    }
+  function bayToi(k) {
+    if (!cuoi) return;
+    var p = cuoi.tham_so, W = p.rong, D = p.sau, H = p.cao, Hd = p.cao_tu_lanh, Hb = p.cao_ba_noc, t = p.van;
+    var R = Math.sqrt(W * W + D * D + H * H) / 2;   // bán kính cả tủ = mốc tỉ lệ của bộ vẽ
+    var c = cheDo(k);
+    if (c === 'hau') v3.bay({ yaw: 0, pitch: Math.PI / 2, zoom: R / 130, tam: [t + 45, D - 45, (Hd + H - Hb) / 2] });
+    else if (c === 'len') v3.bay({ yaw: -Math.PI / 2, pitch: 0.1, zoom: R / 320, tam: [W, D - 140, Math.max(p.len_cao, 60) + 60] });
+    else v3.bay({ yaw: -0.6, pitch: 0.3, zoom: 1, tam: null });
   }
 
   function ve(d) {
     var p = d.tham_so, tam = d.tam;
-    var W = p.rong, D = p.sau, H = p.cao, Hd = p.cao_tu_lanh, Hb = p.cao_ba_noc;
-    var coLen = p.len_day > 0 && p.len_cao > 0;
+    var W = p.rong, D = p.sau, H = p.cao, Hd = p.cao_tu_lanh, Hb = p.cao_ba_noc, t = p.van;
     $('tutren').textContent = so(H - Hd - Hb) + ' mm';
+    var c = cheDo(khoa3d);
+    $('cheDo').textContent = TEN_CHE_DO[c];
 
-    // Mặt đứng: tấm sau vẽ trước, tấm trước đè lên (như mắt nhìn)
-    var k = manHinh($('truoc'), 0, W, 0, H);
-    tam.slice().sort(function (a, b) { return b.y[0] - a.y[0]; }).forEach(function (s) {
-      hop(k, s.x[0], s.x[1], s.z[0], s.z[1], 'tam' + (s.ten.indexOf('Cánh') === 0 ? ' canh' : ''));
-    });
-    var l = k.le * 0.45;
-    dim(k, 'ngang', -l, 0, W, so(W), 'rong');
-    dim(k, 'doc', -l, 0, H, so(H), 'cao');
-    dim(k, 'doc', W + l, 0, Hd, so(Hd), 'cao_tu_lanh');
-    dim(k, 'doc', W + l, Hd, H - Hb, so(H - Hd - Hb), null);
-    dim(k, 'doc', W + l, H - Hb, H, so(Hb), 'cao_ba_noc');
-    dim(k, 'ngang', -l * 1.9, 0, p.van, so(p.van), 'van');
-    // hậu nằm sau cánh, không thấy từ trước → chỉ vẽ nét đứt khi đang sửa rãnh hậu
+    var ds = tam.map(function (s) { return { s: s, loai: 'tam' }; });
+    (d.nen || []).forEach(function (s) { ds.push({ s: s, loai: 'nen' }); });
+
+    // Đường kích thước: số lấy từ thông số + vị trí tấm lõi trả về; ô đang sửa thì sáng
+    var K = [];
+    function kk(a, b, chu, khoa) { K.push({ a: a, b: b, chu: chu, sang: !!khoa && khoa === khoa3d }); }
     var hau = tam.filter(function (s) { return s.ten === 'Hậu trên'; })[0];
-    var soHau = ['van_hau', 'hau_lui', 'ranh_hau'].indexOf(dangSua) >= 0;
-    if (hau && soHau)
-      el(k.svg, 'rect', { x: hau.x[0], y: k.y(hau.z[1]), width: hau.x[1] - hau.x[0], height: hau.z[1] - hau.z[0], 'class': 'an' });
-
-    // Mặt cắt cạnh (toàn tủ) + chi tiết chân (phóng to góc sau-dưới): cùng một cách vẽ
-    var c = manHinh($('canh'), 0, D * 1.12, 0, H);
-    catCanh(c, d, W, D, H, coLen);
-    dim(c, 'ngang', -c.le * 0.45, 0, D, so(D), 'sau');
-
-    // Hai khung chi tiết luôn hiện: hậu (ván, hậu dày, cách tường, rãnh) + chân tường (len)
-    if (hau) veHau(p, hau, D);
-    var vTren = Math.max(p.len_cao, 60) + 100;
-    var uTrai = D - Math.max(vTren, 160);
-    var ch = manHinh($('chan'), uTrai, D + 40, 0, vTren);
-    catCanh(ch, d, W, D, H, coLen, true);
-    var lch = ch.le * 0.45;
-    if (coLen) {
-      dim(ch, 'ngang', -lch * 0.8, D - p.len_day, D, so(p.len_day), 'len_day');
-      dim(ch, 'doc', D - p.len_day - lch * 0.8, 0, p.len_cao, so(p.len_cao), 'len_cao');
+    var zc = (Hd + H - Hb) / 2;             // cao độ cắt ngang giữa tủ trên
+    v3.cat(c === 'hau' && hau ? { truc: 2, max: zc, min: zc - 40 } : null);   // lát mỏng 40mm quanh chỗ cắt
+    if (c === 'hau' && hau) {
+      kk([hau.x[0], hau.y[0] - 25, zc], [t, hau.y[0] - 25, zc], so(p.ranh_hau), 'ranh_hau');
+      kk([t + 40, hau.y[1], zc], [t + 40, D, zc], so(p.hau_lui), 'hau_lui');
+      kk([t + 75, hau.y[0], zc], [t + 75, hau.y[1], zc], so(p.van_hau), 'van_hau');
+      kk([0, D - 100, zc], [t, D - 100, zc], so(t), 'van');
+    } else if (c === 'len') {
+      if (p.len_day > 0 && p.len_cao > 0) {
+        kk([W + 5, D - p.len_day, p.len_cao + 25], [W + 5, D, p.len_cao + 25], so(p.len_day), 'len_day');
+        kk([W + 5, D - p.len_day - 25, 0], [W + 5, D - p.len_day - 25, p.len_cao], so(p.len_cao), 'len_cao');
+      }
+    } else {
+      var o = 90;                           // kẻ lệch ra ngoài tủ cho khỏi đè tấm
+      kk([0, -o, 0], [W, -o, 0], so(W), 'rong');
+      kk([-o, 0, 0], [-o, 0, H], so(H), 'cao');
+      kk([-o, 0, 0], [-o, D, 0], so(D), 'sau');
+      kk([W + o, 0, 0], [W + o, 0, Hd], so(Hd), 'cao_tu_lanh');
+      kk([W + o, 0, Hd], [W + o, 0, H - Hb], so(H - Hd - Hb), null);   // tủ trên tự tính
+      kk([W + o, 0, H - Hb], [W + o, 0, H], so(Hb), 'cao_ba_noc');
     }
+    v3.kich(K);
+    v3.dat(ds, [[0, 0, 0], [W, D, H]]);   // căn theo tủ, không theo tường
   }
 
-  // Góc sau-trái nhìn từ trên: hông trái, hậu ăn rãnh vào hông, tường phía trên
-  function veHau(p, hau, D) {
-    var t = p.van, m = Math.max(t, 18) * 7;
-    var k = manHinh($('hau'), -m * 0.25, m, D - m * 0.9, D + m * 0.25);
-    hop(k, -m, 2 * m, D, D + m, 'tuong');
-    hop(k, 0, t, 0, D, 'tam nen');
-    hop(k, hau.x[0], hau.x[1], hau.y[0], hau.y[1], 'tam');
-    var l = k.co * 1.4;
-    dim(k, 'ngang', hau.y[0] - l, hau.x[0], t, so(p.ranh_hau), 'ranh_hau');
-    dim(k, 'ngang', D - m * 0.75, 0, t, so(t), 'van');
-    dim(k, 'doc', t + m * 0.35, hau.y[1], D, so(p.hau_lui), 'hau_lui');
-    dim(k, 'doc', t + m * 0.6, hau.y[0], hau.y[1], so(p.van_hau), 'van_hau');
-  }
+  function so(v) { return Math.round(v * 10) / 10; }
 
-  // Vẽ mặt cắt cạnh vào khung k: tường, hông (nền, thấy chỗ khoét), tấm bị mặt cắt x = W/4 đi qua, len.
-  // chiNen: chỉ hông + len + tường (khung chi tiết chân — Khoa 24/09: không cần thể hiện bạ)
-  function catCanh(k, d, W, D, H, coLen, chiNen) {
-    var p = d.tham_so, tam = d.tam;
-    hop(k, D, D * 1.12 + 40, 0, H, 'tuong');
-    tam.forEach(function (s) {
-      if (s.x[0] !== 0) return;              // hông trái + bạ nóc trái: nền
-      if (s.khoet) {
-        var q = [[s.y[0], s.z[0]], [s.khoet.y[0], s.z[0]], [s.khoet.y[0], s.khoet.z[1]],
-                 [s.y[1], s.khoet.z[1]], [s.y[1], s.z[1]], [s.y[0], s.z[1]]];
-        el(k.ve, 'polygon', { points: q.map(function (t) { return t[0] + ',' + k.y(t[1]); }).join(' '), 'class': 'tam nen' });
-      } else hop(k, s.y[0], s.y[1], s.z[0], s.z[1], 'tam nen');
-    });
-    var xc = W / 4;
-    tam.forEach(function (s) {
-      if (chiNen || s.x[0] === 0 || s.x[1] === W) return;
-      if (s.x[0] <= xc && xc <= s.x[1]) hop(k, s.y[0], s.y[1], s.z[0], s.z[1], 'tam' + (s.ten.indexOf('Cánh') === 0 ? ' canh' : ''));
-    });
-    if (coLen) hop(k, D - p.len_day, D, 0, p.len_cao, 'len');
-  }
-
-  window.addEventListener('resize', function () { if (cuoi) ve(cuoi); });
   if (window.sketchup) sketchup.ready();
 </script>
 </body></html>

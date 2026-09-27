@@ -12,6 +12,28 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-09-27 — 1.9.76: Tạo Modul Nhanh — khung bao tủ lạnh sang 3D; bấm ô số → 3D bay tới chỗ đó
+
+**Quyết định (Khoa chốt 27/09):** khung bao tủ lạnh bỏ 4 khung 2D, chỉ còn MỘT khung 3D (có tường + len
+nền). Lúc đầu Khoa định giữ 2D vì khe nhỏ (rãnh hậu 10, hậu lùi 10) nhìn tổng thể không thấy → giải bằng
+**bảng tra ô → góc nhìn**: bấm ô nào, 3D bay tới đúng chỗ (lát cắt / góc nhìn riêng) và số ô đó sáng cam.
+Khoa chốt đây là **khuôn cho mọi modul sau**; hộc kéo làm theo luôn trong bản này.
+
+- **Bộ vẽ dùng chung `ui/ve3d.js`** (tách từ hoc_keo.html): hộp thẳng trục, không thư viện, chỉ vẽ khi có
+  thao tác. Thêm: bay camera (có chuyển động), đường kích thước 3D có chữ số, lát cắt mỏng theo trục,
+  tấm có khoét (hông né len) tách 2 hộp để vẽ, giới hạn góc xoay.
+- **Tủ lạnh:** ô kích thước → nhìn cả tủ + đường kích thước quanh tủ; ván/hậu → lát cắt ngang tủ trên nhìn
+  từ trên (tường · khe · hậu · rãnh · hông); len → góc sau-dưới nhìn từ cạnh (khoét hông). Tường + len do
+  Ruby gửi (`main.rb#nen_3d`), chỉ để vẽ, không dựng.
+- **Hộc kéo:** khe ray → cắt ngang; đáy dày / rãnh đáy → cắt đứng nhìn trước; cách mốc dưới / thấp hơn mốc
+  trên → cắt dọc nhìn cạnh; khe mặt → nhìn thẳng; mặt phủ cách mép → góc trước; khe sau → đuôi thùng tới
+  hậu, ghi "X (cần ≥ 30)".
+- Rời ô (bấm vào hình để xoay) KHÔNG đổi chỗ đứng — không thì vừa bấm vào hình là hình bay mất.
+
+**Nghiệm thu:** headless (lõi chép Python làm dữ liệu giả, bấm từng ô): mọi góc đúng chỗ, 0 lỗi JS; bảng
+hộc kéo sau khi tách bộ vẽ ra y hệt trước. Khoa xem bảng tủ lạnh 3D trên máy mình trước bản này: "đỉnh,
+rất ưng". **Chưa chạy trong SketchUp:** bảng tra của hộc kéo.
+
 ## 2026-09-27 — 1.9.75: Hộc kéo — Esc không làm bảng thành "xác"
 
 **Vấn đề (Khoa test 27/09):** tạo hộc xong, chưa chọn khoang, bấm Esc → tool thoát (đúng kiểu Esc

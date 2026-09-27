@@ -1,5 +1,5 @@
 {
-  "version": "1.9.75",
+  "version": "1.9.76",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -81,6 +81,7 @@
     "LeHai_Tools/tao_modul_nhanh/ui/hoc_keo.html",
     "LeHai_Tools/tao_modul_nhanh/ui/khung_bao.html",
     "LeHai_Tools/tao_modul_nhanh/ui/menu.html",
+    "LeHai_Tools/tao_modul_nhanh/ui/ve3d.js",
     "LeHai_Tools/thu_vien/main.rb",
     "LeHai_Tools/thu_vien/components/HUONG_DAN.txt",
     "LeHai_Tools/thu_vien/core/library.rb",

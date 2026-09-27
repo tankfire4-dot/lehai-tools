@@ -113,9 +113,21 @@ module TK
     def self.tinh(json)
       tham_so = doc_tham_so(json)
       tam = KhungBaoTuLanh.tinh(tham_so)
-      bao('veLai', { tham_so: KhungBaoTuLanh::MAC_DINH.merge(tham_so), tam: tam })
+      p = KhungBaoTuLanh::MAC_DINH.merge(tham_so)
+      bao('veLai', { tham_so: p, tam: tam, nen: nen_3d(p) })
     rescue StandardError => e
       bao('baoLoi', e.message)
+    end
+
+    # Tường + len hiện trạng — CHỈ để vẽ nền 3D trong bảng, không dựng vào model.
+    # Tường sát lưng tủ (y = sâu D), thò mỗi bên 200 cho thấy là tường; len nằm chân tường.
+    def self.nen_3d(p)
+      w, d, h = p[:rong], p[:sau], p[:cao]
+      ds = [{ ten: 'Tường hiện trạng', x: [-200.0, w + 200], y: [d, d + 80], z: [0.0, h] }]
+      if p[:len_day] > 0 && p[:len_cao] > 0
+        ds << { ten: 'Len chân tường', x: [-200.0, w + 200], y: [d - p[:len_day], d], z: [0.0, p[:len_cao]] }
+      end
+      ds
     end
 
     def self.dung(json)

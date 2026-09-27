@@ -12,7 +12,7 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
-## 2026-09-27 — 1.9.69: Mộng Xương Chó — dấu mộng âm ra layer DXF riêng `LEHAI_MONGAM`
+## 2026-09-27 — 1.9.69–1.9.70: Mộng Xương Chó — dấu mộng âm ra layer DXF riêng `LEHAI_MONGAM`
 
 **Vấn đề:** dấu mộng âm của tool vào Aspire luôn rơi `LAYER0`, nên không gán được dao mẫu. Dấu của
 NTT, hình giống hệt, lại ra `NTT_MONGAM`. Ghi chép 17/09 đã kết luận "exporter ABF không đọc mark tự
@@ -36,6 +36,12 @@ kết luận; bí thì CHỤP TRƯỚC/SAU toàn mô hình quanh thao tác của
 **Rủi ro:** (1) Hành vi ABF không công bố — bản ABF mới có thể lặng lẽ đổi. (2) Dấu làm bằng bản
 ≤1.9.68 vẫn mang mặt `Layer0` → vẫn LAYER0; tool cấm sửa mộng cũ nên phải gắn tag mặt tay hoặc làm
 lại. (3) Dấu phay đầu mộng đã sửa cùng kiểu nhưng chưa có ca nghiệm thu DXF.
+
+**Soát (agent đọc lạnh, Codex hết quota) bắt hồi quy trước khi push:** Kiểm Tra Liên Kết xếp dấu
+theo regex tag — `LEHAI_MONGAM` khớp `/ngam/i` → dấu vào rổ NGÀM, trong khi mộng cao 10mm bị xếp
+mối RÃNH HẬU theo độ ăn sâu → dấu không được tính, tool đo đâm xuyên và báo đỏ oan. Sửa
+`kiem_tra_lien_ket` bắt `/mongam/i` → `:chung` TRƯỚC `/ngam/` (kèm hệ quả tốt: `NTT_MongAm` cũng hết
+bị xếp nhầm) — phát ở 1.9.70 (1.9.69 chưa từng push). Bài học: đổi tên tag là đổi API — grep mọi chỗ ĐỌC tag bằng regex, không chỉ chỗ so nguyên chuỗi.
 
 ---
 

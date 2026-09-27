@@ -341,7 +341,10 @@ module TK
       # Tag KHÔNG phân loại được → :chung, dùng cho CẢ rãnh hậu lẫn ngàm (xem
       # ghi chú "ABF một tag" ở đầu file). Rãnh led có tag riêng thì loại hẳn,
       # kẻo nó đứng gần mối nào lại làm mối đó thành "đã phay".
-      kind = if tag =~ /phayranhhau/i then :ranhhau
+      # Dấu mộng âm của Mộng Xương Chó (LEHAI_MONGAM, từ 1.9.69) là dấu CHUNG: loại mối lấy từ độ
+      # ăn sâu (cao mộng 10mm rơi vào band rãnh hậu). Phải bắt TRƯỚC /ngam/ vì "MONGAM" chứa "NGAM".
+      kind = if tag =~ /mongam/i      then :chung
+             elsif tag =~ /phayranhhau/i then :ranhhau
              elsif tag =~ /ngam/i      then :ngam
              elsif tag =~ /led/i       then :led
              else :chung end

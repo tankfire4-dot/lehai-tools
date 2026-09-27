@@ -12,6 +12,15 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-09-27 — 1.9.75: Hộc kéo — Esc không làm bảng thành "xác"
+
+**Vấn đề (Khoa test 27/09):** tạo hộc xong, chưa chọn khoang, bấm Esc → tool thoát (đúng kiểu Esc
+SketchUp) nhưng bảng Hộc kéo vẫn mở → rê chuột không còn gì, phải tắt bảng bật lại.
+**Sửa:** bảng còn mở thì Esc chỉ bỏ chọn khoang, KHÔNG tắt tool; thoát = đóng bảng. Tool vẫn bị tắt vì
+lý do khác (bấm tool khác của SketchUp) → bảng hiện nút "▶ Chọn khoang tiếp" bật lại. Ruby gọi JS
+có chốt `window.f && window.f(...)` (trang chưa tải xong lúc tool bật thì bỏ qua) và không gửi vào bảng
+đã đóng. Chưa push 1.9.72–1.9.74 → phát gộp cùng 1.9.75.
+
 ## 2026-09-27 — 1.9.74: Tạo Modul Nhanh — ray 200, nút "Về mặc định"; phát gộp 1.9.72–1.9.74
 
 - **Ray 200** vào danh sách (Khoa 27/09 "hình như có loại ray 200" — chưa xác nhận có hàng). Không có

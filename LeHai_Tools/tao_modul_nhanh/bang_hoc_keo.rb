@@ -188,10 +188,20 @@ module TK
           # "‹ Tạo Modul Nhanh" → đóng bảng này, về menu chọn modul
           @dlg.add_action_callback('mo_menu') { |_ctx| @dlg.close; UI.start_timer(0, false) { TaoModulNhanh.menu } }
           @dlg.set_on_closed { Sketchup.active_model.select_tool(nil) if @tool && @tool.dang_mo }
+          # Tool bị tắt (bấm tool khác của SketchUp…) mà bảng còn mở → nút trong bảng bật lại
+          @dlg.add_action_callback('chon_tiep') { |_ctx| bat_tool }
           @dlg.show
         end
+        bat_tool
+      end
+
+      def self.bat_tool
         @tool = ChonKhoang.new
-        model.select_tool(@tool)
+        Sketchup.active_model.select_tool(@tool)
+      end
+
+      def self.bang_mo?
+        @dlg&.visible? ? true : false
       end
 
       def self.khoi_dau
@@ -200,7 +210,9 @@ module TK
       end
 
       def self.bao(ham, msg)
-        @dlg&.execute_script("window.#{ham}(#{msg.to_json});")
+        return unless bang_mo?   # bảng đã đóng (tool tắt sau khi đóng) → không gửi vào trang chết
+        # trang chưa tải xong (tool bật ngay lúc mở bảng) → hàm chưa có thì bỏ qua, không văng lỗi JS
+        @dlg.execute_script("window.#{ham} && window.#{ham}(#{msg.to_json});")
       end
 
       def self.doc_tham_so(json)
@@ -301,11 +313,16 @@ module TK
 
         def activate
           @dang_mo = true
+          BangHocKeo.bao('toolTat', false)
           nhac_thanh
         end
 
+        # Tool bị thay bởi tool khác mà bảng còn mở → bảng hiện nút "Chọn khoang tiếp" (Khoa 27/09:
+        # trước đây bảng thành xác, phải tắt bảng mở lại)
         def deactivate(view)
           @dang_mo = false
+          BangHocKeo.xem(nil, false)
+          BangHocKeo.bao('toolTat', true)
           view.invalidate
         end
 
@@ -316,7 +333,7 @@ module TK
 
         def nhac_thanh
           Sketchup.status_text = @khoa ? 'Đã chọn khoang — chỉnh thông số trong bảng rồi bấm Tạo. Click khoang khác để đổi · Esc bỏ chọn.' :
-                                         'Rê chuột vào TRONG lòng khoang để xem trước · click để chọn · Esc thoát.'
+                                         'Rê chuột vào TRONG lòng khoang để xem trước · click để chọn · đóng bảng Hộc kéo để thoát.'
         end
 
         def do_tai(view, x, y)
@@ -368,9 +385,17 @@ module TK
         end
 
         # Lý do 2 = Ctrl+Z khi tool đang mở (tài liệu Trimble) → giữ tool để gỡ hộc rồi làm lại
+        # Esc: đang chọn khoang → bỏ chọn. Bảng còn mở → GIỮ tool (thoát = đóng bảng); Esc thoát
+        # tool mà bảng còn mở từng làm bảng thành xác (Khoa 27/09). Bảng đã đóng → thoát như thường.
         def onCancel(reason, view)
           return view.invalidate if reason == 2
-          if @khoa then bo_chon else view.model.select_tool(nil) end
+          if @khoa
+            bo_chon
+          elsif !BangHocKeo.bang_mo?
+            view.model.select_tool(nil)
+          else
+            Sketchup.status_text = 'Tool vẫn mở — rê chuột vào khoang để làm tiếp · đóng bảng Hộc kéo để thoát.'
+          end
           view.invalidate
         end
 
@@ -432,7 +457,7 @@ module TK
             end
           else
             l1 = @loi || 'Rê chuột vào trong lòng khoang'
-            l2 = 'Esc thoát'
+            l2 = 'Đóng bảng Hộc kéo để thoát tool'
             mau = Sketchup::Color.new(200, 60, 60)
           end
           rong = 26 + [l1.length, l2.length].max * 8

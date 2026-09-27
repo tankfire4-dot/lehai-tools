@@ -15,6 +15,8 @@
   #cuon { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px; margin: 0 -8px; }
   .nhom { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
           color: var(--lh-muted); margin: 14px 0 6px; }
+  .the.tat { margin-bottom: 8px; background: var(--lh-chip); }
+  .the.tat .lh-btn { width: 100%; margin-top: 8px; }
   .nhom-nut { display: flex; align-items: center; justify-content: space-between; }
   .nhom-nut .lh-btn { padding: 3px 10px; font-size: 11px; letter-spacing: 0; text-transform: none; width: auto; }
   .o { display: grid; grid-template-columns: 1fr 76px; align-items: center; gap: 8px; padding: 3px 0; }
@@ -55,6 +57,10 @@
     <div class="lh-title">Hộc kéo</div>
     <div id="cuon">
       <div class="nhom">Khoang</div>
+      <div class="the tat" id="tat" hidden>
+        Tool chọn khoang đang tắt (vừa bấm tool khác).
+        <button class="lh-btn lh-btn--primary" id="chontiep">▶ Chọn khoang tiếp</button>
+      </div>
       <div class="the" id="khung">—</div>
 
       <div class="nhom">Kiểu mặt</div>
@@ -152,6 +158,9 @@
   $('kieu').addEventListener('click', function (e) { if (e.target.dataset.k) datKieu(e.target.dataset.k); });
   $('so_hoc').addEventListener('input', function () { bo = []; guiTinh(); });
   $('ray').addEventListener('change', guiTinh);
+  // Ruby báo tool chọn khoang tắt/bật (tắt = người dùng bấm tool khác mà bảng còn mở)
+  window.toolTat = function (tat) { $('tat').hidden = !tat; };
+  $('chontiep').addEventListener('click', function () { if (window.sketchup) sketchup.chon_tiep(); });
   // Bảng nhớ số lần trước → gõ nhầm một lần là nhớ mãi (Khoa 27/09: khe ray 50). Nút này trả về
   // mặc định LẤY TỪ LÕI Ruby (hoi[].mac_dinh), JS không giữ bản sao số nào. Giữ nguyên lọt/phủ.
   $('macdinh').addEventListener('click', function () {

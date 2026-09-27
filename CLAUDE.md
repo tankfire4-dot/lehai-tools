@@ -235,7 +235,7 @@ là danh sách nút. Muốn biết đủ module thì `ls LeHai_Tools/*/`.
 | Trục Tọa Độ | `TK::AxisFix` | ✓ |
 | Dim Nhanh | `TK::QuickDim` | ✓ |
 | **Chống Bay** (quét đổi tag chi tiết nhỏ, sau nesting) | `TK::ChongBay` | ✓ |
-| **Tạo Modul Nhanh** (dựng theo kết cấu chuẩn: khung bao tủ lạnh, hộc kéo — tab trên đầu bảng; đồ dev ở lab `projects/tao-modul-nhanh/`) | `TK::TaoModulNhanh` | ✓ |
+| **Tạo Modul Nhanh** (dựng theo kết cấu chuẩn: khung bao tủ lạnh, hộc kéo — bấm nút ra menu icon chọn modul; đồ dev ở lab `projects/tao-modul-nhanh/`) | `TK::TaoModulNhanh` | ✓ |
 | **Check Chốt Sản Xuất** (dashboard, cuối toolbar, icon khiên) | `TK::PreExportCheck` | ✓ |
 | Trùng Tấm | `TK::DuplicateCheck` | — chạy trong dashboard |
 | Bản Lề Cánh | `TK::HingeCheck` | — chạy trong dashboard |

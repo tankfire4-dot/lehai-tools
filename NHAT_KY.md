@@ -12,6 +12,19 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-09-27 — 1.9.73: Tạo Modul Nhanh — menu icon chọn modul; bỏ chặn oan khung tấm rời
+
+**1.9.72 chưa từng push** — Khoa chạy bản đường plugin trên máy mình thấy 2 chuyện, gộp sửa vào 1.9.73:
+
+- **Chặn oan:** chặn "bốn phía khoang không cùng một group" (thêm lúc soát, để loại tia chạm tường)
+  chặn luôn khung vẽ tấm rời (mỗi tấm một group ngoài cùng) — khung thật của Khoa. Thay bằng: mặt
+  trong khoang xa hơn 1,5m = khoang hở. Khung tấm rời vẫn đo được; riêng mặt phủ không nhận ra
+  đố/vách kề (phủ tới mép ngoài tấm), bảng ghi chú khi chọn Phủ. Kiểm "mặt trước bị chặn" đổi sang
+  đo khoảng cách (gặp mặt trong 10mm), không dựa vào group.
+- **Menu (Khoa 27/09):** bấm nút → bảng icon các modul, bấm cái nào mở cái đó; tab chuyển modul bỏ,
+  mỗi bảng có "‹ Tạo Modul Nhanh" về menu. Menu là trang HTML nhỏ mở khi bấm, không chạy ngầm.
+  Chỉ hiện modul đã xong đủ 4 bước; thêm modul = thêm 1 thẻ trong `ui/menu.html` + 1 dòng `MO_MODUL`.
+
 ## 2026-09-27 — 1.9.72: Tạo Modul Nhanh — modul 2 HỘC KÉO (ray bi)
 
 **Là gì:** bảng Tạo Modul Nhanh có tab trên đầu: Khung bao tủ lạnh | Hộc kéo. Hộc kéo: rê chuột vào

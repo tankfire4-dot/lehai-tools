@@ -25,6 +25,7 @@ module TK
       TOI_DA    = 5000.0 / MM     # inch — tia xa hơn 5m coi như không chạm
       NHICH     = 0.2 / MM        # inch — nhích qua mặt vừa chạm rồi bắn tiếp
       DAY_MAX   = 100.0 / MM      # inch — mặt kia của tấm phải trong 100mm mới tính là cùng tấm
+      KHOANG_MAX = 1500.0 / MM    # inch — mặt trong khoang xa hơn 1,5m = khoang hở (tia bay ra tường/phòng)
       TRAI  = Geom::Vector3d.new(-1, 0, 0)
       PHAI  = Geom::Vector3d.new(1, 0, 0)
       DUOI  = Geom::Vector3d.new(0, 0, -1)
@@ -64,7 +65,7 @@ module TK
       # tấm còn khoang khác của CÙNG khung không (cùng group ngoài cùng → là đố/vách, không phải tường).
       def self.do_phia(model, q, dir)
         a = ban(model, q, dir)
-        return nil unless a
+        return nil unless a && q.distance(a[0]) <= KHOANG_MAX
         b = ban(model, a[0].offset(dir, NHICH), dir)
         cung_tam = b && b[1].first == a[1].first && a[0].distance(b[0]) <= DAY_MAX
         return { trong: a[0], ngoai: a[0], ke: false, sat: false, a: a } unless cung_tam
@@ -109,10 +110,10 @@ module TK
                  duoi: do_phia(model, q, DUOI), tren: do_phia(model, q, TREN) }
         thieu = bien.select { |_, v| v.nil? }.keys
         raise "Khoang hở phía #{thieu.map { |k| { trai: 'trái', phai: 'phải', duoi: 'dưới', tren: 'trên' }[k] }.join(', ')}." unless thieu.empty?
-        # Bốn phía phải thuộc CÙNG một khung (group ngoài cùng). Khác nhau = tia chạm tường / tủ bên
-        # cạnh / hình rời chưa group → đo ra khoang giả, cấm dựng.
+        # Khung gom một group → 4 phía cùng group ngoài cùng. Khung tấm rời (mỗi tấm một group ở ngoài
+        # cùng) vẫn đo được, nhưng không nhận ra đố/vách kề → mặt phủ phủ tới mép ngoài tấm.
+        # (27/09: từng CHẶN ca này → chặn oan khung thật của Khoa; tường xa đã bị KHOANG_MAX loại.)
         khung = bien.values.map { |b| b[:a][1].first }.uniq
-        raise 'Bốn phía khoang không cùng một khung — khung phải là MỘT group, rê vào đúng lòng khoang.' if khung.size > 1
 
         x0 = bien[:trai][:trong].x
         x1 = bien[:phai][:trong].x
@@ -121,9 +122,10 @@ module TK
         giua = Geom::Point3d.new((x0 + x1) / 2, y_truoc + 5.0 / MM, (z0 + z1) / 2)
         # Mặt trước khoang phải HỞ về phía -Y (trục xanh âm). Tủ xoay ngang / quay lưng thì phía
         # "trước" tool tưởng lại là hậu → mặt hộc sẽ dựng ở sau lưng tủ. Bản thử chặn, không đoán.
+        # Đứng cách mép trước 5mm nhìn ra: gặp mặt trong 10mm = phía này đóng (hậu / cánh đang đóng).
         truoc = ban(model, giua, Geom::Vector3d.new(0, -1, 0))
-        if truoc && truoc[1].first == khung[0]
-          raise 'Mặt trước khoang bị chặn — tủ đang xoay ngang/quay lưng? Bản thử chỉ nhận tủ quay mặt về phía trục xanh âm (-Y).'
+        if truoc && giua.distance(truoc[0]) <= 10.0 / MM
+          raise 'Mặt trước khoang bị chặn (cánh đang đóng, hoặc tủ xoay ngang/quay lưng?) — tool chỉ nhận tủ quay mặt về trục xanh âm (-Y).'
         end
         hau = do_phia(model, giua, SAU)
         y_sau = hau && hau[:trong].y <= y_sau_hong + NHICH ? hau[:trong].y : y_sau_hong
@@ -135,7 +137,8 @@ module TK
           co_hau: !hau.nil? && hau[:trong].y <= y_sau_hong + NHICH,
           y_hau_ngoai: hau ? mm.(hau[:ngoai].y) : nil,
           da_co_hoc: @qua_hoc,  # tia trong khoang xuyên qua hộc cũ → khoang này đã có hộc
-          sat: %i[trai phai duoi tren].select { |s| bien[s][:sat] }   # phía có tủ khác đứng sát
+          sat: %i[trai phai duoi tren].select { |s| bien[s][:sat] },  # phía có tủ khác đứng sát
+          tam_roi: khung.size > 1   # khung chưa gom một group → không nhận đố/vách kề cho mặt phủ
         }
         # trái/phải đo theo x, dưới/trên theo z → số mm cho lõi (HocKeo.phu_bi)
         %i[trai phai].each { |s| k[:bien][s] = { trong: mm.(bien[s][:trong].x), ngoai: mm.(bien[s][:ngoai].x), ke: bien[s][:ke] } }
@@ -182,8 +185,8 @@ module TK
           @dlg.add_action_callback('ready') { |_ctx| khoi_dau }
           @dlg.add_action_callback('tinh') { |_ctx, json| doi_tham_so(json) }
           @dlg.add_action_callback('dung') { |_ctx, _json| tao }
-          # tab "Khung bao tủ lạnh" → đóng bảng này, mở bảng modul kia
-          @dlg.add_action_callback('mo_khung_bao') { |_ctx| @dlg.close; UI.start_timer(0, false) { TaoModulNhanh.show } }
+          # "‹ Tạo Modul Nhanh" → đóng bảng này, về menu chọn modul
+          @dlg.add_action_callback('mo_menu') { |_ctx| @dlg.close; UI.start_timer(0, false) { TaoModulNhanh.menu } }
           @dlg.set_on_closed { Sketchup.active_model.select_tool(nil) if @tool && @tool.dang_mo }
           @dlg.show
         end

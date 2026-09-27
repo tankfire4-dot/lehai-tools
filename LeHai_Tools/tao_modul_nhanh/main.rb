@@ -1,7 +1,8 @@
 # encoding: UTF-8
 # Tạo Modul Nhanh: nhập thông số → dựng đủ tấm đúng kết cấu xưởng Lê Hải.
 # Modul 1: KHUNG BAO TỦ LẠNH (Khoa nghiệm thu 24/09/2026) — bảng ở file này.
-# Modul 2: HỘC KÉO (27/09/2026) — bang_hoc_keo.rb; hai bảng chuyển qua lại bằng tab trên đầu.
+# Modul 2: HỘC KÉO (27/09/2026) — bang_hoc_keo.rb.
+# Bấm nút → menu icon chọn modul (ui/menu.html) → mở bảng modul; bảng nào cũng có "‹" về menu.
 #
 # Lõi tính thuần Ruby ở khung_bao_tu_lanh.rb (không gọi SketchUp). Bảng thông số +
 # hình 2D ở ui/khung_bao.html — hình vẽ từ CHÍNH danh sách tấm của lõi (callback
@@ -40,6 +41,34 @@ module TK
       [:ranh_hau,    'Rãnh hậu ăn vào mỗi hông']
     ].freeze
 
+    # ── Menu chọn modul (Khoa 27/09: bấm nút → bảng icon các modul, bấm cái nào mở cái đó) ──
+    # Chỉ liệt kê modul đã xong đủ 4 bước — không thẻ "sắp có". Icon + chữ nằm trong ui/menu.html;
+    # ở đây chỉ nối id → hàm mở, id lạ thì bỏ qua.
+    MO_MODUL = {
+      'khung_bao' => -> { TaoModulNhanh.show },
+      'hoc_keo'   => -> { BangHocKeo.show }
+    }.freeze
+
+    def self.menu
+      if @menu&.visible? then @menu.bring_to_front; return end
+      @menu = UI::HtmlDialog.new(
+        dialog_title:    'Tạo Modul Nhanh',
+        preferences_key: 'tk.taomodulnhanh.menu.v1',
+        width:           520, height: 360,
+        min_width:       420, min_height: 300,
+        resizable:       true,
+        style:           UI::HtmlDialog::STYLE_DIALOG
+      )
+      @menu.set_file(File.join(File.dirname(__FILE__), 'ui', 'menu.html'))
+      @menu.add_action_callback('mo') do |_ctx, id|
+        mo = MO_MODUL[id.to_s]
+        next unless mo
+        @menu.close
+        UI.start_timer(0, false) { mo.call }
+      end
+      @menu.show
+    end
+
     # ── Hộp thoại ────────────────────────────────────────────
     def self.show
       if @dlg&.visible? then @dlg.bring_to_front; return end
@@ -59,8 +88,8 @@ module TK
       end
       @dlg.add_action_callback('tinh') { |_ctx, json| tinh(json) }
       @dlg.add_action_callback('dung') { |_ctx, json| dung(json) }
-      # tab "Hộc kéo" → đóng bảng này, mở bảng + tool chọn khoang
-      @dlg.add_action_callback('mo_hoc_keo') { |_ctx| @dlg.close; UI.start_timer(0, false) { BangHocKeo.show } }
+      # "‹ Tạo Modul Nhanh" → đóng bảng này, về menu chọn modul
+      @dlg.add_action_callback('mo_menu') { |_ctx| @dlg.close; UI.start_timer(0, false) { menu } }
       @dlg.show
     end
 
@@ -159,9 +188,9 @@ module TK
 
     def self.create_cmd
       icons = File.join(PATH, 'icons')
-      cmd = UI::Command.new('Tạo Modul Nhanh') { TK::TaoModulNhanh.show }
+      cmd = UI::Command.new('Tạo Modul Nhanh') { TK::TaoModulNhanh.menu }
       cmd.tooltip         = 'Tạo Modul Nhanh — khung bao tủ lạnh, hộc kéo'
-      cmd.status_bar_text = 'Chọn modul ở tab trên đầu bảng, dựng đủ tấm đúng kết cấu xưởng.'
+      cmd.status_bar_text = 'Chọn modul trong bảng, dựng đủ tấm đúng kết cấu xưởng.'
       s16 = File.join(icons, 'tao_modul_16.png')
       s24 = File.join(icons, 'tao_modul_24.png')
       cmd.small_icon = s16 if File.exist?(s16)

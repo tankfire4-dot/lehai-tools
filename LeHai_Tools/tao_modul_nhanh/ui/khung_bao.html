@@ -9,6 +9,9 @@
   .khung { display: grid; grid-template-columns: 240px 1fr; gap: 16px; height: 100%;
            box-sizing: border-box; padding: 16px; }
   .trai { display: flex; flex-direction: column; min-height: 0; }
+  .ve-menu { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+             color: var(--lh-amber); text-decoration: none; }
+  .ve-menu:hover { text-decoration: underline; }
   #form { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px; margin: 0 -8px; }
   .o { display: grid; grid-template-columns: 1fr 76px; align-items: center; gap: 8px;
        padding: 5px 8px; margin: 0 -8px; border-radius: var(--lh-radius-sm); }
@@ -48,11 +51,8 @@
 </style></head>
 <body class="lh"><div class="khung">
   <div class="trai">
-    <div class="lh-eyebrow">Tạo Modul Nhanh</div>
-    <div class="lh-chips" style="margin:6px 0 4px">
-      <button class="lh-chip is-active">Khung bao tủ lạnh</button>
-      <button class="lh-chip" onclick="if (window.sketchup) sketchup.mo_hoc_keo()">Hộc kéo</button>
-    </div>
+    <a class="ve-menu" href="#" onclick="if (window.sketchup) sketchup.mo_menu(); return false;">‹ Tạo Modul Nhanh</a>
+    <div class="lh-title">Khung bao tủ lạnh</div>
     <div id="form"></div>
     <div class="tinh"><span>Tủ trên (tự tính)</span><b id="tutren">—</b></div>
     <div class="day">

@@ -32,8 +32,8 @@ module TK
         bo: []              # số thứ tự hộc (1 = trên cùng) KHÔNG gắn — người dùng bỏ tick khoang
       }.freeze
 
-      # Ray bi bán theo bậc 50 (Khoa 27/09) — mm
-      RAY_CO = [250, 300, 350, 400, 450, 500, 550, 600].map(&:to_f).freeze
+      # Ray bi bán theo bậc 50 (Khoa 27/09) — mm. 200: Khoa 27/09 "hình như có loại ray 200"
+      RAY_CO = [200, 250, 300, 350, 400, 450, 500, 550, 600].map(&:to_f).freeze
       # Hông thùng (mặt dưới đáy → đỉnh hông) thấp nhất — ray bi 3 tầng cao ~45 (Khoa chốt 27/09)
       HONG_MIN = 50.0
 
@@ -123,7 +123,7 @@ module TK
         # Đuôi thùng phải cách hậu ≥ khe_sau → ray chỉ được tới y_sau − khe_sau
         y_het = khung[:y_sau] - p[:khe_sau]
         ray = p[:ray] || chon_ray(y_dau, y_het)
-        raise "Lòng khung sâu #{(khung[:y_sau] - khung[:y_truoc]).round(1)}mm — không ray nào (≥250) lọt mà còn chừa #{p[:khe_sau].round}mm sau." unless ray
+        raise "Lòng khung sâu #{(khung[:y_sau] - khung[:y_truoc]).round(1)}mm — không ray nào (ngắn nhất #{RAY_CO.min.round}) lọt mà còn chừa #{p[:khe_sau].round}mm sau." unless ray
         raise "Ray #{ray.round}mm dài quá: đuôi thùng chỉ còn cách hậu #{(khung[:y_sau] - y_dau - ray).round(1)}mm (cần ≥ #{p[:khe_sau].round})." if y_dau + ray > y_het + 1e-6
 
         # Thùng hộc rộng = lòng − 2 khe ray (Khoa chốt 27/09)

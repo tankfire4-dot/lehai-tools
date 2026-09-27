@@ -53,6 +53,8 @@
   <div class="trai">
     <a class="ve-menu" href="#" onclick="if (window.sketchup) sketchup.mo_menu(); return false;">‹ Tạo Modul Nhanh</a>
     <div class="lh-title">Khung bao tủ lạnh</div>
+    <div><button class="lh-btn lh-btn--ghost" id="macdinh" style="padding:3px 10px;font-size:11px;width:auto;margin-top:4px"
+                 title="Trả mọi ô số về mặc định xưởng">Về mặc định</button></div>
     <div id="form"></div>
     <div class="tinh"><span>Tủ trên (tự tính)</span><b id="tutren">—</b></div>
     <div class="day">
@@ -138,6 +140,11 @@
     if (window.sketchup) sketchup.dung(JSON.stringify(giaTri()));
   }
   $('dung').addEventListener('click', bamDung);
+  // Về mặc định: số lấy từ lõi Ruby (truong[].mac_dinh) — bảng nhớ số cũ, gõ nhầm là nhớ mãi (Khoa 27/09)
+  $('macdinh').addEventListener('click', function () {
+    truong.forEach(function (t) { $('o_' + t.khoa).value = t.mac_dinh; });
+    guiTinh();
+  });
 
   // ── Vẽ ──────────────────────────────────────────────
   function el(cha, ten, attr, chu) {

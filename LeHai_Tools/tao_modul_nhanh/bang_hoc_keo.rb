@@ -147,7 +147,7 @@ module TK
         rong = k[:x][1] - k[:x][0]
         cao = k[:z][1] - k[:z][0]
         sau = k[:y_sau] - k[:y_truoc]
-        raise "Khoang #{rong.round} × #{cao.round} × #{sau.round} quá nhỏ cho hộc kéo." if rong < 150 || cao < 80 || sau < 250
+        raise "Khoang #{rong.round} × #{cao.round} × #{sau.round} quá nhỏ cho hộc kéo." if rong < 150 || cao < 80 || sau < HocKeo::RAY_CO.min
         k
       end
 

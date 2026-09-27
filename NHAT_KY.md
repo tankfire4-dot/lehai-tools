@@ -12,6 +12,17 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-09-27 — 1.9.74: Tạo Modul Nhanh — ray 200, nút "Về mặc định"; phát gộp 1.9.72–1.9.74
+
+- **Ray 200** vào danh sách (Khoa 27/09 "hình như có loại ray 200" — chưa xác nhận có hàng). Không có
+  nó thì tủ sâu 300 (lòng 280) không lắp được hộc nào sau luật khe sau 30.
+- **Nút "Về mặc định"** ở cả hai bảng: bảng nhớ số lần trước nên gõ nhầm một lần là nhớ mãi (Khoa thử
+  gõ khe ray 50 rồi quên). Số mặc định lấy từ lõi Ruby, JS không giữ bản sao.
+- **Bẫy test dev:** chỉ `load main.rb` KHÔNG nạp lại file con (`require` = một lần mỗi phiên) → SketchUp
+  chạy Ruby cũ trong khi HTML đã mới; Khoa thấy lỗi đã sửa vẫn hiện. Load từng file con trước.
+- **Soát chéo:** Khoa bỏ qua (27/09, "ko cần") như 1.9.66. Lưới an toàn: `LeHai_Tools/main.rb` rescue
+  từng `require` / từng nút → Tạo Modul Nhanh lỗi chỉ mất nút của nó.
+
 ## 2026-09-27 — 1.9.73: Tạo Modul Nhanh — menu icon chọn modul; bỏ chặn oan khung tấm rời
 
 **1.9.72 chưa từng push** — Khoa chạy bản đường plugin trên máy mình thấy 2 chuyện, gộp sửa vào 1.9.73:

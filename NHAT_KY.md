@@ -12,6 +12,27 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-09-27 — 1.9.71: Mộng Xương Chó — phay một mặt sinh 2 layer: phay mộng + viền 2mm
+
+**Vấn đề:** thu một mặt tấm ngàm chỉ có một ô phay đúng bằng đầu mộng, ra layer `ABF_PHAYDAUMONG_K`.
+Dao chạy sát mép dễ để lại gờ. Khung "Cả tấm" của hộp xem trước cao cứng 120px nên tấm vuông/tấm
+cao co lại chỉ còn một mẩu (Khoa thấy với tấm 600×600).
+
+**Quyết định (Khoa chốt):** 3 layer. Tấm nhận: `LEHAI_MONGAM`. Tấm ngàm khi Giữ mặt A/B:
+`LEHAI_PHAYMONG` (ô đúng rộng đầu × cao mộng) và `LEHAI_PHAYVIENMONG` (tràn 2mm ra hai hông +
+phía đầu mộng; chân giữ nguyên để không lẹm thân tấm; ô của hai mộng sát nhau chồng lên nhau thì
+gộp làm một). Khung "Cả tấm" cao theo tỷ lệ tấm, 120–300px.
+
+**Nghiệm thu (Khoa, file sạch → tool → nest → xuất ABF, Desktop/ketqua):** 3 layer đủ, 0 LAYER0.
+Ô phay 35×10, ô viền 39×12: −2/+2 hai hông, −2 phía đầu mộng, chân trùng. Ô viền lòi ra ngoài biên
+tấm 2mm mà ABF vẫn xuất nguyên, không xén. Xem trước: headless tấm 600×600 → khung 300px, check-ui-3
+PASS 15.
+
+**Rủi ro:** nhánh gộp ô viền (mộng cách nhau < 4mm) chưa có ca chạy thật. Tấm làm bằng ≤1.9.70
+vẫn mang dấu phay tên cũ `ABF_PHAYDAUMONG_K`.
+
+---
+
 ## 2026-09-27 — 1.9.69–1.9.70: Mộng Xương Chó — dấu mộng âm ra layer DXF riêng `LEHAI_MONGAM`
 
 **Vấn đề:** dấu mộng âm của tool vào Aspire luôn rơi `LAYER0`, nên không gán được dao mẫu. Dấu của

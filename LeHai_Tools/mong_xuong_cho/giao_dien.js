@@ -135,6 +135,8 @@ function tenonEdges(ti){
  return out;
 }
 function drawFace(id,p,zoom){
+ // Khung "Cả tấm" cao theo tỷ lệ tấm (120–300px): cao cố định 120px làm tấm vuông/tấm cao co còn một mẩu.
+ if(!zoom){const t0=state.model.tenons[p.ti]||{},el=$(id);if(Number.isFinite(t0.faceW)&&t0.faceW>0){const k=(t0.faceH+40)/(t0.faceW+40);el.style.height=Math.round(Math.min(300,Math.max(120,el.getBoundingClientRect().width*k)))+'px';}}
  const [c,w,h]=canvas(id),t=state.model.tenons[p.ti]||{};
  if(!Number.isFinite(t.faceW)){text(c,'Không có dữ liệu mặt tấm',w/2,h/2,'#8a7f75','center','middle');return;}
  const W=t.faceW,H=t.faceH,edges=tenonEdges(p.ti),fx=x=>t.mirror?W-x:x;

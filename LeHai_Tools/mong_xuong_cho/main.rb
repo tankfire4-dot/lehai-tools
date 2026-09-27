@@ -6,7 +6,7 @@
 # Giữ mộng dương dày bằng thân ván; thông số dày/bên giữ chỉ đổi DẤU ÂM.
 # Toolbar do LeHai_Tools/main.rb quản lý — file này chỉ expose create_cmd.
 # Dấu âm ra layer DXF LEHAI_MONGAM: Khoa nghiệm thu 27/09/2026 (file sạch → nest → xuất ABF).
-# Dấu phay đầu mộng chưa có ca nghiệm thu DXF.
+# Dấu phay mộng + viền 2mm ra LEHAI_PHAYMONG / LEHAI_PHAYVIENMONG: nghiệm thu 27/09 (Desktop/ketqua).
 
 require 'sketchup.rb'
 require 'json'
@@ -22,6 +22,11 @@ module MongXuongCho
   MEM = 'LeHai_MXC'.freeze # dict ghi nhớ trên tấm ngàm: 'box' (hộp gốc) + 'edges' (JSON từng đầu)
   # Layer DXF riêng cho dấu mộng âm để Aspire gán dao mẫu riêng (Khoa chốt 27/09).
   TAG_MONG_AM = 'LEHAI_MONGAM'.freeze
+  # Thu một mặt tấm ngàm sinh 2 dấu phay trên mặt bị thu (Khoa chốt 27/09): ô đúng đầu mộng và ô
+  # viền tràn VIEN_PHAY ra hai hông + phía đầu mộng (chân giữ nguyên, không lẹm thân tấm) để dao ăn sạch mép.
+  TAG_PHAY_MONG = 'LEHAI_PHAYMONG'.freeze
+  TAG_PHAY_VIEN = 'LEHAI_PHAYVIENMONG'.freeze
+  VIEN_PHAY = 2.mm
   # ── Tên layer DXF lấy từ TAG CỦA MẶT ──────
   # Exporter DXF của ABF đặt layer cho _ABF_Intersect theo tag của MẶT bên trong nhóm; tag của
   # group và của cạnh bị bỏ qua, hướng mặt không ảnh hưởng. Đo 27/09/2026 trên file sạch: cùng
@@ -282,21 +287,34 @@ module MongXuongCho
     # DẤU PHAY MỘNG (Khoa): khi THU MỘT MẶT, ô chữ nhật phủ đầu mộng (rộng đầu × cao mộng)
     # lên MẶT BỊ THU = mặt đối diện mặt giữ, để báo CNC phay bớt.
     phay_rects = []
+    vien_rects = []
     if narrow_mark
       reduced = keep_low ? thickness : 0.0
-      phay_rects = centers.map do |center|
-        [[center - head / 2.0, top], [center + head / 2.0, top],
-         [center + head / 2.0, top + height], [center - head / 2.0, top + height]].map do |u, z|
+      # Ô chữ nhật [u trái, u phải] × [chân mộng, đỉnh] trên mặt bị thu.
+      rect = lambda do |u0, u1, z1|
+        [[u0, top], [u1, top], [u1, z1], [u0, z1]].map do |u, z|
           p = [0.0, 0.0, z]
           p[thin] = reduced
           p[u_axis] = u
           Geom::Point3d.new(p)
         end
       end
+      phay_rects = centers.map { |c| rect.call(c - head / 2.0, c + head / 2.0, top + height) }
+      # Ô viền: mỗi mộng nới VIEN_PHAY hai hông; hai mộng sát nhau (khe < 2×VIEN_PHAY) thì ô chồng
+      # nhau -> gộp thành một ô để CNC không phay chồng hai đường.
+      spans = centers.map { |c| [c - head / 2.0 - VIEN_PHAY, c + head / 2.0 + VIEN_PHAY] }
+      merged = spans.each_with_object([]) do |(a, b), out|
+        if out.any? && a <= out.last[1]
+          out.last[1] = [out.last[1], b].max
+        else
+          out << [a, b]
+        end
+      end
+      vien_rects = merged.map { |a, b| rect.call(a, b, top + height + VIEN_PHAY) }
     end
     plan = {edge: edge, fd: fd, quantity: quantity, centers: centers, teeth: teeth, arc_seams: arc_seams,
             height: height, thickness: thickness, fit_thickness: fit_thickness, narrow_mark: narrow_mark,
-            keep_low: keep_low, phay_rects: phay_rects, receiver: receiver, mortises: []}
+            keep_low: keep_low, phay_rects: phay_rects, vien_rects: vien_rects, receiver: receiver, mortises: []}
     return plan unless receiver
     raise "#{label}tấm nhận đang bị Scale hoặc xiên ở cấp group." unless rigid?(receiver)
     info = contact_info(source, edge, receiver, box)
@@ -463,10 +481,11 @@ module MongXuongCho
     expected = plans.sum { |pl| pl[:quantity] * 2 * 11 }
     raise "Làm mềm thiếu cạnh cung: #{softened}/#{expected}." unless softened == expected
     raise 'Khối có cạnh hở hoặc cạnh nối hơn hai mặt.' unless source.entities.grep(Sketchup::Edge).all? { |e| e.faces.length == 2 }
-    phay_tag = nil
     plans.each do |plan|
-      plan[:phay_rects].each_with_index do |rect, index|
-        phay_tag ||= model.layers.to_a.find { |l| l.name == 'ABF_PHAYDAUMONG_K' } || model.layers.add('ABF_PHAYDAUMONG_K')
+      marks = plan[:phay_rects].map { |r| [r, TAG_PHAY_MONG, 'phay mộng'] } +
+              (plan[:vien_rects] || []).map { |r| [r, TAG_PHAY_VIEN, 'phay viền mộng'] }
+      marks.each_with_index do |(rect, tag_name, ten), index|
+        phay_tag = model.layers.to_a.find { |l| l.name == tag_name } || model.layers.add(tag_name)
         mark = source.entities.add_group
         # DẤU PHAY = _ABF_Intersect chuẩn ABF. ABF chỉ công nhận intersect là CẶP A↔B:
         # b-id phải trỏ tấm ĐỐI TÁC, KHÔNG tự trỏ mình (đo thật 17/09 probes/soi_bid_intersect.rb:
@@ -474,7 +493,7 @@ module MongXuongCho
         mark.name = '_ABF_Intersect'
         mark.layer = phay_tag
         mark_face = mark.entities.add_face(rect.map { |p| plan[:fd][:frame] * p })
-        raise "Đầu #{plan[:edge]}: không tạo được dấu phay mộng #{index + 1}." unless mark_face
+        raise "Đầu #{plan[:edge]}: không tạo được dấu #{ten} #{index + 1}." unless mark_face
         mark_face.layer = phay_tag # ABF đọc tag MẶT để đặt layer DXF (xem ghi chú đầu file)
         mark.entities.grep(Sketchup::Edge).each { |e| e.layer = phay_tag }
         mark.set_attribute('ABF', 'is-intersect', true)

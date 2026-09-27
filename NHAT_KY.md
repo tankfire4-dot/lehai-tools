@@ -12,6 +12,33 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-09-27 — 1.9.69: Mộng Xương Chó — dấu mộng âm ra layer DXF riêng `LEHAI_MONGAM`
+
+**Vấn đề:** dấu mộng âm của tool vào Aspire luôn rơi `LAYER0`, nên không gán được dao mẫu. Dấu của
+NTT, hình giống hệt, lại ra `NTT_MONGAM`. Ghi chép 17/09 đã kết luận "exporter ABF không đọc mark tự
+vẽ, không ép được cách nào" — **sai**.
+
+**Quyết định:** gắn tag cho **MẶT** bên trong nhóm `_ABF_Intersect` (trước chỉ gắn cho group + cạnh),
+ở cả dấu mộng âm lẫn dấu phay đầu mộng. Dấu mộng âm đổi layer sang `LEHAI_MONGAM` (Khoa chốt 27/09)
+để Aspire có dao mẫu riêng, không chung đường dao với rãnh hậu 10 ly.
+
+**Vì sao — đo, không đoán:** exporter DXF của ABF đặt layer cho `_ABF_Intersect` theo **tag của mặt**.
+Tag group, tag cạnh, `setting-name`, `intersect-x`, b-id, hướng mặt, cung ArcCurve đều không quyết định.
+Bằng chứng (Desktop/testlayer): file sạch 3 dấu, mỗi dấu 1 vai — chỉ dấu đổi tag mặt thoát LAYER0
+(`mxc` → `mxc2`, md5 đổi, dấu lật mặt đổi thứ tự đỉnh nhưng vẫn LAYER0). Nghiệm thu quy trình thật:
+file sạch → tool → nest → xuất = 3/3 dấu `LEHAI_MONGAM`, 0 LAYER0 (`mxc3`); setting-name vẫn là rãnh
+hậu, vậy tên layer lấy từ tag mặt. NTT làm được vì nó gắn tag cho cả cây con, kể cả mặt.
+
+**Bài học:** 6 vòng đầu sửa thử rồi "gạch nghi phạm" trong khi DXF ra **giống từng byte** — thí nghiệm
+không chạm tới chỗ ABF đọc nên không loại được gì. Mỗi vòng phải kiểm output có đổi (md5) trước khi
+kết luận; bí thì CHỤP TRƯỚC/SAU toàn mô hình quanh thao tác của tool đối chứng thay vì đoán biến kế.
+
+**Rủi ro:** (1) Hành vi ABF không công bố — bản ABF mới có thể lặng lẽ đổi. (2) Dấu làm bằng bản
+≤1.9.68 vẫn mang mặt `Layer0` → vẫn LAYER0; tool cấm sửa mộng cũ nên phải gắn tag mặt tay hoặc làm
+lại. (3) Dấu phay đầu mộng đã sửa cùng kiểu nhưng chưa có ca nghiệm thu DXF.
+
+---
+
 ## 2026-09-26 — 1.9.68: Mộng Xương Chó — phân loại tấm ngàm / tấm nhận, tool tự ghép cặp
 
 **Vấn đề:** Khoa không đóng thêm dấu âm được lên tấm nhận đã có dấu từ lần ráp trước, và không làm

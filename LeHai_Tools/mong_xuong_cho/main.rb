@@ -5,7 +5,8 @@
 # đóng dấu lên tấm nhận mới — không cho sửa mộng đã làm (dấu cũ sẽ lệch).
 # Giữ mộng dương dày bằng thân ván; thông số dày/bên giữ chỉ đổi DẤU ÂM.
 # Toolbar do LeHai_Tools/main.rb quản lý — file này chỉ expose create_cmd.
-# CHƯA nghiệm thu ABF/nesting/DXF trên máy thật (đưa vào 16/09/2026).
+# Dấu âm ra layer DXF LEHAI_MONGAM: Khoa nghiệm thu 27/09/2026 (file sạch → nest → xuất ABF).
+# Dấu phay đầu mộng chưa có ca nghiệm thu DXF.
 
 require 'sketchup.rb'
 require 'json'
@@ -19,6 +20,13 @@ module MongXuongCho
   # hình học chạm nhau/quá ngắn. Đây là giới hạn dựng hình, không phải tiêu chuẩn CNC.
   MIN_GAP = 1.mm
   MEM = 'LeHai_MXC'.freeze # dict ghi nhớ trên tấm ngàm: 'box' (hộp gốc) + 'edges' (JSON từng đầu)
+  # Layer DXF riêng cho dấu mộng âm để Aspire gán dao mẫu riêng (Khoa chốt 27/09).
+  TAG_MONG_AM = 'LEHAI_MONGAM'.freeze
+  # ── Tên layer DXF lấy từ TAG CỦA MẶT ──────
+  # Exporter DXF của ABF đặt layer cho _ABF_Intersect theo tag của MẶT bên trong nhóm; tag của
+  # group và của cạnh bị bỏ qua, hướng mặt không ảnh hưởng. Đo 27/09/2026 trên file sạch: cùng
+  # 3 dấu, chỉ dấu được gắn tag cho mặt thoát LAYER0 (Desktop/testlayer/mxc → mxc2). NTT làm được
+  # vì nó gắn tag cho cả cây con, kể cả mặt.
   SPEC_KEYS = %w[count head height neck bevel inset side fit slackT slackL cutter].freeze
   TEN_SO = {'count' => 'số mộng', 'head' => 'rộng đầu', 'height' => 'cao mộng', 'neck' => 'đường kính cổ',
             'bevel' => 'vát đỉnh', 'inset' => 'lùi tâm', 'fit' => 'dày tính dấu', 'slackT' => 'dư dày',
@@ -467,6 +475,7 @@ module MongXuongCho
         mark.layer = phay_tag
         mark_face = mark.entities.add_face(rect.map { |p| plan[:fd][:frame] * p })
         raise "Đầu #{plan[:edge]}: không tạo được dấu phay mộng #{index + 1}." unless mark_face
+        mark_face.layer = phay_tag # ABF đọc tag MẶT để đặt layer DXF (xem ghi chú đầu file)
         mark.entities.grep(Sketchup::Edge).each { |e| e.layer = phay_tag }
         mark.set_attribute('ABF', 'is-intersect', true)
         mark.set_attribute('ABF', 'intersect-offset', 0.0)
@@ -482,7 +491,7 @@ module MongXuongCho
   # intersect-x = độ sâu hốc = cao mộng.
   def self.stamp_marks(model, source, plan)
     receiver = plan[:receiver]
-    tag = model.layers.to_a.find { |l| l.name == 'ABF_PHAYRANHHAU10LY' } || model.layers.add('ABF_PHAYRANHHAU10LY')
+    tag = model.layers.to_a.find { |l| l.name == TAG_MONG_AM } || model.layers.add(TAG_MONG_AM)
     plan[:mortises].each_with_index do |polygon, index|
       mark = receiver.entities.add_group
       mark.name = '_ABF_Intersect'
@@ -490,6 +499,7 @@ module MongXuongCho
       mark_face = mark.entities.add_face(polygon)
       raise "Đầu #{plan[:edge]}: không tạo được dấu âm #{index + 1}." unless mark_face
       mark_face.reverse! if mark_face.normal.dot(plan[:upward]) > 0
+      mark_face.layer = tag # ABF đọc tag MẶT để đặt layer DXF (xem ghi chú đầu file)
       mark_edges = mark.entities.grep(Sketchup::Edge)
       raise "Đầu #{plan[:edge]}: dấu âm #{index + 1} không đủ 52 cạnh." unless mark_edges.length == 52
       mark_edges.each { |e| e.layer = tag }

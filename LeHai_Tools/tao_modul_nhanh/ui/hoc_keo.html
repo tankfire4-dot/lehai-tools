@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<title>Hộc kéo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../shared/lehai_theme.css">
+<style>
+  html, body { height: 100%; margin: 0; }
+  .khung { display: grid; grid-template-columns: 270px 1fr; gap: 16px; height: 100%;
+           box-sizing: border-box; padding: 16px; }
+  .trai { display: flex; flex-direction: column; min-height: 0; }
+  #cuon { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px; margin: 0 -8px; }
+  .nhom { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+          color: var(--lh-muted); margin: 14px 0 6px; }
+  .o { display: grid; grid-template-columns: 1fr 76px; align-items: center; gap: 8px; padding: 3px 0; }
+  .o label { font-size: 12.5px; color: var(--lh-ink-soft); }
+  .o .lh-input, .o select { width: 100%; box-sizing: border-box; text-align: right; }
+  .the { font-size: 12.5px; color: var(--lh-ink-soft); background: var(--lh-surface);
+         border-radius: var(--lh-radius-sm); box-shadow: var(--lh-shadow); padding: 8px 10px; line-height: 1.55; }
+  .the b { color: var(--lh-ink); font-weight: 600; }
+  .the .mo { color: var(--lh-muted); font-size: 11.5px; }
+  .hang { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+  .khoang label { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--lh-ink-soft);
+                  padding: 4px 0; cursor: pointer; }
+  .khoang label span.so { color: var(--lh-muted); margin-left: auto; }
+  .khoang label.tat { opacity: .5; }
+  .day { margin-top: 10px; }
+  .day .lh-btn { width: 100%; }
+  .day .lh-btn:disabled { opacity: .45; cursor: not-allowed; }
+  #nhac:empty { display: none; }
+  .phai { display: flex; flex-direction: column; min-height: 0; background: var(--lh-surface);
+          border-radius: var(--lh-radius); box-shadow: var(--lh-shadow); padding: 8px; }
+  .cu { display: flex; align-items: center; gap: 8px; margin: 2px 4px 6px; }
+  .cu .ten { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--lh-muted); }
+  .cu .goi { margin-left: auto; font-size: 11px; color: var(--lh-muted); text-align: right; }
+  .cu .lh-btn { width: auto; flex: none; padding: 5px 12px; font-size: 12px; }
+  .o.rong { grid-template-columns: auto 1fr; }
+  .o.rong select { text-align: left; }
+  #nen { flex: 1; min-height: 0; position: relative; }
+  #c3d { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
+  #c3d.keo { cursor: grabbing; }
+  #tro { position: absolute; pointer-events: none; background: var(--lh-ink); color: #fff; font-size: 12px;
+         padding: 4px 8px; border-radius: 6px; white-space: nowrap; display: none; }
+  #tom { font-size: 12px; color: var(--lh-ink-soft); margin: 6px 4px 2px; line-height: 1.6; }
+  #tom b { color: var(--lh-ink); font-weight: 600; }
+</style></head>
+<body class="lh"><div class="khung">
+  <div class="trai">
+    <div class="lh-eyebrow">Tạo Modul Nhanh</div>
+    <div class="lh-chips" style="margin:6px 0 4px">
+      <button class="lh-chip" onclick="if (window.sketchup) sketchup.mo_khung_bao()">Khung bao tủ lạnh</button>
+      <button class="lh-chip is-active">Hộc kéo</button>
+    </div>
+    <div id="cuon">
+      <div class="nhom">Khoang</div>
+      <div class="the" id="khung">—</div>
+
+      <div class="nhom">Kiểu mặt</div>
+      <div class="lh-chips" id="kieu">
+        <button class="lh-chip is-active" data-k="lot">Lọt</button>
+        <button class="lh-chip" data-k="phu">Phủ</button>
+      </div>
+
+      <div class="nhom">Hộc</div>
+      <div class="o" id="dong_so_hoc"><label for="so_hoc">Chia mấy hộc trong khoang</label>
+        <input class="lh-input" id="so_hoc" type="number" min="1" max="8" step="1" value="1"></div>
+      <div class="khoang" id="khoang"></div>
+      <div class="o rong"><label for="ray">Ray</label><select class="lh-input" id="ray"></select></div>
+
+      <div class="nhom">Thông số (mm)</div>
+      <div id="form"></div>
+    </div>
+    <div class="day">
+      <div id="nhac" class="lh-status"></div>
+      <button class="lh-btn lh-btn--primary" id="dung" disabled>Tạo hộc kéo</button>
+    </div>
+  </div>
+  <div class="phai">
+    <div class="cu">
+      <span class="ten">Xem 3D</span>
+      <button class="lh-btn lh-btn--ghost" id="rut">Rút hộc ra</button>
+      <button class="lh-btn lh-btn--ghost" id="goc">Nhìn lại</button>
+      <span class="goi">kéo chuột: xoay · lăn: phóng · rê vào tấm: xem kích thước</span>
+    </div>
+    <div id="nen"><canvas id="c3d"></canvas><div id="tro"></div></div>
+    <div id="tom"></div>
+  </div>
+</div>
+
+<script>
+  var $ = function (id) { return document.getElementById(id); };
+  var NHO = 'lehai.taomodul.hockeo.thu';
+
+  var hoi = [], khung = null, tamKhung = [], kq = null, kieu = 'lot', bo = [], hen = null, daKhoa = false, khoaCu = '';
+
+  function docNho() { try { return JSON.parse(localStorage.getItem(NHO)) || {}; } catch (e) { return {}; } }
+  function ghiNho(v) { try { localStorage.setItem(NHO, JSON.stringify(v)); } catch (e) {} }
+  function so(v) { return Math.round(v * 10) / 10; }
+  function nhac(msg, loai) {
+    $('nhac').textContent = msg || '';
+    $('nhac').className = 'lh-status' + (loai ? ' lh-status--' + loai : '');
+  }
+
+  // ── Ruby đẩy ô thông số + mặc định từ lõi (một lần khi mở bảng) ──
+  window.khoiDau = function (d) {
+    hoi = d.hoi;
+    var nho = docNho(), html = '';
+    hoi.forEach(function (t) {
+      var v = nho[t.khoa] != null ? nho[t.khoa] : t.mac_dinh;
+      html += '<div class="o"><label for="o_' + t.khoa + '">' + t.nhan + '</label>' +
+              '<input class="lh-input" id="o_' + t.khoa + '" type="number" min="0" step="0.5" value="' + v + '"></div>';
+    });
+    $('form').innerHTML = html;
+    hoi.forEach(function (t) { $('o_' + t.khoa).addEventListener('input', guiTinh); });
+    var r = '<option value="tu" id="ray_tu">Tự chọn</option>';
+    d.ray_co.forEach(function (x) { r += '<option value="' + x + '">' + so(x) + '</option>'; });
+    $('ray').innerHTML = r;
+    if (nho.kieu_mat) datKieu(nho.kieu_mat, true);
+    if (nho.so_hoc) $('so_hoc').value = nho.so_hoc;
+    datKhoang(null);
+    guiTinh();
+  };
+
+  // ── Khoang chuột đang rê / đã click chọn (null = chưa có) ──
+  window.datKhoang = function (d) {
+    if (!d) {
+      khung = null; tamKhung = []; kq = null; daKhoa = false; khoaCu = '';
+      $('khung').innerHTML = '<span class="mo">Rê chuột vào TRONG lòng khoang trên model để xem trước, click để chọn.</span>';
+      $('khoang').innerHTML = ''; $('tom').innerHTML = '';
+      $('dung').disabled = true;
+      ve(); return;
+    }
+    var k = d.khung, moi = [k.x, k.z, k.y_truoc].join();
+    if (moi !== khoaCu) { khoaCu = moi; bo = []; }
+    khung = k; tamKhung = d.tam_khung; daKhoa = d.khoa;
+    $('khung').innerHTML =
+      (daKhoa ? '<b style="color:#15803d">ĐÃ CHỌN</b>' : '<span class="mo">Đang xem — click trên model để chọn</span>') + '<br>' +
+      'Lòng: <b>' + so(k.x[1] - k.x[0]) + ' × ' + so(k.z[1] - k.z[0]) + ' × ' + so(k.y_sau - k.y_truoc) + '</b><br>' +
+      '<span class="mo">' + (k.co_hau ? 'Có hậu' : 'Không hậu — đo tới mép sau hông') + '</span>' +
+      (k.da_co_hoc ? '<br><b style="color:#b91c1c">Khoang này đã có hộc kéo</b>' : '');
+    ve();
+  };
+
+  function datKieu(k, im) {
+    kieu = k;
+    Array.prototype.forEach.call($('kieu').children, function (b) { b.classList.toggle('is-active', b.dataset.k === k); });
+    if (!im) guiTinh();
+  }
+  $('kieu').addEventListener('click', function (e) { if (e.target.dataset.k) datKieu(e.target.dataset.k); });
+  $('so_hoc').addEventListener('input', function () { bo = []; guiTinh(); });
+  $('ray').addEventListener('change', guiTinh);
+
+  function giaTri() {
+    var v = { kieu_mat: kieu, so_hoc: $('so_hoc').value, ray: $('ray').value, bo: bo };
+    hoi.forEach(function (t) { v[t.khoa] = $('o_' + t.khoa).value; });
+    return v;
+  }
+
+  function guiTinh() {
+    clearTimeout(hen);
+    hen = setTimeout(function () {
+      var v = giaTri();
+      var nho = {}; for (var k in v) if (k !== 'bo' && k !== 'ray') nho[k] = v[k];
+      ghiNho(nho);
+      if (window.sketchup) sketchup.tinh(JSON.stringify(v));
+    }, 120);
+  }
+
+  window.veLai = function (d) {
+    kq = d; nhac(''); $('dung').disabled = !(daKhoa && d.tam.length);
+    if ($('ray').value === 'tu') $('ray_tu').textContent = 'Tự chọn · ' + so(d.ray);   // ray dài nhất còn lọt khoang, lõi Ruby chọn
+    // danh sách khoang có tick — Hộc 1 = trên cùng
+    var html = '';
+    d.khoang.forEach(function (k) {
+      html += '<label class="' + (k.gan ? '' : 'tat') + '"><input type="checkbox" data-so="' + k.so + '"' + (k.gan ? ' checked' : '') +
+              '> Hộc ' + k.so + '<span class="so">khoang cao ' + so(k.cao) + '</span></label>';
+    });
+    $('khoang').innerHTML = html;
+    var hk = {};   // hông trái từng hộc → cao hông
+    d.tam.forEach(function (s) { var m = s.ten.match(/^(Hộc \d+) · hông trái/); if (m) hk[m[1]] = s; });
+    var t = [];
+    Object.keys(hk).forEach(function (h) {
+      var s = hk[h];
+      t.push(h + ': hông <b>' + so(s.z[1] - s.z[0]) + '</b> × dài <b>' + so(s.y[1] - s.y[0]) + '</b>');
+    });
+    var tr = hk['Hộc 1'] || hk[Object.keys(hk)[0]];
+    $('tom').innerHTML = 'Ray <b>' + so(d.ray) + '</b>' +
+      (tr ? ' · thùng rộng <b>' + so(khung.x[1] - khung.x[0] - 2 * d.tham_so.khe_ray) + '</b>' : '') +
+      (t.length ? '<br>' + t.join(' · ') : '') +
+      (d.canh_bao ? '<br><b style="color:#b45309">⚠ ' + d.canh_bao + '</b>' : '');
+    ve();
+  };
+  $('khoang').addEventListener('change', function (e) {
+    var n = +e.target.dataset.so;
+    if (!n) return;
+    bo = bo.filter(function (x) { return x !== n; });
+    if (!e.target.checked) bo.push(n);
+    guiTinh();
+  });
+  window.baoLoi = function (m) { nhac(m, 'bad'); $('dung').disabled = true; };   // thông số sai / dò lỗi
+  window.baoLoiDung = function (m) { nhac(m, 'bad'); $('dung').disabled = false; };
+  window.xong = function (m) { nhac(m, 'ok'); $('dung').disabled = false; };
+
+  $('dung').addEventListener('click', function () {
+    $('dung').disabled = true;
+    nhac('Đang tạo…');
+    if (window.sketchup) sketchup.dung(JSON.stringify(giaTri()));
+  });
+
+  // ── 3D: hộp thẳng trục, xoay 8 đỉnh, vẽ mặt xa trước gần sau ──
+  // Toạ độ mm của SketchUp: x phải, y vào trong (sau), z lên. Hình lấy NGUYÊN từ
+  // danh sách tấm lõi Ruby gửi sang — JS không có công thức kết cấu nào.
+  var cv = $('c3d'), g = cv.getContext('2d');
+  var yaw, pitch, zoom, rut = 0, rutDich = 0, daVe = [], keo = null;
+  function datGoc() { yaw = -0.6; pitch = 0.35; zoom = 1; }
+  datGoc();
+  $('goc').addEventListener('click', function () { datGoc(); ve(); });
+  $('rut').addEventListener('click', function () {
+    rutDich = rutDich ? 0 : 1;
+    $('rut').textContent = rutDich ? 'Đẩy hộc vào' : 'Rút hộc ra';
+    chay();
+  });
+  function chay() {   // trượt hộc ra/vào cho mắt theo kịp
+    var b = rutDich - rut;
+    if (Math.abs(b) < 0.01) { rut = rutDich; ve(); return; }
+    rut += b * 0.2; ve(); requestAnimationFrame(chay);
+  }
+
+  // 6 mặt của hộp: chỉ số đỉnh (bit 1 = x1, 2 = y1, 4 = z1) + pháp tuyến ra ngoài
+  var MAT = [
+    [[0, 2, 6, 4], [-1, 0, 0]], [[1, 5, 7, 3], [1, 0, 0]],
+    [[0, 4, 5, 1], [0, -1, 0]], [[2, 3, 7, 6], [0, 1, 0]],
+    [[0, 1, 3, 2], [0, 0, -1]], [[4, 6, 7, 5], [0, 0, 1]]
+  ];
+
+  function xoay(p) {
+    var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    var x1 = p[0] * cy - p[1] * sy, y1 = p[0] * sy + p[1] * cy, z1 = p[2];
+    return [x1, y1 * cp - z1 * sp, y1 * sp + z1 * cp];   // [ngang, sâu (xa = lớn), dọc]
+  }
+
+  function mauTam(ten) {
+    if (/mặt (lọt|phủ)$/.test(ten)) return [251, 247, 240];
+    if (/đáy$/.test(ten)) return [214, 181, 138];
+    return [232, 201, 160];
+  }
+
+  function ve() {
+    var r = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+    if (!W || !H) return;
+    cv.width = W * r; cv.height = H * r;
+    g.setTransform(r, 0, 0, r, 0, 0);
+    g.clearRect(0, 0, W, H);
+    if (!khung) return;
+
+    // tâm + bán kính của cả khung → tỉ lệ không đổi khi xoay
+    var lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+    tamKhung.forEach(function (s) {
+      [s.x, s.y, s.z].forEach(function (a, k) { lo[k] = Math.min(lo[k], a[0]); hi[k] = Math.max(hi[k], a[1]); });
+    });
+    var tam = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+    var R = Math.sqrt(Math.pow(hi[0] - lo[0], 2) + Math.pow(hi[1] - lo[1], 2) + Math.pow(hi[2] - lo[2], 2)) / 2 || 1;
+    var k = Math.min(W, H) / (2.3 * R) * zoom;
+
+    var dich = kq ? rut * kq.ray * 0.6 : 0;   // rút hộc ra 60% chiều dài ray
+    var hop = [];
+    tamKhung.forEach(function (s) { hop.push({ s: s, loai: 'khung', dy: 0 }); });
+    if (kq) kq.tam.forEach(function (s) { hop.push({ s: s, loai: 'hoc', dy: -dich }); });
+
+    // Thứ tự vẽ theo TẤM: hai tấm tách nhau theo một trục thì tấm nằm phía xa camera
+    // (theo trục đó) vẽ trước — đúng cho hộp thẳng trục không chồng nhau. Chồng nhau
+    // (đáy ăn rãnh vào hông) thì so tâm.
+    var cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    var huong = [sy * cp, cy * cp, -sp];   // hướng nhìn trong toạ độ thế giới (sâu tăng theo hướng này)
+    hop.forEach(function (h) {
+      h.lo = [h.s.x[0], h.s.y[0] + h.dy, h.s.z[0]];
+      h.hi = [h.s.x[1], h.s.y[1] + h.dy, h.s.z[1]];
+      h.sau = 0; for (var i = 0; i < 3; i++) h.sau += huong[i] * (h.lo[i] + h.hi[i]) / 2;
+    });
+    hop.sort(function (a, b) {
+      for (var i = 0; i < 3; i++) {
+        if (Math.abs(huong[i]) < 1e-6) continue;
+        if (a.hi[i] <= b.lo[i] + 0.01) return huong[i] > 0 ? 1 : -1;   // a nằm phía thấp trục i
+        if (b.hi[i] <= a.lo[i] + 0.01) return huong[i] > 0 ? -1 : 1;
+      }
+      return b.sau - a.sau;
+    });
+
+    var mat = [];
+    hop.forEach(function (h) {
+      var s = h.s, dinh = [];
+      for (var i = 0; i < 8; i++) {
+        var p = [s.x[i & 1 ? 1 : 0] - tam[0], s.y[i & 2 ? 1 : 0] - tam[1] + h.dy, s.z[i & 4 ? 1 : 0] - tam[2]];
+        var q = xoay(p);
+        dinh.push({ x: W / 2 + q[0] * k, y: H / 2 - q[2] * k, sau: q[1] });
+      }
+      MAT.forEach(function (m) {
+        var n = xoay(m[1]);
+        if (n[1] >= 0 && h.loai === 'hoc') return;           // mặt quay lưng: bỏ (khung trong suốt thì vẽ cả)
+        mat.push({ h: h, pts: m[0].map(function (i) { return dinh[i]; }), n: m[1] });
+      });
+    });
+
+    daVe = [];
+    mat.forEach(function (f) {
+      g.beginPath();
+      f.pts.forEach(function (p, i) { if (i) g.lineTo(p.x, p.y); else g.moveTo(p.x, p.y); });
+      g.closePath();
+      if (f.h.loai === 'khung') {
+        g.fillStyle = 'rgba(124,45,18,0.06)'; g.fill();
+        g.strokeStyle = 'rgba(124,45,18,0.35)'; g.lineWidth = 1; g.stroke();
+      } else {
+        var c = mauTam(f.h.s.ten);
+        var sang = 0.78 + 0.22 * (f.n[2] > 0 ? 1 : f.n[0] !== 0 ? 0.35 : f.n[1] < 0 ? 0.7 : 0);   // nóc sáng, hông tối
+        var chon = tro && tro.s === f.h.s;
+        g.fillStyle = 'rgb(' + c.map(function (v) { return Math.round(v * sang); }).join(',') + ')';
+        g.fill();
+        g.strokeStyle = chon ? '#b45309' : 'rgba(28,10,0,0.55)'; g.lineWidth = chon ? 2 : 1; g.stroke();
+        daVe.push(f);
+      }
+    });
+  }
+
+  // ── Chuột: kéo xoay · lăn phóng · rê hiện tên tấm ──
+  var tro = null;
+  cv.addEventListener('mousedown', function (e) { keo = { x: e.clientX, y: e.clientY, yaw: yaw, pitch: pitch }; cv.classList.add('keo'); });
+  window.addEventListener('mouseup', function () { keo = null; cv.classList.remove('keo'); });
+  window.addEventListener('mousemove', function (e) {
+    if (keo) {
+      yaw = keo.yaw + (e.clientX - keo.x) * 0.01;
+      pitch = Math.max(-1.5, Math.min(1.5, keo.pitch + (e.clientY - keo.y) * 0.01));
+      ve(); return;
+    }
+    var b = cv.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+    var trung = null;
+    if (x >= 0 && y >= 0 && x <= b.width && y <= b.height) {
+      for (var i = daVe.length - 1; i >= 0; i--) if (trong(daVe[i].pts, x, y)) { trung = daVe[i].h; break; }
+    }
+    if ((trung && trung.s) !== (tro && tro.s)) { tro = trung; ve(); }
+    var t = $('tro');
+    if (tro) {
+      var d = tro.s.kich_thuoc || [];
+      t.textContent = tro.s.ten + ' — ' + d.map(so).join(' × ');
+      t.style.left = (x + 14) + 'px'; t.style.top = (y + 10) + 'px'; t.style.display = 'block';
+    } else t.style.display = 'none';
+  });
+  cv.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    zoom = Math.max(0.3, Math.min(6, zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+    ve();
+  }, { passive: false });
+  function trong(pts, x, y) {
+    var c = false;
+    for (var i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      if ((pts[i].y > y) !== (pts[j].y > y) && x < (pts[j].x - pts[i].x) * (y - pts[i].y) / (pts[j].y - pts[i].y) + pts[i].x) c = !c;
+    }
+    return c;
+  }
+
+  window.addEventListener('resize', ve);
+  if (window.sketchup) sketchup.ready();
+</script>
+</body></html>

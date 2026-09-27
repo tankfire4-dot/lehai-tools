@@ -1,6 +1,7 @@
 # encoding: UTF-8
 # Tạo Modul Nhanh: nhập thông số → dựng đủ tấm đúng kết cấu xưởng Lê Hải.
-# Modul đầu tiên: KHUNG BAO TỦ LẠNH (Khoa nghiệm thu 24/09/2026).
+# Modul 1: KHUNG BAO TỦ LẠNH (Khoa nghiệm thu 24/09/2026) — bảng ở file này.
+# Modul 2: HỘC KÉO (27/09/2026) — bang_hoc_keo.rb; hai bảng chuyển qua lại bằng tab trên đầu.
 #
 # Lõi tính thuần Ruby ở khung_bao_tu_lanh.rb (không gọi SketchUp). Bảng thông số +
 # hình 2D ở ui/khung_bao.html — hình vẽ từ CHÍNH danh sách tấm của lõi (callback
@@ -13,6 +14,7 @@
 require 'sketchup.rb'
 require 'json'
 require File.join(File.dirname(__FILE__), 'khung_bao_tu_lanh')
+require File.join(File.dirname(__FILE__), 'bang_hoc_keo')
 
 module TK
   module TaoModulNhanh
@@ -57,6 +59,8 @@ module TK
       end
       @dlg.add_action_callback('tinh') { |_ctx, json| tinh(json) }
       @dlg.add_action_callback('dung') { |_ctx, json| dung(json) }
+      # tab "Hộc kéo" → đóng bảng này, mở bảng + tool chọn khoang
+      @dlg.add_action_callback('mo_hoc_keo') { |_ctx| @dlg.close; UI.start_timer(0, false) { BangHocKeo.show } }
       @dlg.show
     end
 
@@ -156,8 +160,8 @@ module TK
     def self.create_cmd
       icons = File.join(PATH, 'icons')
       cmd = UI::Command.new('Tạo Modul Nhanh') { TK::TaoModulNhanh.show }
-      cmd.tooltip         = 'Tạo Modul Nhanh — khung bao tủ lạnh'
-      cmd.status_bar_text = 'Nhập kích thước, xem hình 2D, dựng đủ tấm đúng kết cấu xưởng.'
+      cmd.tooltip         = 'Tạo Modul Nhanh — khung bao tủ lạnh, hộc kéo'
+      cmd.status_bar_text = 'Chọn modul ở tab trên đầu bảng, dựng đủ tấm đúng kết cấu xưởng.'
       s16 = File.join(icons, 'tao_modul_16.png')
       s24 = File.join(icons, 'tao_modul_24.png')
       cmd.small_icon = s16 if File.exist?(s16)

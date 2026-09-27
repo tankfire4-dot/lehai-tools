@@ -12,6 +12,30 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-09-27 — 1.9.72: Tạo Modul Nhanh — modul 2 HỘC KÉO (ray bi)
+
+**Là gì:** bảng Tạo Modul Nhanh có tab trên đầu: Khung bao tủ lạnh | Hộc kéo. Hộc kéo: rê chuột vào
+lòng khoang → tool bắn tia (`model.raytest`, như `laser_snap`) đo KHỐI RỖNG của khoang → nét xem
+trước ngay trên model + 3D xoay được trong bảng (canvas tự vẽ, không thư viện) → click chọn khoang →
+chỉnh thông số → Tạo (1 bậc undo). Đo bằng tia nên chạy được cả khung vẽ khối liền lẫn từng tấm.
+
+**Quy tắc (Khoa chốt 27/09, bảng đủ + nguồn ở lab `kien-thuc/noi-that/ket-cau.md` mục Hộc kéo):**
+khe ray 13 mỗi bên · đáy hộc 9 ăn rãnh 10 vào hai hông, cách mốc dưới 15 · đỉnh hông thấp hơn mốc
+trên 50 (mốc = nóc lòng, không phải mặt hộc) · sâu theo ray (250–600 bậc 50), đuôi thùng cách hậu
+≥ 30 · hông ≥ 50 · mặt lọt khe 2 · mặt phủ cách mép tủ 2 · chia nhiều hộc như Tạo Cánh (hở 65 giữa
+hai thùng) · tủ khác đứng sát + phủ → chỉ cảnh báo.
+
+**Nghiệm thu:** lõi khớp mẫu Khoa vẽ 12/12 tấm (0mm); lõi chép Python bám dòng chạy 20.000 ca ngẫu
+nhiên, 15.057 ca tính được, 0 vi phạm (không tấm chồng, không lòi khỏi lòng, khe sau/hông ≥ 50/ray
+dài nhất). Khoa chạy bản lab trên SketchUp 2025: khung khối liền 565×765×280, 3 hộc lọt — "oke hết".
+
+**Chặn cứng (dựng sai im lặng):** tủ không quay mặt về −Y (xoay ngang/quay lưng) · bốn phía khoang
+không cùng một group (tia chạm tường/tủ khác/hình rời) · khoang đã có hộc của tool.
+
+**Rủi ro / chưa kiểm:** phủ kề đố (khe giữa đố) là GIẢ ĐỊNH chưa Khoa xem; khung từng tấm kiểu ABF
+chưa thử thật; đố lùi > 5mm khỏi mép trước, cả bếp gộp một group, hậu thủng lỗ giữa khoang → đo sai
+(xem được vì khung xanh ôm lệch). Bản 1.9.72 trên đường plugin chưa chạy (bản chạy là bản lab).
+
 ## 2026-09-27 — 1.9.71: Mộng Xương Chó — phay một mặt sinh 2 layer: phay mộng + viền 2mm
 
 **Vấn đề:** thu một mặt tấm ngàm chỉ có một ô phay đúng bằng đầu mộng, ra layer `ABF_PHAYDAUMONG_K`.

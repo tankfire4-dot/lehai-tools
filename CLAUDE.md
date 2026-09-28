@@ -218,6 +218,7 @@ là danh sách nút. Muốn biết đủ module thì `ls LeHai_Tools/*/`.
 
 | Tool | Module | Nút |
 |------|--------|-----|
+| **Khảo Sát Hiện Trường** (NÚT CHỜ, đầu toolbar — bấm báo "sắp cập nhật"; bản dựng 3D thật đang thử riêng ở lab `projects/khao-sat-hien-truong/sketchup/`) | `TK::KhaoSatHienTruong` | ✓ |
 | Tạo Tấm Gỗ | `Lehai::TamGoGen` | ✓ |
 | Tạo Cánh CNC | `CanhCNC` | ✓ |
 | Chia Lam | `TK::ChiaLam` | ✓ |

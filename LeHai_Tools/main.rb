@@ -30,7 +30,8 @@ module LeHai
         File.join(path, 'kiem_tra_led',     'main'),
         File.join(path, 'kiem_tra_ten',     'main'),
         File.join(path, 'tao_modul_nhanh',  'main'),
-        File.join(path, 'soat_truoc_xuat',  'main')
+        File.join(path, 'soat_truoc_xuat',  'main'),
+        File.join(path, 'khao_sat',         'main')
       ].each do |f|
         begin
           require f
@@ -63,6 +64,7 @@ module LeHai
       puts "[LeHai_Tools] Defined? TK::JointCheck         = #{defined?(::TK::JointCheck).inspect}"
       puts "[LeHai_Tools] Defined? TK::TaoModulNhanh      = #{defined?(::TK::TaoModulNhanh).inspect}"
       puts "[LeHai_Tools] Defined? TK::PreExportCheck     = #{defined?(::TK::PreExportCheck).inspect}"
+      puts "[LeHai_Tools] Defined? TK::KhaoSatHienTruong = #{defined?(::TK::KhaoSatHienTruong).inspect}"
 
       # Build toolbar — sắp theo CỤM (cụm DC để cuối). SketchUp không hỗ trợ
       # vạch ngăn trong 1 toolbar nên gom theo thứ tự là cách nhóm khả dĩ.
@@ -71,6 +73,10 @@ module LeHai
 
       # Mỗi phần tử: [điều kiện đã load?, lambda trả về create_cmd]
       groups = [
+        # ── Cụm 0: KHẢO SÁT — bước đầu quy trình (đo hiện trạng -> dựng 3D). Khoa chốt 28/09: nút CHỜ,
+        # bấm báo "sắp cập nhật" tới khi app khảo sát điện thoại hoàn thiện.
+        [defined?(::TK::KhaoSatHienTruong) && ::TK::KhaoSatHienTruong.respond_to?(:create_cmd),
+         -> { ::TK::KhaoSatHienTruong.create_cmd }],
         # ── Cụm 1: Dựng hình ──
         [defined?(::Lehai::TamGoGen),       -> { ::Lehai::TamGoGen.create_cmd }],
         [defined?(::CanhCNC),               -> { ::CanhCNC.create_cmd }],

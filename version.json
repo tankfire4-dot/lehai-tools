@@ -1,5 +1,5 @@
 {
-  "version": "1.9.77",
+  "version": "1.9.78",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -37,6 +37,9 @@
     "LeHai_Tools/hinh_nhan/main.rb",
     "LeHai_Tools/hinh_nhan/icons/hinh_nhan_16.png",
     "LeHai_Tools/hinh_nhan/icons/hinh_nhan_24.png",
+    "LeHai_Tools/khao_sat/main.rb",
+    "LeHai_Tools/khao_sat/icons/khao_sat_16.png",
+    "LeHai_Tools/khao_sat/icons/khao_sat_24.png",
     "LeHai_Tools/kiem_tra_ban_le/main.rb",
     "LeHai_Tools/kiem_tra_ban_le/icons/hinge_16.png",
     "LeHai_Tools/kiem_tra_ban_le/icons/hinge_24.png",

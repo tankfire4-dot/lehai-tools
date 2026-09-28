@@ -12,6 +12,26 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-09-28 — 1.9.78: Nút chờ "Khảo Sát Hiện Trường" đầu toolbar
+
+**Vấn đề:** app khảo sát hiện trường (điện thoại, lab `projects/khao-sat-hien-truong`) đã lưu số đo lên Google Sheet
+và có bản plugin dựng 3D chạy thật trên máy Khoa, nhưng app chưa hoàn thiện nên chưa phát cho thợ.
+
+**Quyết định (Khoa chốt 28/09):** đặt SẴN nút + icon lên toolbar, bấm thì báo "sắp cập nhật". Đứng **đầu** toolbar
+(cụm 0) vì khảo sát là bước đầu quy trình (đo → thiết kế → CNC). Module `TK::KhaoSatHienTruong`, thư mục `khao_sat/`.
+
+**Vì sao:** Khoa muốn thợ thấy trước chỗ của công cụ; phần ruột thay sau mà không phải đổi toolbar lần nữa.
+Đây là NGOẠI LỆ có chủ ý với luật "không dựng UI trước luồng thật" — nút nói thẳng là chưa có, không giả vờ chạy.
+
+**Icon:** mặt bằng phòng chữ L (mực 124,45,18 + nền cùng màu 8%) + đường kích thước cam 180,83,9 — đo từ màu các icon
+có sẵn, không nhớ theo cảm giác. Nguồn SVG + lệnh xuất PNG (Chromium, máy không có PIL): lab
+`projects/khao-sat-hien-truong/sketchup/icon/`. Bản 16px vẽ riêng (nét 2px toạ độ nguyên) cho khỏi nhoè.
+
+**Rủi ro:** không — nút chỉ mở hộp thoại, không đụng model. Kiểm: cú pháp (ruby.wasm) + chạy create_cmd / bấm trên
+SketchUp giả; CHƯA thấy trên toolbar thật (phải cài rbz / khởi động lại SketchUp).
+
+---
+
 ## 2026-09-27 — 1.9.77: Bảng 3D — MỘT hướng nhìn, bấm ô chỉ phóng + làm mờ (bỏ nhảy góc / lát cắt)
 
 **Vấn đề (Khoa test 1.9.76 trên máy mình, chưa push):** bấm mỗi ô camera xoay sang một hướng khác (nhìn

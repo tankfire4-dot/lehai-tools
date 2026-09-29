@@ -26,6 +26,7 @@ module TK
         khe_mat: 2.0,       # mặt lọt cách mọi cạnh lòng; khe giữa hai mặt chồng nhau (Khoa chốt 27/09)
         khe_phu: 2.0,       # mặt phủ cách mép trước khung — dung sai không cạ cạnh tủ (Khoa chốt 27/09)
         khe_sau: 30.0,      # đuôi thùng hộc cách hậu ÍT NHẤT bấy nhiêu khi chọn ray (Khoa chốt 27/09)
+        gia_ray: 20.0,      # thùng hộc dài hơn ray, mọi cỡ ray: ray 400 → hông dài 420 (Khoa chốt 29/09, cho chỉnh)
         kieu_mat: 'lot',    # 'lot' | 'phu'
         so_hoc: 1,          # chỉ dùng khi khung KHÔNG có đố; có đố thì số hộc = số đố + 1
         ray: nil,           # nil = tự chọn ray dài nhất còn lọt khoang
@@ -41,9 +42,9 @@ module TK
         { ten: ten, x: [x0, x1], y: [y0, y1], z: [z0, z1] }
       end
 
-      # Ray dài nhất mà thùng hộc (bắt đầu ở y_dau) không chạm đáy lòng khung
-      def self.chon_ray(y_dau, y_cuoi)
-        RAY_CO.select { |r| y_dau + r <= y_cuoi + 1e-6 }.max
+      # Ray dài nhất mà thùng hộc (bắt đầu ở y_dau, dài = ray + gia) không vượt y_cuoi
+      def self.chon_ray(y_dau, y_cuoi, gia = 0.0)
+        RAY_CO.select { |r| y_dau + r + gia <= y_cuoi + 1e-6 }.max
       end
 
       # ── Chia khoang + mặt theo chiều cao ─────────────────────
@@ -122,9 +123,13 @@ module TK
         y_dau = y_mat[1]
         # Đuôi thùng phải cách hậu ≥ khe_sau → ray chỉ được tới y_sau − khe_sau
         y_het = khung[:y_sau] - p[:khe_sau]
-        ray = p[:ray] || chon_ray(y_dau, y_het)
-        raise "Lòng khung sâu #{(khung[:y_sau] - khung[:y_truoc]).round(1)}mm — không ray nào (ngắn nhất #{RAY_CO.min.round}) lọt mà còn chừa #{p[:khe_sau].round}mm sau." unless ray
-        raise "Ray #{ray.round}mm dài quá: đuôi thùng chỉ còn cách hậu #{(khung[:y_sau] - y_dau - ray).round(1)}mm (cần ≥ #{p[:khe_sau].round})." if y_dau + ray > y_het + 1e-6
+        gia = p[:gia_ray]
+        ray = p[:ray] || chon_ray(y_dau, y_het, gia)
+        raise "Lòng khung sâu #{(khung[:y_sau] - khung[:y_truoc]).round(1)}mm — không ray nào (ngắn nhất #{RAY_CO.min.round}, thùng #{(RAY_CO.min + gia).round}) lọt mà còn chừa #{p[:khe_sau].round}mm sau." unless ray
+        # Thùng hộc dài = ray + gia (ray thật dài đúng số ghi, thùng phải dài hơn — Khoa 29/09)
+        dai = ray + gia
+        raise "Thùng dài #{dai.round(1)}mm (ray #{ray.round} + #{gia.round(1)}) ngắn quá." if dai <= 2 * t + 50
+        raise "Ray #{ray.round}mm dài quá: thùng #{dai.round(1)}mm, đuôi thùng chỉ còn cách hậu #{(khung[:y_sau] - y_dau - dai).round(1)}mm (cần ≥ #{p[:khe_sau].round})." if y_dau + dai > y_het + 1e-6
 
         # Thùng hộc rộng = lòng − 2 khe ray (Khoa chốt 27/09)
         hx0 = x0 + kr
@@ -148,7 +153,7 @@ module TK
           if zt - zb < HONG_MIN
             raise "#{ten}: hông thùng chỉ còn #{(zt - zb).round(1)}mm (cần ≥ #{HONG_MIN.round}) — khoang quá thấp hoặc chia nhiều hộc quá."
           end
-          y1 = y_dau + ray
+          y1 = y_dau + dai
 
           tam << hop("#{ten} · #{ten_mat}", *mat_x, *y_mat, *h[:mat_z])
           # Hai hông chạy suốt chiều sâu, cao hết thùng

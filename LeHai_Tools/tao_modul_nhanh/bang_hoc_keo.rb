@@ -20,7 +20,7 @@ module TK
     module BangHocKeo
       DIR       = File.dirname(__FILE__)
       DICT      = 'TaoModulNhanh'
-      PHIEN_BAN = '2026-09-27'   # đổi khi quy tắc trong lõi đổi — hộc cũ biết mình dựng theo bản nào
+      PHIEN_BAN = '2026-09-29'   # đổi khi quy tắc trong lõi đổi — hộc cũ biết mình dựng theo bản nào
       MM        = 25.4            # inch → mm
       TOI_DA    = 5000.0 / MM     # inch — tia xa hơn 5m coi như không chạm
       NHICH     = 0.2 / MM        # inch — nhích qua mặt vừa chạm rồi bắn tiếp
@@ -42,7 +42,8 @@ module TK
         [:ranh_day,     'Rãnh đáy ăn vào hông'],
         [:khe_mat,      'Khe mặt hộc'],
         [:khe_phu,      'Mặt phủ cách mép tủ'],
-        [:khe_sau,      'Khe sau tối thiểu (tới hậu)']
+        [:khe_sau,      'Khe sau tối thiểu (tới hậu)'],
+        [:gia_ray,      'Thùng dài hơn ray']
       ].freeze
 
       # ── Đo khoang bằng tia ─────────────────────────────────

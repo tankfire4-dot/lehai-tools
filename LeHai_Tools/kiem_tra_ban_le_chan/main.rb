@@ -35,6 +35,7 @@
 # Không có nút riêng — chạy trong dashboard Check Chốt Sản Xuất qua audit/review.
 
 require 'sketchup.rb'
+require File.join(File.dirname(__FILE__), '..', 'shared', 'soi_noi')
 require File.join(File.dirname(__FILE__), '..', 'shared', 'huong_tu')
 
 module TK
@@ -310,6 +311,9 @@ module TK
       end
 
       def draw(view)
+        # Soi nổi (shared/soi_noi.rb, 30/09): mờ phần còn lại + khối sáng nhẹ tấm liên quan; nét cũ vẽ sau nằm trên
+        LeHai::SoiNoi.phu_mo(view)
+        LeHai::SoiNoi.ve_nets(view, [[@shelf_pts, :do], [@cup_pts, :xanh]])
         draw_segs(view, @cup_pts,   COLOR_CUP)
         draw_segs(view, @shelf_pts, COLOR_SHELF)
         draw_banner(view)
@@ -351,7 +355,7 @@ module TK
         view.line_width = 3
         view.drawing_color = color
         view.draw(GL_LINES, pts)
-        view.draw2d(GL_LINES, pts.map { |p| view.screen_coords(p) })
+        LeHai::SoiNoi.net2d(view, pts)   # soi nổi: đoạn thấy liền, đoạn khuất đứt (30/09)
       end
 
       def draw_banner(view)

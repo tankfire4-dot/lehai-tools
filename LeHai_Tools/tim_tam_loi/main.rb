@@ -7,6 +7,7 @@
 # Toolbar do LeHai_Tools/main.rb quản lý chung — file này chỉ expose create_cmd.
 
 require 'sketchup.rb'
+require File.join(File.dirname(__FILE__), '..', 'shared', 'soi_noi')
 
 module TK
   module ABFFinder
@@ -138,7 +139,12 @@ module TK
         @bounds
       end
 
+      BB_GOC = [0, 1, 3, 2, 4, 5, 7, 6].freeze   # BoundingBox#corner → thứ tự góc của SoiNoi
+
       def draw(view)
+        # Soi nổi (shared/soi_noi.rb, 30/09): mờ phần còn lại + khối sáng nhẹ tấm liên quan; nét cũ vẽ sau nằm trên
+        LeHai::SoiNoi.phu_mo(view)
+        LeHai::SoiNoi.ve_khois(view, @matches.map { |m| [BB_GOC.map { |i| m.corners[i] }, m.in_nesting ? :do : :xanh] })
         @matches.each { |m| draw_box(view, m) }          # 3D: thay khi khong bi che
         @matches.each { |m| draw_screen_marker(view, m) } # 2D: luon noi tren cung
         draw_banner(view)
@@ -231,7 +237,7 @@ module TK
         view.draw2d(GL_POLYGON, spts)
         view.line_width = 3
         view.drawing_color = base
-        view.draw2d(GL_LINE_STRIP, spts + [spts.first])
+        LeHai::SoiNoi.day2d(view, (quad + [quad.first]).map { |i| match.corners[i] })   # soi nổi: đoạn thấy liền, đoạn khuất đứt (30/09)
       end
 
       # 4 goc cua MAT LON gan camera nhat (mat lon = vuong goc voi chieu mong nhat)

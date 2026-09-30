@@ -9,6 +9,7 @@
 # Toolbar do LeHai_Tools/main.rb quản lý chung — file này chỉ expose create_cmd.
 
 require 'sketchup.rb'
+require File.join(File.dirname(__FILE__), '..', 'shared', 'soi_noi')
 
 module TK
   module DuplicateCheck
@@ -252,6 +253,9 @@ module TK
       end
 
       def draw(view)
+        # Soi nổi (shared/soi_noi.rb, 30/09): mờ phần còn lại + khối sáng nhẹ tấm liên quan; nét cũ vẽ sau nằm trên
+        LeHai::SoiNoi.phu_mo(view)
+        LeHai::SoiNoi.ve_nets(view, [[@draw_a, :do], [@draw_b, :do]])
         draw_outline(view, @draw_a)
         draw_outline(view, @draw_b)
         draw_banner(view)
@@ -291,7 +295,7 @@ module TK
         view.line_width = 3
         view.drawing_color = COLOR_BAD
         view.draw(GL_LINES, pts)
-        view.draw2d(GL_LINES, pts.map { |p| view.screen_coords(p) })
+        LeHai::SoiNoi.net2d(view, pts)   # soi nổi: đoạn thấy liền, đoạn khuất đứt (30/09)
       end
 
       def draw_banner(view)

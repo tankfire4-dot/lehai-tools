@@ -21,6 +21,7 @@
 # Toolbar do LeHai_Tools/main.rb quản lý chung — file này chỉ expose create_cmd.
 
 require 'sketchup.rb'
+require File.join(File.dirname(__FILE__), '..', 'shared', 'soi_noi')
 
 module TK
   module HingeCheck
@@ -260,6 +261,9 @@ module TK
       end
 
       def draw(view)
+        # Soi nổi (shared/soi_noi.rb, 30/09): mờ phần còn lại + khối sáng nhẹ tấm liên quan; nét cũ vẽ sau nằm trên
+        LeHai::SoiNoi.phu_mo(view)
+        LeHai::SoiNoi.ve_nets(view, [[@draw_pts, :do]])
         draw_outline(view, @draw_pts)
         draw_banner(view)
       end
@@ -296,7 +300,7 @@ module TK
         view.line_width = 3
         view.drawing_color = @color
         view.draw(GL_LINES, pts)
-        view.draw2d(GL_LINES, pts.map { |p| view.screen_coords(p) })
+        LeHai::SoiNoi.net2d(view, pts)   # soi nổi: đoạn thấy liền, đoạn khuất đứt (30/09)
       end
 
       def draw_banner(view)

@@ -18,7 +18,7 @@ module TK
     THEME = File.join(PATH, '..', 'shared', 'lehai_theme.css').freeze
 
     # Nạp các check phụ thuộc — rescue để 1 tool lỗi không chặn dashboard.
-    %w[kiem_tra_do_day kiem_tra_khoang_cach trung_tam kiem_tra_ban_le kiem_tra_lien_ket kiem_tra_led kiem_tra_ten kiem_tra_dan_canh kiem_tra_r100 kiem_tra_ban_le_chan soi_van].each do |folder|
+    %w[kiem_tra_do_day kiem_tra_khoang_cach trung_tam kiem_tra_khung kiem_tra_ban_le kiem_tra_lien_ket kiem_tra_led kiem_tra_ten kiem_tra_dan_canh kiem_tra_r100 kiem_tra_ban_le_chan soi_van].each do |folder|
       begin
         require File.join(PATH, '..', folder, 'main')
       rescue LoadError, StandardError => e
@@ -33,6 +33,8 @@ module TK
         { key: 'ten',     name: 'Đặt Tên',          mod: mod_of(:NameCheck) },
         { key: 'day',     name: 'Độ Dày Ván',       mod: mod_of(:ThickCheck) },
         { key: 'trung',   name: 'Trùng Tấm',        mod: mod_of(:DuplicateCheck) },
+        # Khung tổng thể (30/09): tủ có lấp đúng D×S×C công ty giao, tấm nào lệch/hở/bay. Cần đặt khung.
+        { key: 'khung',   name: 'Khung Tổng Thể',   mod: mod_of(:FrameCheck) },
         { key: 'dancanh', name: 'Dán Cạnh',         mod: mod_of(:EdgeBandCheck) },
         { key: 'ranhhau', name: 'Rãnh Hậu',         mod: mod_of(:JointCheck), kind: :ranhhau },
         { key: 'led',     name: 'Rãnh Led',         mod: mod_of(:LedCheck) },
@@ -190,7 +192,8 @@ module TK
               if(urgent){ hasFail = true; }
               if(r.status==='warn'){ hasWarn = true; }
               // ĐẠT + CẢNH BÁO cũng xem được để kiểm chứng
-              var canView = (r.status==='pass' || r.status==='warn' || urgent);
+              // Khung Tổng Thể chưa đặt khung (na) vẫn phải mở được — đó là chỗ nhập kích thước
+              var canView = (r.status==='pass' || r.status==='warn' || urgent || r.key==='khung');
               var cls = urgent ? 'rbtn' : 'rbtn rbtn--ghost';
               html += '<div class="row">'+
                 '<div class="dot '+badge(r.status)+'"></div>'+

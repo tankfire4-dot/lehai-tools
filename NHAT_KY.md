@@ -12,6 +12,108 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-09-30 — Soát chéo trước khi phát (Khung Tổng Thể + Soi Nổi)
+
+Codex hết quota → Khoa chọn một phiên Claude MỚI (bối cảnh sạch, chỉ đọc) soát. Kết luận: phát được sau khi sửa
+1 chỗ; không lỗi nào nổ trong SketchUp. Đã sửa:
+1. **CHẶN** — cánh chừa khe 2 mm với mép khung bị báo ĐỎ (gióng đưa cả cánh vào) → gióng mà mọi tấm lệch là
+   cánh/hộc thì VÀNG, nhóm "chỗ cánh/hộc lệch mép".
+2. Mã tấm = `persistent_id` → hai tủ dùng chung component thì tấm bên trong CÙNG entity, trùng mã (Xem chỉ nhầm tủ,
+   Bỏ qua dính cả hai) → mã = chuỗi persistent_id từ gốc xuống.
+3. Dán Cạnh tấm cong: `net2d` bắn ~1.600 tia/khung hình → quá 60 đoạn thì vẽ liền, không bắn tia.
+4. Chiếu song song: tia phải song song hướng nhìn, không bắn từ mắt.
+6. Con trong nhóm vàng mang `muc='do'` → chấm đỏ trong nhóm vàng. 7. Dashboard đo hình cả file dù chưa có khung.
+Để nguyên (ghi chú): `CUA_RE` khớp "canh" không dấu — file ABF có "canh" = cạnh, nhưng xưởng đặt tên cánh
+"Canh_1" không dấu (thấy trên file Khoa 30/09) → giữ, chờ quy ước tên; Khoảng Cách 7mm chỉ mờ (nesting phẳng,
+không có gì che); nhánh vẽ `doan` chưa dùng. Thử: kiem_tra_khung 37/37 · soi_noi 20/20. `release.py --dry-run`:
+ship thêm đúng 4 file (kiem_tra_khung/*, shared/soi_noi.rb).
+Chưa kiểm (cần SketchUp thật): tốc độ raytest file lớn, chiếu song song thật, `Camera#set` với up không vuông góc.
+
+---
+
+## 2026-09-30 — (chưa phát): SOI NỔI cho 10 màn "Xem" của tool kiểm / tìm tấm
+
+**Vấn đề:** màn Xem cũ của mọi tool kiểm chỉ vẽ viền đỏ đè lên cả tủ — tấm lỗi lẫn trong hàng chục đường, phải
+đoán tấm nào. Làm Khung Tổng Thể xong, Khoa thấy kiểu "làm mờ phần còn lại + tấm liên quan sáng nhẹ" "khắc phục
+được rất nhiều thứ" của các plugin check lỗi / tìm tấm cũ → yêu cầu áp cho tất cả.
+
+**Quyết định:** tách thành `shared/soi_noi.rb` (`LeHai::SoiNoi`): `phu_mo` (lớp mờ alpha 185) · `ve_nets` (12 cạnh hộp
+tấm các tool giữ sẵn → dựng lại khối, vẽ đặc đổ bóng; cả hộp xiên lẫn hình chữ nhật phẳng nesting) · `ve_khois` ·
+`goc_tam` (hộp tấm từ mặt) · `chip`. Mỗi tool chỉ thêm 2–3 dòng đầu `draw`: mờ trước, khối sau, nét cũ vẽ sau cùng nên
+vẫn nổi trên. Màu theo vai: đỏ = tấm lỗi, xanh = tấm tìm thấy / tham chiếu, lá = tấm chuẩn, vàng = nhắc.
+Áp cho: Tìm Tấm Lỗi, Trùng Tấm, Bản Lề, Dán Cạnh, R100, Khoảng Cách 7mm (nesting phẳng: chỉ mờ), Liên Kết, Đặt Tên,
+Đợt Chắn Bản Lề, Rãnh Led + Khung Tổng Thể bỏ bản sao, dùng chung. Dán Cạnh và R100 không giữ hộp tấm (chỉ giữ cạnh
+dán / đường cung) → ghi thêm `hop` tấm chứa lúc quét (R100 truyền XUÔI hộp group đang duyệt — `entity.parent` không
+suy ngược được instance).
+
+**Vì sao không mở group thật (active_path) cho SketchUp tự Fade:** đổi trạng thái file, phụ thuộc cài đặt Fade từng
+máy thợ, và tool đang ở trong group thì mọi toạ độ đổi nghĩa (sketchup-nen-tang mục 5). Tự vẽ: Esc là như cũ.
+
+**Vòng 2 — THẤY / KHUẤT (Khoa bấm thật Bản Lề: tấm bị che vẫn sáng rõ → tưởng nằm trong, thật ra ở ngoài).**
+Tấm vẽ nổi trên cùng nên không phân biệt được trước/sau. Áp quy ước bản vẽ kỹ thuật: phần THẤY tô đặc + nét
+liền, phần KHUẤT tô trong suốt + nét đứt; tính theo TỪNG PHẦN (mặt quay về mắt chia 2×2 ô, cạnh chia 2 đoạn,
+bắn `model.raytest` từ mắt tới từng ô/đoạn — chạm vật khác trước quá 0,5 mm là khuất). Cả tấm khuất → nhãn nhỏ
+"khuất sau tấm khác". Kết quả tia nhớ theo model + vị trí camera (xoay/lăn mới bắn lại; 1,5 s bắn lại phòng model
+vừa sửa) — thử bắt được: khoá thiếu model thì mở file khác đúng góc cũ dùng nhầm kết quả. Viền 2D cũ của từng tool
+(nét đậm liền đè lên tất cả — chính nó làm tấm khuất trông như ở trước) đổi sang `SoiNoi.net2d` / `day2d`.
+
+**Kiểm:** `tests/soi_noi.test.mjs` — mỗi tool dựng lỗi giả → activate → draw trên SketchUp GIẢ (+ 3 ca thấy / bị vách
+che / che một nửa, tia bắn thật vào hộp giả): 18/18 (lớp mờ là lời
+vẽ 2D đầu tiên, có khối/nét, camera đã phóng). CHƯA bấm Xem trong SketchUp thật — thứ tự vẽ 2D/3D thật của SketchUp
+chỉ thấy khi chạy (Khung Tổng Thể đã chạy thật: lớp mờ phủ đúng). Cần soát chéo trước khi phát.
+
+---
+
+## 2026-09-30 — (chưa phát): Check Chốt Sản Xuất thêm dòng "Khung Tổng Thể"
+
+**Vấn đề (Khoa, từ việc vẽ CNC thật):** tủ nhiều tấm, người vẽ lệch line giữa các tấm vài li mà không biết
+(nóc cao hơn hông 0,5; đợt hụt không chạm hông; mép trước lệch). Công ty giao "tủ 2m3 × 600 × 1m7" nhưng
+không ai kiểm tủ vẽ ra có lấp đúng kích thước đó. 12 dòng cũ của dashboard đều soi TỪNG TẤM, không dòng nào
+soi quan hệ giữa các tấm.
+
+**Quyết định (Khoa chốt 30/09):** nhập D×S×C → dựng khung chuẩn (component chỉ có cạnh) → đặt vào góc tủ
+(đang chọn tủ thì tự đặt; không thì rê chuột như Hình Nhân) → soát tấm có TÂM trong khung. **"Thà bắt nhầm
+hơn bỏ sót"** nhưng xếp cho đọc nổi: ĐỎ từng dòng, VÀNG gộp nhóm, nút "Bỏ qua" lưu vào khung.
+
+**Vì sao so toạ độ, không bắn tia (ý ban đầu của Khoa):** tấm là hộp → đọc thẳng 6 mặt trong hệ khung. Lệch
+0,5 mm tia dễ lọt, tia chỉ chạm mặt đầu tiên (tấm bị che thì mù); so toạ độ chính xác tới 0,05 mm và nhanh
+(400 tấm 0,5 s trên Ruby wasm). Khung vẫn cần — làm THƯỚC CHUẨN + khoanh đúng một tủ, không phải để đỡ lag.
+
+**Dấu hiệu lỗi = "gần bằng mà không bằng":** hai mặt/mép chênh 0,05–3 mm (`PhanTich::TOL`/`LE`). Ngàm ăn 9 mm,
+khe cánh 2–3 mm lặp đều nằm ngoài cửa sổ đó hoặc lặp ≥ 3 lần → vàng. **Cánh không đỡ thân tủ:** đợt hở hai đầu
+mà mép trước chạm lưng cánh vẫn là tấm bay (bộ thử đầu tiên bắt được đúng lỗ này). Cánh nhận theo TÊN
+(`/c[aá]nh|hộc kéo|mặt hộc/`, cùng gốc `kiem_tra_ban_le`).
+
+**Vòng 2 cùng ngày — Khoa chạy thật trên `PNbetrai+begaiCandy`:** có ra lỗi nhưng rối. Báo theo CẶP ("lệch mép
+2 mm: 276 ↔ noctu", "noctu ↔ santu", "94 ↔ 223"...) → một lỗi tách 3–4 dòng, không biết sửa tấm nào, theo trục
+nào. Đổi sang **ĐƯỜNG GIÓNG**: các mép lệch 0,05–3 mm gom theo mặt phẳng; chuẩn = mặt khung nếu gióng trùng mặt
+khung, không thì SỐ ĐÔNG mép nằm ở đó; tấm lệch khỏi chuẩn = tấm cần sửa, ghi "mép trước lệch 2 mm về phía sau".
+Bấm Xem vẽ mặt gióng xanh nét đứt cắt ngang khung + viền đỏ mép lệch + nhãn số mm. Cùng vòng: **hộc kéo bị báo
+oan "tủ đứt"** (tên "229. Hộc 1 · mặt phủ" lọt regex chỉ nhận "hộc kéo") → hộc/cánh là bộ phận DI ĐỘNG: nhận
+theo tên tấm HOẶC group cha bắt đầu bằng "Hộc"/"Cánh"; cả bộ chỉ cần bám thân (hở ≤ 30 mm, hộc trên ray ~13 mm).
+
+**Vòng 3 — Khoa: "tốt hơn nhưng vẫn không hiểu lệch chỗ nào".** Gốc: Xem đóng khung CẢ tấm cao 2 m → 1,5 mm
+nhỏ hơn một điểm ảnh; mặt gióng cắt cả khung chỉ thêm nhiễu; không nói lệch SO VỚI tấm nào. Đổi: mỗi mép lệch
+có một CHỖ = điểm nó gặp tấm bạn nằm đúng chuẩn. Xem phóng sát chỗ đó (khung nhìn ≈ 24 lần độ lệch, tối thiểu
+30 mm), nhìn chéo dọc mặt tiếp xúc để độ lệch nằm ngang mắt; vẽ ĐỎ = mép lệch, XANH LÁ = mép đúng, nhãn
+"105 thò ra 1.5 mm"; chọn sẵn tấm lệch (bấm M dời luôn); ← → đổi chỗ. Chữ đổi từ "gióng sâu 531 mm, lệch về phía
+sau" sang "105: mép sau thò ra 1.5 mm so với Đợt 3" — toạ độ trần không nói gì với người vẽ.
+
+**Vòng 4 — Khoa: dí sát chỉ thấy vài đường, "nhìn khó chịu"; muốn như "Fade rest of model" khi mở group.**
+Không mở group thật (đổi trạng thái file + phụ thuộc cài đặt Fade từng máy): tool phủ một lớp gần trắng lên cả
+màn rồi tự vẽ lại riêng HAI tấm liên quan thành khối đặc đổ bóng (tấm lệch ánh đỏ, tấm chuẩn ánh xanh lá),
+chỉ phần quanh chỗ lệch (cắt khối cạnh 5×nua — cả tấm 2 m thì có góc ra sau camera, vỡ hình). Lùi camera:
+khung nhìn ≈ 3×nua, nua = 40× độ lệch trong [25, 150] mm → lệch 1 mm thấy khối ~120 mm, hai mép vẫn tách ~8 px;
+muốn sát hơn thì lăn chuột. Vòng 5 (Khoa: "thích hơn, xài ổn hơn"): thêm mũi tên MỜ dài cố định 70 px chỉ hướng
+mép đã đi (lệch 0,06 mm không vẽ theo độ dài thật được); lớp mờ nhẹ đi (alpha 228 → 185); nhãn rộng ra khỏi cắt chữ.
+
+**Rủi ro / chưa kiểm:** mới chạy SketchUp GIẢ (tests/kiem_tra_khung.test.mjs: lõi 19/19 + lớp SketchUp 16/16) và
+bảng HTML trên Chromium. `Entities#add_line` chưa từng chạy trong repo (lệnh gốc của hãng). Tấm cong/khoét chỉ
+soát theo hộp bao (vàng "hình lạ"); tấm khoét rãnh nông < 3 mm sẽ bị báo méo đỏ. Chân tủ/đồ 3D dày ≤ 60 mm vẫn
+được coi là tấm.
+
+---
+
 ## 2026-09-28 — 1.9.78: Nút chờ "Khảo Sát Hiện Trường" đầu toolbar
 
 **Vấn đề:** app khảo sát hiện trường (điện thoại, lab `projects/khao-sat-hien-truong`) đã lưu số đo lên Google Sheet

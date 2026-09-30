@@ -205,7 +205,7 @@ toolbar rỗng tên `X` mà SketchUp nhớ — gỡ ở **View → Toolbars → 
 
 **Đọc kỹ cột "Nút" — hai cách đếm khác nhau, đừng trộn.** Số module ≠ số nút trên toolbar.
 Có module **không có nút riêng**: nó chạy từ trong dashboard Check Chốt Sản Xuất (icon khiên cuối
-hàng). Tính tới 25/09/2026: **27 module, 17 nút** (Hạ Nền + Kiểm Tra Độ Dày đã cất nút — code còn;
+hàng). Tính tới 30/09/2026: **29 module, 18 nút** (đếm lại 30/09: thêm Khảo Sát 28/09 + Khung Tổng Thể) (Hạ Nền + Kiểm Tra Độ Dày đã cất nút — code còn;
 đếm lại từ thư mục + mảng `groups`, không chép số cũ).
 
 Nguồn sự thật cho từng cột: cột Module = thư mục trong `LeHai_Tools/`; cột Nút = mảng `groups`
@@ -239,6 +239,7 @@ là danh sách nút. Muốn biết đủ module thì `ls LeHai_Tools/*/`.
 | **Tạo Modul Nhanh** (dựng theo kết cấu chuẩn: khung bao tủ lạnh, hộc kéo — bấm nút ra menu icon chọn modul; bảng 3D dùng chung `ui/ve3d.js`, bấm ô số → 3D phóng tới chỗ đó (giữ một hướng nhìn, làm mờ tấm che); đồ dev ở lab `projects/tao-modul-nhanh/`) | `TK::TaoModulNhanh` | ✓ |
 | **Check Chốt Sản Xuất** (dashboard, cuối toolbar, icon khiên) | `TK::PreExportCheck` | ✓ |
 | Trùng Tấm | `TK::DuplicateCheck` | — chạy trong dashboard |
+| **Khung Tổng Thể** (nhập D×S×C → đặt khung → soát lồi/hụt khung, hở lẻ, lệch mép, tấm bay, xéo/méo; lõi toán `phan_tich.rb` thuần Ruby, thử `tests/kiem_tra_khung.test.mjs`) | `TK::FrameCheck` | — chạy trong dashboard |
 | Bản Lề Cánh | `TK::HingeCheck` | — chạy trong dashboard |
 | Liên Kết (rãnh hậu + ngàm) | `TK::JointCheck` | — chạy trong dashboard |
 | Kiểm Tra LED | `TK::LedCheck` | — chạy trong dashboard |
@@ -248,6 +249,9 @@ là danh sách nút. Muốn biết đủ module thì `ls LeHai_Tools/*/`.
 | Đợt Chắn Bản Lề (lỗi đỏ: tấm ngang cắt ngang chỗ bản lề) | `TK::HingeBlockCheck` | — chạy trong dashboard |
 
 > Thứ tự dòng trong bảng = thứ tự nút trên toolbar (nhóm theo cụm), rồi tới nhóm không có nút.
+
+> **Màn "Xem" của tool kiểm / tìm tấm dùng `shared/soi_noi.rb`** (30/09): mờ phần còn lại + tấm liên quan thành
+> khối sáng nhẹ. Tool kiểm mới: gọi `LeHai::SoiNoi.phu_mo` + `ve_nets` đầu `draw`, đừng tự chế lại. Thử: `tests/soi_noi.test.mjs`.
 
 > Bộ "Check Chốt Sản Xuất" từng tách ra repo `lehai-check` (2026-07-01) rồi **GỘP TRỞ LẠI**
 > lehai-tools (2026-07-01, v1.9.30) khi Khoa quyết định phát cho thợ. Repo `lehai-check` giờ

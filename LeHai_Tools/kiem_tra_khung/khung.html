@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<title>Soát Khung Tổng Thể</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lehai_theme.css">
+<style>
+  .nhap { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .nhap .lh-input { width: 100%; box-sizing: border-box; }
+  .tb { font-size: 12px; margin: 10px 0 0; padding: 8px 10px; border-radius: var(--lh-radius-sm); display: none; }
+  .tb--ok { display: block; background: rgba(21,128,61,.10); color: #15803d; }
+  .tb--bad { display: block; background: rgba(185,28,28,.10); color: #b91c1c; }
+  .khung { margin-top: 14px; }
+  .khead { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .kten { flex: 1; font-weight: 700; font-size: 13px; color: var(--lh-ink); }
+  .kten small { font-weight: 500; color: var(--lh-ink-soft); }
+  .tong { border-radius: var(--lh-radius); padding: 10px 12px; margin-bottom: 8px; font-weight: 700; font-size: 12.5px; }
+  .tong--ok { background: rgba(21,128,61,.12); color: #15803d; }
+  .tong--bad { background: rgba(185,28,28,.10); color: #b91c1c; }
+  .tong--warn { background: rgba(230,160,0,.14); color: #a16207; }
+  .row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 6px; border-bottom: 1px solid var(--lh-line-2); }
+  .row:last-child { border-bottom: 0; }
+  .row.con { padding-left: 26px; background: var(--lh-fill); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; margin-top: 4px; }
+  .dot--do { background: #dc2626; }
+  .dot--vang { background: #e6a000; }
+  .rinfo { flex: 1; min-width: 0; }
+  .rname { font-weight: 700; font-size: 12.5px; color: var(--lh-ink); word-break: break-word; }
+  .rmsg { font-size: 11.5px; color: var(--lh-ink-soft); margin-top: 2px; }
+  .nut { display: flex; gap: 6px; flex: 0 0 auto; }
+  .rbtn { border: 0; border-radius: var(--lh-radius-sm); padding: 6px 10px; font-size: 11.5px; font-weight: 700;
+          cursor: pointer; background: var(--lh-walnut); color: #fff; font-family: inherit; }
+  .rbtn:hover { filter: brightness(1.1); }
+  .rbtn--ghost { background: var(--lh-surface); color: var(--lh-walnut); border: 1.5px solid var(--lh-line); }
+  .rbtn--ghost:hover { border-color: var(--lh-amber); color: var(--lh-amber); }
+  .bq { font-size: 11.5px; color: var(--lh-ink-soft); margin-top: 6px; }
+  .bq a { color: var(--lh-walnut); font-weight: 700; cursor: pointer; }
+  .rong { font-size: 12px; color: var(--lh-ink-soft); padding: 10px 4px; }
+  .note { margin-top: 12px; font-size: 11.5px; color: var(--lh-ink-soft); background: var(--lh-fill);
+          border-radius: var(--lh-radius); padding: 0 12px; }
+  .note summary { cursor: pointer; padding: 10px 0; font-weight: 700; color: var(--lh-walnut); list-style: none; outline: none; }
+  .note summary::-webkit-details-marker { display: none; }
+  .note summary::before { content: '▸  '; }
+  .note[open] summary::before { content: '▾  '; }
+  .note p { margin: 0 0 10px; line-height: 1.6; }
+  .note b { color: var(--lh-amber-2); }
+</style></head>
+<body class="lh"><div class="lh-dialog">
+  <div class="lh-eyebrow">LeHai's Decor Tools</div>
+  <div class="lh-title">Soát Khung Tổng Thể</div>
+
+  <div class="lh-card">
+    <label class="lh-label">Kích thước công ty giao (mm)</label>
+    <div class="nhap">
+      <label class="lh-label">Dài <input class="lh-input" id="dai" type="number" min="1" step="0.5"></label>
+      <label class="lh-label">Sâu <input class="lh-input" id="sau" type="number" min="1" step="0.5"></label>
+      <label class="lh-label">Cao <input class="lh-input" id="cao" type="number" min="1" step="0.5"></label>
+    </div>
+    <button class="lh-btn lh-btn--primary" style="margin-top:10px;width:100%" onclick="taoKhung()">Tạo khung</button>
+    <div class="lh-hint">Đang chọn tủ → khung tự vào góc tủ và soát luôn. Không chọn gì → rê chuột, bấm góc
+      trái-trước-dưới của tủ để đặt.</div>
+    <div id="tb" class="tb"></div>
+  </div>
+
+  <button class="lh-btn lh-btn--ghost" style="margin-top:12px" onclick="sketchup.soat()">↻ Soát lại</button>
+  <div id="ds"></div>
+
+  <details class="note">
+    <summary>Nó soát gì, báo màu gì</summary>
+    <p>Chỉ soát tấm có <b>tâm nằm trong khung</b>. So toạ độ từng mặt tấm, không bắn tia.</p>
+    <p><b>ĐỎ</b> = dấu hiệu vẽ lệch: hai mặt/mép chênh nhau <b>0,05–3 mm</b> (gần bằng mà không bằng),
+      tủ lồi/hụt so với khung, tấm không áp mặt vào tấm nào (tấm bay), cụm tấm tách rời thân tủ,
+      tấm xéo 0,01–3°, tấm méo.</p>
+    <p><b>VÀNG</b> = thường là cố ý, gộp nhóm: khe hở lặp lại từ 3 lần hoặc có cánh/mặt hộc, chỗ ăn vào
+      nhau từ 3 mm (ngàm, rãnh), tấm chỉ chạm theo cạnh, tấm đặt xiên, tấm cong/khoét.</p>
+    <p>Cánh không tính là chỗ bám: đợt hở hai đầu mà mép trước chạm lưng cánh <b>vẫn là tấm bay</b>.
+      Nhận cánh theo <b>TÊN</b> (có chữ "cánh", "hộc kéo", "mặt hộc") — đặt tên trước khi soát.</p>
+    <p>Bấm <b>Bỏ qua</b> khi đã xác nhận đúng; danh sách bỏ qua lưu trong khung. Xoá khung trước khi gửi file.</p>
+  </details>
+  <div class="lh-foot"><span>LeHai Tools</span><span>Soát Khung Tổng Thể</span></div>
+</div>
+<script>
+  // Nhớ số vừa nhập cho lần sau (chỉ tiện tay; hỏng thì thôi)
+  var NHO = 'lh.khung.kich';
+  try { var cu = JSON.parse(localStorage.getItem(NHO) || 'null');
+        if (cu) { dai.value = cu[0]; sau.value = cu[1]; cao.value = cu[2]; } } catch (e) {}
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+  function taoKhung() {
+    var k = { dai: parseFloat(dai.value), sau: parseFloat(sau.value), cao: parseFloat(cao.value) };
+    try { localStorage.setItem(NHO, JSON.stringify([dai.value, sau.value, cao.value])); } catch (e) {}
+    sketchup.tao(JSON.stringify(k));
+  }
+
+  function thongBao(cls, msg) { var t = document.getElementById('tb'); t.className = 'tb ' + cls; t.textContent = msg; }
+  window.baoLoi = function (m) { thongBao('tb--bad', m); };
+  window.baoXong = function (m) { thongBao('tb--ok', m); };
+
+  var MO = {};   // nhóm vàng đang mở
+  function hang(f, duong, ki, con) {
+    var nhom = !!f.con;
+    var h = '<div class="row' + (con ? ' con' : '') + '"><div class="dot dot--' + f.muc + '"></div>' +
+      '<div class="rinfo"><div class="rname">' + esc(f.tieu_de) + '</div><div class="rmsg">' + esc(f.chi_tiet) + '</div></div>' +
+      '<div class="nut">';
+    if (nhom) h += '<button class="rbtn rbtn--ghost" onclick="moNhom(\'' + duong + '\')">' + (MO[duong] ? 'Đóng' : 'Mở') + '</button>';
+    else h += '<button class="rbtn' + (f.muc === 'do' ? '' : ' rbtn--ghost') + '" onclick="sketchup.xem(\'' + duong + '\')">Xem</button>';
+    h += '<button class="rbtn rbtn--ghost" title="Đã kiểm, đúng rồi" onclick="boQua(' + ki + ',\'' + esc(f.khoa) + '\')">Bỏ qua</button></div></div>';
+    if (nhom && MO[duong]) f.con.forEach(function (c, ci) { h += hang(c, duong + '/' + ci, ki, true); });
+    return h;
+  }
+  function moNhom(d) { MO[d] = !MO[d]; ve(); }
+  function boQua(ki, khoa) { sketchup.bo_qua(JSON.stringify({ khung: ki, khoa: khoa })); }
+
+  var DL = null;
+  window.nhan = function (d) { DL = d; ve(); };
+  function ve() {
+    if (!DL) return;
+    var h = '';
+    if (DL.canh_bao) h += '<div class="tb tb--bad" style="display:block">' + esc(DL.canh_bao) + '</div>';
+    if (!DL.khung.length) h += '<div class="rong">Chưa có khung nào trong file.</div>';
+    DL.khung.forEach(function (k, ki) {
+      var nDo = k.ds.filter(function (f) { return f.muc === 'do'; }).length;
+      var nVang = k.ds.length - nDo;
+      var tong = nDo ? ['tong--bad', '⚠ ' + nDo + ' lỗi đỏ cần sửa' + (nVang ? ' · ' + nVang + ' nhóm vàng' : '')]
+               : nVang ? ['tong--warn', 'Không lỗi đỏ · ' + nVang + ' nhóm vàng nên xem qua']
+               : ['tong--ok', '✓ Tủ lấp đúng khung, không lệch/hở/bay'];
+      h += '<div class="khung"><div class="khead"><div class="kten">' + esc(k.ten) +
+        ' <small>' + k.kich.join(' × ') + ' mm · ' + k.so_tam + ' tấm</small></div>' +
+        '<button class="rbtn rbtn--ghost" onclick="sketchup.chon(' + ki + ')">Chọn</button>' +
+        '<button class="rbtn rbtn--ghost" onclick="sketchup.xoa(' + ki + ')">Xoá</button></div>' +
+        '<div class="tong ' + tong[0] + '">' + tong[1] + '</div>';
+      if (k.ds.length) {
+        h += '<div class="lh-card" style="padding:2px 8px">';
+        k.ds.forEach(function (f, fi) { h += hang(f, ki + '/' + fi, ki, false); });
+        h += '</div>';
+      }
+      if (k.so_bo_qua) h += '<div class="bq">Đã bỏ qua ' + k.so_bo_qua + ' mục · <a onclick="sketchup.hien_lai(' + ki + ')">Hiện lại</a></div>';
+      h += '</div>';
+    });
+    document.getElementById('ds').innerHTML = h;
+  }
+  sketchup.ready();
+</script>
+</body></html>

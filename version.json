@@ -1,5 +1,5 @@
 {
-  "version": "1.9.80",
+  "version": "1.9.81",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -51,6 +51,9 @@
     "LeHai_Tools/kiem_tra_khoang_cach/main.rb",
     "LeHai_Tools/kiem_tra_khoang_cach/icons/spacing_16.png",
     "LeHai_Tools/kiem_tra_khoang_cach/icons/spacing_24.png",
+    "LeHai_Tools/kiem_tra_khung/khung.html",
+    "LeHai_Tools/kiem_tra_khung/main.rb",
+    "LeHai_Tools/kiem_tra_khung/phan_tich.rb",
     "LeHai_Tools/kiem_tra_led/main.rb",
     "LeHai_Tools/kiem_tra_lien_ket/main.rb",
     "LeHai_Tools/kiem_tra_lien_ket/icons/joint_16.png",
@@ -66,6 +69,7 @@
     "LeHai_Tools/shared/huong_tu.rb",
     "LeHai_Tools/shared/laser_snap.rb",
     "LeHai_Tools/shared/lehai_theme.css",
+    "LeHai_Tools/shared/soi_noi.rb",
     "LeHai_Tools/soat_truoc_xuat/main.rb",
     "LeHai_Tools/soat_truoc_xuat/icons/gate_16.png",
     "LeHai_Tools/soat_truoc_xuat/icons/gate_24.png",

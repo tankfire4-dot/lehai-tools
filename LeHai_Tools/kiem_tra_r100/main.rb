@@ -22,6 +22,7 @@
 # Check Chốt Sản Xuất qua adapter audit/review.
 
 require 'sketchup.rb'
+require File.join(File.dirname(__FILE__), '..', 'shared', 'soi_noi')
 
 module TK
   module RadiusCheck
@@ -36,7 +37,7 @@ module TK
     COLOR_WARN = Sketchup::Color.new(230, 160, 0)   # vàng cam — cảnh báo, không phải đỏ lỗi
 
     # một cung R100 tìm được: tên tấm chứa nó, số đo, các điểm world để vẽ
-    Item = Struct.new(:name, :radius_mm, :pts)
+    Item = Struct.new(:name, :radius_mm, :pts, :hop)   # hop = 8 góc tấm chứa cung (soi nổi)
 
     # =========================================================
     #  Adapter cho dashboard (TK::PreExportCheck)
@@ -72,7 +73,7 @@ module TK
       items
     end
 
-    def self.collect(entities, t, depth, owner, items)
+    def self.collect(entities, t, depth, owner, items, hop = nil)
       return if depth > MAX_DEPTH || entities.nil?
       seen = {}   # entityID của EDGE đã xét (entityID của curve không ổn định — auto_dan_canh/main.rb:407)
       entities.each do |e|
@@ -86,10 +87,12 @@ module TK
           r = radius_of(c, t)
           next if (r - TARGET_MM).abs > TOL_MM
           pts = world_points(c, t)
-          items << Item.new(owner, r, pts) if pts.size >= 2
+          items << Item.new(owner, r, pts, hop) if pts.size >= 2
         elsif e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
           next if e.name.to_s.include?(NEST_HINT)
-          collect(ents_of(e), t * e.transformation, depth + 1, label(e, owner), items)
+          te = t * e.transformation
+          con = ents_of(e)
+          collect(con, te, depth + 1, label(e, owner), items, (con && LeHai::SoiNoi.goc_tam(con, te)) || hop)
         end
       end
     end
@@ -183,6 +186,10 @@ module TK
       end
 
       def draw(view)
+        # Soi nổi (shared/soi_noi.rb, 30/09): mờ phần còn lại + khối sáng nhẹ tấm liên quan; nét cũ vẽ sau nằm trên
+        LeHai::SoiNoi.phu_mo(view)
+        hop = @items[@idx].hop
+        LeHai::SoiNoi.ve_khois(view, [[hop, :vang]]) if hop
         draw_arc(view)
         draw_banner(view)
       end
@@ -216,7 +223,7 @@ module TK
         view.line_width = 3
         view.drawing_color = COLOR_WARN
         view.draw(GL_LINE_STRIP, @draw)
-        view.draw2d(GL_LINE_STRIP, @draw.map { |p| view.screen_coords(p) })
+        LeHai::SoiNoi.day2d(view, @draw)   # soi nổi: đoạn thấy liền, đoạn khuất đứt (30/09)
       end
 
       def draw_banner(view)

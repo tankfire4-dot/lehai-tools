@@ -27,6 +27,7 @@
 # CHỈ ĐỌC. Dashboard (TK::PreExportCheck) gọi qua audit/review.
 
 require 'sketchup.rb'
+require File.join(File.dirname(__FILE__), '..', 'shared', 'soi_noi')
 
 module TK
   module EdgeBandCheck
@@ -46,7 +47,7 @@ module TK
     # một cạnh đã dán, đủ dữ liệu để lướt tới xem
     # chi = tên loại chỉ đọc từ `edge-band-types`; so_mat = mấy mặt gộp lại (cạnh
     # cong bị SketchUp chia thành hàng trăm mặt con — xem ghi chú ở collect_marks_3d)
-    Mark = Struct.new(:owner, :in_nest, :segs, :center, :chi, :so_mat)
+    Mark = Struct.new(:owner, :in_nest, :segs, :center, :chi, :so_mat, :hop)   # hop = 8 góc tấm chứa (soi nổi)
 
     # Đếm số group/comp mang dấu dán cạnh CỦA ABF trong toàn model.
     def self.count
@@ -85,11 +86,12 @@ module TK
           (nhom[id] ||= []) << pts
         end
 
+        hop = nhom.empty? ? nil : LeHai::SoiNoi.goc_tam(sub, te)
         nhom.each do |id, loops|
           segs = []
           loops.each { |pts| segs.concat(loop_segs(pts)) }
           out << Mark.new(ten, false, segs, tam_diem(loops.first),
-                          types[id] || "loại #{id}", loops.size)
+                          types[id] || "loại #{id}", loops.size, hop)
         end
       end
       out
@@ -290,6 +292,11 @@ module TK
       end
 
       def draw(view)
+        # Soi nổi (shared/soi_noi.rb, 30/09): mờ phần còn lại + khối sáng nhẹ tấm liên quan; nét cũ vẽ sau nằm trên
+        # Tấm chứa cạnh dán = khối xanh; dấu 2D trên nesting đã là hộp phẳng thì dựng từ nét của nó
+        LeHai::SoiNoi.phu_mo(view)
+        m = @items[@idx]
+        m.hop ? LeHai::SoiNoi.ve_khois(view, [[m.hop, :xanh]]) : LeHai::SoiNoi.ve_nets(view, [[@draw, :xanh]])
         draw_outline(view)
         draw_banner(view)
       end
@@ -329,7 +336,7 @@ module TK
         view.line_width = 3
         view.drawing_color = COLOR_OK
         view.draw(GL_LINES, @draw)
-        view.draw2d(GL_LINES, @draw.map { |p| view.screen_coords(p) })
+        LeHai::SoiNoi.net2d(view, @draw)   # soi nổi: đoạn thấy liền, đoạn khuất đứt (30/09)
       end
 
       def draw_banner(view)

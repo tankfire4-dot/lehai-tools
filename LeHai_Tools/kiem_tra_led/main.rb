@@ -20,6 +20,7 @@
 # Toolbar do LeHai_Tools/main.rb quản lý — dashboard gọi qua audit/review.
 
 require 'sketchup.rb'
+require File.join(File.dirname(__FILE__), '..', 'shared', 'huong_tu')
 
 module TK
   module LedCheck
@@ -41,7 +42,7 @@ module TK
                [0, 4], [1, 5], [2, 6], [3, 7]].freeze
 
     # item để lướt xem: kind :warn (thanh đèn thiếu rãnh) / :ok (rãnh đã phay)
-    Item = Struct.new(:name, :aabb, :segs, :center)
+    Item = Struct.new(:name, :aabb, :segs, :center, :hop)   # hop = hộp riêng (thanh xiên)
 
     # =========================================================
     #  QUÉT
@@ -85,8 +86,15 @@ module TK
     def self.has_groove?(led, grooves)
       near = NEAR_MM / MM
       a = led.aabb
+      h = led.hop
       grooves.any? do |g|
         c = g.center
+        # Thanh đèn XIÊN (LUAT_NHA mục 9, 29/09): hộp bao thế giới phình (thanh dài 45° thành ô vuông)
+        # → rãnh ở chỗ khác cũng bị tính "của thanh này", cảnh báo lọt. Đo trong hộp riêng của thanh.
+        if h && !h[:thang]
+          q = (h[:he].inverse * Geom::Point3d.new(*c)).to_a
+          next (0..2).all? { |i| q[i] >= -near && q[i] <= h[:e][i] + near }
+        end
         c[0] >= a[0] - near && c[0] <= a[3] + near &&
           c[1] >= a[1] - near && c[1] <= a[4] + near &&
           c[2] >= a[2] - near && c[2] <= a[5] + near
@@ -124,7 +132,9 @@ module TK
           ab = world_aabb(ents_of(e), te)
           if ab
             c = [(ab[0] + ab[3]) / 2, (ab[1] + ab[4]) / 2, (ab[2] + ab[5]) / 2]
-            leds << Item.new(label(e), ab, aabb_box_segs(ab), c)
+            h = LeHai::HuongTu.hop_rieng(ents_of(e), te)
+            net = h && !h[:thang] ? LeHai::HuongTu.net_hop(h) : aabb_box_segs(ab)
+            leds << Item.new(label(e), ab, net, c, h)
           end
         end
 

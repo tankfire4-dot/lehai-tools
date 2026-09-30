@@ -26,11 +26,17 @@ module TK
       NHICH     = 0.2 / MM        # inch — nhích qua mặt vừa chạm rồi bắn tiếp
       DAY_MAX   = 100.0 / MM      # inch — mặt kia của tấm phải trong 100mm mới tính là cùng tấm
       KHOANG_MAX = 1500.0 / MM    # inch — mặt trong khoang xa hơn 1,5m = khoang hở (tia bay ra tường/phòng)
+      # Hướng trong HỆ KHUNG của tủ (x trái→phải, y trước→sau, z lên) — không phải trục file.
+      # Hệ khung lấy từ hình (he_khung); tủ thẳng trục, mặt về xanh lá âm thì hệ khung = trục file.
       TRAI  = Geom::Vector3d.new(-1, 0, 0)
       PHAI  = Geom::Vector3d.new(1, 0, 0)
       DUOI  = Geom::Vector3d.new(0, 0, -1)
       TREN  = Geom::Vector3d.new(0, 0, 1)
       SAU   = Geom::Vector3d.new(0, 1, 0)
+      TRUOC = Geom::Vector3d.new(0, -1, 0)
+      LEN   = Geom::Vector3d.new(0, 0, 1)
+      SO_TIA    = 36    # tia ngang quét quanh chỗ chuột để tìm hai hông (10° một tia)
+      LECH_HONG = 1.0   # độ — hai hông lệch song song hơn bấy nhiêu thì báo, không dựng (Khoa chốt 29/09)
 
       # Ô số người dùng sửa được. Thứ tự = thứ tự trong bảng.
       HOI = [
@@ -77,38 +83,162 @@ module TK
         { trong: a[0], ngoai: b[0], ke: ke, sat: sat, a: a }
       end
 
-      # Mặt vừa chạm → khoảng y (inch) của nó trong toạ độ thế giới (mép trước / mép sau hông)
-      def self.y_mat(hit)
-        duong = hit[1]
-        face = duong.last
-        return nil unless face.is_a?(Sketchup::Face)
+      # Tổng biến đổi của đường chạm (các group/component bọc ngoài mặt vừa chạm)
+      def self.bien_doi(duong)
         tr = Geom::Transformation.new
         duong[0..-2].each { |e| tr *= e.transformation if e.respond_to?(:transformation) }
+        tr
+      end
+
+      # Mặt vừa chạm → khoảng y (inch) của nó trong HỆ KHUNG (mép trước / mép sau hông).
+      # fi = biến đổi thế giới → hệ khung.
+      def self.y_mat(hit, fi)
+        face = hit[1].last
+        return nil unless face.is_a?(Sketchup::Face)
+        tr = fi * bien_doi(hit[1])
         ys = face.vertices.map { |v| (tr * v.position).y }
         [ys.min, ys.max]
       end
 
-      # Tia chuột → khối rỗng của khoang (mm) cho lõi, hoặc raise với lý do tiếng Việt.
-      def self.do_khoang(model, ray)
+      # Pháp tuyến THẾ GIỚI (đã chuẩn hoá) của mặt vừa chạm, nil nếu chạm cạnh/không phải mặt
+      def self.phap_tuyen(hit)
+        face = hit[1].last
+        return nil unless face.is_a?(Sketchup::Face)
+        n = bien_doi(hit[1]) * face.normal
+        return nil if n.length < 1e-9
+        n.normalize
+      end
+
+      # ── Hệ khung lấy từ HÌNH (LUAT_NHA mục 9, Khoa chốt 29/09/2026) ──────
+      # Tủ quay hướng nào / đặt xiên cũng đo đúng. Trước 29/09 tool coi trục file là trái-phải /
+      # trước-sau của tủ → tủ quay khác mặt xanh lá âm thì không dò ra khoang.
+
+      # Quét tia ngang quanh chỗ chuột → pháp tuyến NGANG (quay về phía chuột) của các mặt đứng chạm được
+      def self.mat_dung_quanh(model, p0)
+        (0...SO_TIA).map { |i|
+          g = 2 * Math::PI * i / SO_TIA
+          d = Geom::Vector3d.new(Math.cos(g), Math.sin(g), 0)
+          a = ban(model, p0, d)
+          next unless a && p0.distance(a[0]) <= KHOANG_MAX
+          n = phap_tuyen(a)
+          next unless n && n.z.abs < 0.02                      # chỉ mặt đứng
+          n = n.reverse if n.dot(d) > 0                        # quay về phía chuột
+          Geom::Vector3d.new(n.x, n.y, 0).normalize
+        }.compact
+      end
+
+      def self.goc(a, b)   # góc giữa hai vector đơn vị, độ
+        Math.acos([[a.dot(b), 1.0].min, -1.0].max) * 180 / Math::PI
+      end
+
+      # Hai hông = cặp mặt đứng song song NGƯỢC chiều (cùng quay vào lòng khoang).
+      # Trả trục trái-phải (chưa biết chiều) hoặc nil. Nhiều cặp (hiếm) → cặp nhiều tia chạm nhất.
+      def self.cap_hong(ds)
+        nhom = []   # [pháp tuyến đại diện, số tia chạm]
+        ds.each do |n|
+          g = nhom.find { |m| goc(m[0], n) < 2 }
+          g ? g[1] += 1 : nhom << [n, 1]
+        end
+        cap = nhom.combination(2).select { |a, b| goc(a[0], b[0]) > 150 }
+        return nil if cap.empty?
+        a, b = cap.max_by { |m, n| m[1] + n[1] }
+        lech = 180 - goc(a[0], b[0])
+        raise "Hai hông không song song (lệch #{lech.round(1)}°) — tool không dựng hộc trên khoang lệch." if lech > LECH_HONG
+        Geom::Vector3d.new(a[0].x - b[0].x, a[0].y - b[0].y, 0).normalize
+      end
+
+      # Trục sát trục file (sai số máy) → lấy đúng trục file: tủ thẳng trục ra số y hệt bản cũ
+      def self.bat_truc(v)
+        return Geom::Vector3d.new(v.x > 0 ? 1 : -1, 0, 0) if v.y.abs < 1e-9
+        return Geom::Vector3d.new(0, v.y > 0 ? 1 : -1, 0) if v.x.abs < 1e-9
+        v
+      end
+
+      # Hướng "vào trong tủ" (trước → sau) trên trục sâu `sau` (chưa biết chiều) → [vector, đoán?]
+      # Có hậu: ngược pháp tuyến hậu (hậu quay mặt ra phía trước) — lấy THEO HẬU, không theo trung
+      # bình hai hông: tủ vuông mà một hông vẽ ẩu vài phần độ thì hộc vẫn thẳng theo hậu.
+      # Không hậu: phía mắt đang nhìn là phía trước. Nhìn gần thẳng từ trên xuống → BÁO, không đoán
+      # (LUAT_NHA mục 9; Codex soát 29/09 bắt bản đầu còn mặc định theo trục file ở nhánh này).
+      def self.huong_vao(ds, sau, tia)
+        nguong = Math.cos(LECH_HONG * Math::PI / 180)
+        hau = ds.select { |n| n.dot(sau).abs > nguong }
+        if hau.map { |n| n.dot(sau) > 0 }.uniq.size == 1
+          tb = hau.reduce(Geom::Vector3d.new(0, 0, 0)) { |s, n| Geom::Vector3d.new(s.x + n.x, s.y + n.y, 0) }
+          return [tb.normalize.reverse, false]
+        end
+        c = tia.dot(sau)
+        return [c > 0 ? sau.clone : sau.reverse, true] if c.abs >= 0.2
+        raise 'Không rõ mặt trước khoang (không có hậu, đang nhìn thẳng từ trên xuống) — xoay góc nhìn cho thấy mặt trước tủ rồi rê lại.'
+      end
+
+      # Chỗ chuột → [biến đổi hệ khung → thế giới, mặt trước có phải đoán không]. Gốc hệ khung = gốc file,
+      # nên tủ thẳng trục mặt về xanh lá âm cho đúng phép đồng nhất (số y hệt bản cũ).
+      # Nhớ theo mặt đang chạm: rê trong cùng một mặt không quét lại 36 tia.
+      def self.he_khung(model, cham, p0, tia, lat)
+        khoa = [cham[1].map(&:entityID), lat]
+        return @he[1] if @he && @he[0] == khoa
+        ds = mat_dung_quanh(model, p0)
+        x = cap_hong(ds)
+        raise 'Không thấy hai hông — rê chuột vào TRONG lòng khoang.' unless x
+        x = bat_truc(x)
+        y, doan = huong_vao(ds, LEN.cross(x), tia)
+        y = bat_truc(y)
+        y = y.reverse if lat && doan   # có hậu thì mặt trước chắc chắn — Lật chỉ khi phải đoán
+        kq = [Geom::Transformation.axes(Geom::Point3d.new(0, 0, 0), y.cross(LEN), y, LEN), doan]
+        @he = [khoa, kq]
+        kq
+      end
+
+      def self.quen_he
+        @he = nil
+      end
+
+      # Tia chuột → khối rỗng của khoang (mm, HỆ KHUNG) cho lõi, hoặc raise với lý do tiếng Việt.
+      # lat = người dùng bấm Lật mặt (tool nhận nhầm mặt trước).
+      def self.do_khoang(model, ray, lat = false)
         cham = ban(model, ray[0], ray[1])
         raise 'Chuột không chạm hình nào.' unless cham
         p0 = cham[0].offset(ray[1].reverse, NHICH * 5)   # lùi về phía mắt: đứng trong lòng khoang
+        f, doan = he_khung(model, cham, p0, ray[1], lat)
+        do_trong_khung(model, p0, f, doan)
+      rescue StandardError => e
+        raise unless doan
+        # Mặt trước đang ĐOÁN theo hướng nhìn (tủ không hậu) → đo hỏng thường do đoán ngược
+        raise "#{e.message} (Tủ không hậu: mặt trước lấy theo hướng nhìn — nhìn từ phía trước tủ, hoặc bấm Lật.)"
+      end
 
-        tr0 = do_phia(model, p0, TRAI)
-        ph0 = do_phia(model, p0, PHAI)
+      # Đo khối rỗng trong hệ khung f (hệ khung → thế giới). doan = mặt trước phải đoán.
+      def self.do_trong_khung(model, p0, f, doan)
+        fi = f.inverse
+        h = ->(v) { f * v }                                       # hướng hệ khung → thế giới
+        diem = ->(x, y, z) { f * Geom::Point3d.new(x, y, z) }     # điểm hệ khung → thế giới
+        l = ->(p) { fi * p }                                      # điểm thế giới → hệ khung
+
+        # Tia đo hông bắn từ chỗ cách hậu ≥ 20mm: hông lệch chút (< 1°) thì hệ khung lệch theo, tia
+        # đi sát hậu sẽ đâm vào hậu thay vì hông (thử 29/09, hông lệch 0,5°: ra số rác).
+        ph = p0
+        sau0 = ban(model, p0, h.(SAU))
+        ph = p0.offset(h.(TRUOC), 20.0 / MM - p0.distance(sau0[0])) if sau0 && p0.distance(sau0[0]) < 20.0 / MM
+        tr0 = do_phia(model, ph, h.(TRAI))
+        ph0 = do_phia(model, ph, h.(PHAI))
         raise 'Không thấy hai hông — rê chuột vào TRONG lòng khoang.' unless tr0 && ph0
-        yt = y_mat(tr0[:a])
-        yp = y_mat(ph0[:a])
+        [tr0, ph0].each do |b|   # mặt chạm phải là mặt hông (vuông trục trái-phải), không thì báo
+          n = phap_tuyen(b[:a])
+          raise 'Không thấy hai hông — rê chuột vào TRONG lòng khoang.' unless n && n.dot(h.(PHAI)).abs > 0.99
+        end
+        yt = y_mat(tr0[:a], fi)
+        yp = y_mat(ph0[:a], fi)
         raise 'Không đọc được mặt hông.' unless yt && yp
         y_truoc = [yt[0], yp[0]].max   # mép trước lòng = chỗ cả hai hông đã bắt đầu
         y_sau_hong = [yt[1], yp[1]].min
-        raise 'Chuột đang ở mặt ngoài tủ — rê vào TRONG lòng khoang.' if p0.y < y_truoc - NHICH
+        lp0 = l.(p0)
+        raise 'Chuột đang ở mặt ngoài tủ — rê vào TRONG lòng khoang.' if lp0.y < y_truoc - NHICH
 
         # Đo lại ở sát mép trước (5mm): đố chỉ nằm ở mặt trước, đo ở sâu sẽ lọt qua sau đố
-        q = Geom::Point3d.new(p0.x, y_truoc + 5.0 / MM, p0.z)
+        q = diem.(lp0.x, y_truoc + 5.0 / MM, lp0.z)
         @qua_hoc = false
-        bien = { trai: do_phia(model, q, TRAI), phai: do_phia(model, q, PHAI),
-                 duoi: do_phia(model, q, DUOI), tren: do_phia(model, q, TREN) }
+        bien = { trai: do_phia(model, q, h.(TRAI)), phai: do_phia(model, q, h.(PHAI)),
+                 duoi: do_phia(model, q, h.(DUOI)), tren: do_phia(model, q, h.(TREN)) }
         thieu = bien.select { |_, v| v.nil? }.keys
         raise "Khoang hở phía #{thieu.map { |k| { trai: 'trái', phai: 'phải', duoi: 'dưới', tren: 'trên' }[k] }.join(', ')}." unless thieu.empty?
         # Khung gom một group → 4 phía cùng group ngoài cùng. Khung tấm rời (mỗi tấm một group ở ngoài
@@ -116,34 +246,37 @@ module TK
         # (27/09: từng CHẶN ca này → chặn oan khung thật của Khoa; tường xa đã bị KHOANG_MAX loại.)
         khung = bien.values.map { |b| b[:a][1].first }.uniq
 
-        x0 = bien[:trai][:trong].x
-        x1 = bien[:phai][:trong].x
-        z0 = bien[:duoi][:trong].z
-        z1 = bien[:tren][:trong].z
-        giua = Geom::Point3d.new((x0 + x1) / 2, y_truoc + 5.0 / MM, (z0 + z1) / 2)
-        # Mặt trước khoang phải HỞ về phía -Y (trục xanh âm). Tủ xoay ngang / quay lưng thì phía
-        # "trước" tool tưởng lại là hậu → mặt hộc sẽ dựng ở sau lưng tủ. Bản thử chặn, không đoán.
-        # Đứng cách mép trước 5mm nhìn ra: gặp mặt trong 10mm = phía này đóng (hậu / cánh đang đóng).
-        truoc = ban(model, giua, Geom::Vector3d.new(0, -1, 0))
+        x0 = l.(bien[:trai][:trong]).x
+        x1 = l.(bien[:phai][:trong]).x
+        z0 = l.(bien[:duoi][:trong]).z
+        z1 = l.(bien[:tren][:trong]).z
+        giua = diem.((x0 + x1) / 2, y_truoc + 5.0 / MM, (z0 + z1) / 2)
+        # Đứng cách mép trước 5mm nhìn ra: gặp mặt trong 10mm = phía này đóng (cánh đang đóng, hoặc
+        # tool nhận nhầm mặt trước là hậu). Chặn, không đoán.
+        truoc = ban(model, giua, h.(TRUOC))
         if truoc && giua.distance(truoc[0]) <= 10.0 / MM
-          raise 'Mặt trước khoang bị chặn (cánh đang đóng, hoặc tủ xoay ngang/quay lưng?) — tool chỉ nhận tủ quay mặt về trục xanh âm (-Y).'
+          raise 'Mặt trước khoang bị chặn (cánh đang đóng?) — mở cánh rồi rê lại.'
         end
-        hau = do_phia(model, giua, SAU)
-        y_sau = hau && hau[:trong].y <= y_sau_hong + NHICH ? hau[:trong].y : y_sau_hong
+        hau = do_phia(model, giua, h.(SAU))
+        y_hau = hau && l.(hau[:trong]).y
+        co_hau = !hau.nil? && y_hau <= y_sau_hong + NHICH
+        y_sau = co_hau ? y_hau : y_sau_hong
 
         mm = ->(v) { v.to_f * MM }
         k = {
           x: [mm.(x0), mm.(x1)], z: [mm.(z0), mm.(z1)], y_truoc: mm.(y_truoc), y_sau: mm.(y_sau),
           bien: {},
-          co_hau: !hau.nil? && hau[:trong].y <= y_sau_hong + NHICH,
-          y_hau_ngoai: hau ? mm.(hau[:ngoai].y) : nil,
+          co_hau: co_hau,
+          y_hau_ngoai: hau ? mm.(l.(hau[:ngoai]).y) : nil,
           da_co_hoc: @qua_hoc,  # tia trong khoang xuyên qua hộc cũ → khoang này đã có hộc
           sat: %i[trai phai duoi tren].select { |s| bien[s][:sat] },  # phía có tủ khác đứng sát
-          tam_roi: khung.size > 1   # khung chưa gom một group → không nhận đố/vách kề cho mặt phủ
+          tam_roi: khung.size > 1,  # khung chưa gom một group → không nhận đố/vách kề cho mặt phủ
+          doan_mat: doan,           # mặt trước lấy theo hướng nhìn (không hậu) → bảng nhắc Lật mặt
+          he: f                     # hệ khung → thế giới: dựng + vẽ xem trước (không gửi sang bảng)
         }
-        # trái/phải đo theo x, dưới/trên theo z → số mm cho lõi (HocKeo.phu_bi)
-        %i[trai phai].each { |s| k[:bien][s] = { trong: mm.(bien[s][:trong].x), ngoai: mm.(bien[s][:ngoai].x), ke: bien[s][:ke] } }
-        %i[duoi tren].each { |s| k[:bien][s] = { trong: mm.(bien[s][:trong].z), ngoai: mm.(bien[s][:ngoai].z), ke: bien[s][:ke] } }
+        # trái/phải đo theo x, dưới/trên theo z (hệ khung) → số mm cho lõi (HocKeo.phu_bi)
+        %i[trai phai].each { |s| k[:bien][s] = { trong: mm.(l.(bien[s][:trong]).x), ngoai: mm.(l.(bien[s][:ngoai]).x), ke: bien[s][:ke] } }
+        %i[duoi tren].each { |s| k[:bien][s] = { trong: mm.(l.(bien[s][:trong]).z), ngoai: mm.(l.(bien[s][:ngoai]).z), ke: bien[s][:ke] } }
 
         rong = k[:x][1] - k[:x][0]
         cao = k[:z][1] - k[:z][0]
@@ -191,12 +324,29 @@ module TK
           @dlg.set_on_closed { Sketchup.active_model.select_tool(nil) if @tool && @tool.dang_mo }
           # Tool bị tắt (bấm tool khác của SketchUp…) mà bảng còn mở → nút trong bảng bật lại
           @dlg.add_action_callback('chon_tiep') { |_ctx| bat_tool }
+          @dlg.add_action_callback('lat_mat') { |_ctx| lat_mat }
           @dlg.show
         end
         bat_tool
       end
 
+      def self.lat?
+        @lat ? true : false
+      end
+
+      # Nút "Lật mặt" trong bảng: tool nhận nhầm mặt trước → đảo trước/sau, đo lại khoang đang chọn.
+      # Lật mà đo hỏng → trả @lat về như cũ: hướng luôn khớp khoang đang giữ (Codex soát 29/09).
+      def self.lat_mat
+        @lat = !@lat
+        @lat = !@lat unless @tool.nil? || @tool.do_lai(Sketchup.active_model.active_view)
+      end
+
+      def self.bo_lat
+        @lat = false
+      end
+
       def self.bat_tool
+        quen_he
         @tool = ChonKhoang.new
         Sketchup.active_model.select_tool(@tool)
       end
@@ -245,7 +395,7 @@ module TK
         if k.nil?
           bao('datKhoang', nil)
         else
-          bao('datKhoang', { khung: k.reject { |key, _| key == :bien }, tam_khung: tam_bao(k), khoa: da_khoa })
+          bao('datKhoang', { khung: k.reject { |key, _| %i[bien he].include?(key) }, tam_khung: tam_bao(k), khoa: da_khoa })
           @kq = HocKeo.tinh(k, @ts || {})
           bao('veLai', @kq.merge(canh_bao: canh_bao_sat(k)))
         end
@@ -281,6 +431,9 @@ module TK
           k = @tool.khoang
           vo.name = "Hộc kéo #{(k[:x][1] - k[:x][0]).round}×#{(k[:z][1] - k[:z][0]).round}"
           kq[:tam].each { |s| TaoModulNhanh.dung_tam(vo, s) }   # dùng chung với khung bao (main.rb)
+          # Tấm dựng thẳng trong hệ khung rồi xoay CẢ group vào chỗ → trục từng tấm theo tấm (tủ xiên
+          # thì ABF / KT Độ Dày vẫn đọc đúng kích thước). Tủ thẳng trục mặt về xanh lá âm: phép đồng nhất.
+          vo.transform!(k[:he])
           vo.set_attribute(DICT, 'loai', 'hoc_keo')
           vo.set_attribute(DICT, 'phien_ban', PHIEN_BAN)
           vo.set_attribute(DICT, 'tham_so', JSON.generate(kq[:tham_so].merge(ray: kq[:ray])))
@@ -328,6 +481,7 @@ module TK
         end
 
         def resume(view)
+          BangHocKeo.quen_he   # vừa xoay camera / sửa model → quét lại hai hông
           nhac_thanh
           view.invalidate
         end
@@ -338,12 +492,29 @@ module TK
         end
 
         def do_tai(view, x, y)
-          k = BangHocKeo.do_khoang(view.model, view.pickray(x, y))
+          @tia = view.pickray(x, y)
+          k = BangHocKeo.do_khoang(view.model, @tia, @khoa && BangHocKeo.lat?)
           @loi = nil
           k
         rescue StandardError => e
           @loi = e.message
           nil
+        end
+
+        # Lật mặt → đo lại khoang đang chọn bằng đúng tia lúc click. Trả false nếu đo hỏng: khoang
+        # cũ giữ nguyên, bảng vẽ lại khoang cũ + báo (không để bảng tính theo hướng này, hộc theo hướng kia).
+        def do_lai(view)
+          return true unless @khoa && @tia_chon
+          @khoang = BangHocKeo.do_khoang(view.model, @tia_chon, BangHocKeo.lat?)
+          @loi = nil
+          BangHocKeo.xem(@khoang, true)
+          view.invalidate
+          true
+        rescue StandardError => e
+          BangHocKeo.xem(@khoang, true)
+          BangHocKeo.bao('baoLoiDung', "Lật không được — giữ mặt cũ. (#{e.message})")
+          view.invalidate
+          false
         end
 
         def onMouseMove(_flags, x, y, view)
@@ -361,10 +532,12 @@ module TK
         end
 
         def onLButtonDown(_flags, x, y, view)
+          BangHocKeo.bo_lat   # khoang mới → mặt trước theo hình, bỏ lần Lật của khoang trước
           k = do_tai(view, x, y)
           if k
             @khoang = k
             @khoa = true
+            @tia_chon = @tia
             @khoa_do = nil
             BangHocKeo.xem(@khoang, true)
           elsif @khoa
@@ -378,6 +551,7 @@ module TK
         end
 
         def bo_chon
+          BangHocKeo.bo_lat
           @khoa = false
           @khoang = nil
           @khoa_do = nil
@@ -402,8 +576,10 @@ module TK
 
         # ── Vẽ: khung xanh ôm lòng khoang + nét các tấm hộc ──
         def hop_diem(s)
+          he = @khoang && @khoang[:he]
           (0..7).map do |i|
-            Geom::Point3d.new(s[:x][i & 1].mm, s[:y][(i >> 1) & 1].mm, s[:z][(i >> 2) & 1].mm)
+            p = Geom::Point3d.new(s[:x][i & 1].mm, s[:y][(i >> 1) & 1].mm, s[:z][(i >> 2) & 1].mm)
+            he ? he * p : p
           end
         end
 
@@ -455,6 +631,8 @@ module TK
             elsif (cb = BangHocKeo.canh_bao_sat(k))
               l2 = "⚠ #{cb}"
               mau = Sketchup::Color.new(230, 170, 20)
+            elsif k[:doan_mat] && @khoa
+              l2 = 'Không có hậu: mặt trước lấy theo hướng nhìn — sai thì bấm Lật mặt trong bảng'
             end
           else
             l1 = @loi || 'Rê chuột vào trong lòng khoang'

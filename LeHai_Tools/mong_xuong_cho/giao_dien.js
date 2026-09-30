@@ -52,6 +52,7 @@ function renderLists(){
 
 function buildRows(){
  const tb=$('rows');tb.replaceChildren();
+ document.querySelectorAll('[data-all]').forEach(i=>i.value='');   // danh sách đổi → dòng Tất cả về trống, khỏi tưởng dòng mới đã nhận số cũ
  for(const p of state.model.pairs){
   if(p.state==='moi'&&!state.rows[p.key]){const base={on:true,inset:50,side:'none',fit:Math.min(14,p.thickness)};state.rows[p.key]={...base,count:suggest(p,base)};}
   if(p.state==='chi_dau'&&!state.rows[p.key])state.rows[p.key]={on:true};
@@ -201,6 +202,10 @@ window.applyFinished=function(ok,message){state.busy=false;validate();showMessag
 
 // Sửa một ô trong bảng = sửa thông số cặp đó.
 $('rows').addEventListener('input',ev=>{const k=ev.target.dataset.k,tr=ev.target.closest('tr[data-key]');if(!k||!tr)return;const r=state.rows[tr.dataset.key];if(!r)return;r[k]=k==='on'?ev.target.checked:k==='side'?ev.target.value:num(ev.target.value);validate();});
+// Dòng "Tất cả": gõ một số → chép xuống mọi cặp MỚI đang tick. Cặp đã làm / chỉ đóng dấu giữ thông số cũ.
+$('allRow').addEventListener('input',ev=>{const k=ev.target.dataset.all;if(!k)return;const v=k==='side'?ev.target.value:num(ev.target.value);if(k==='side'?!v:!Number.isFinite(v))return;
+ for(const p of state.model.pairs){const r=state.rows[p.key];if(p.state!=='moi'||!r||!r.on)continue;r[k]=v;const i=document.querySelector(`#rows tr[data-key="${p.key}"] [data-k=${k}]`);if(i)i.value=v;}
+ validate();});
 $('rows').addEventListener('click',ev=>{const tr=ev.target.closest('tr[data-key]');if(!tr||ev.target.closest('input,select'))return;state.focus=tr.dataset.key;markFocus();drawPreview();bridge('focus',state.focus);});
 shapeKeys.forEach(k=>$(k).addEventListener('input',()=>{saveShape();validate();}));
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{state.mode=b.dataset.mode;bridge('mode',state.mode);renderLists();});

@@ -1,5 +1,5 @@
 {
-  "version": "1.9.79",
+  "version": "1.9.80",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -63,6 +63,7 @@
     "LeHai_Tools/mong_xuong_cho/main.rb",
     "LeHai_Tools/mong_xuong_cho/icons/mong_xuong_cho_16.png",
     "LeHai_Tools/mong_xuong_cho/icons/mong_xuong_cho_24.png",
+    "LeHai_Tools/shared/huong_tu.rb",
     "LeHai_Tools/shared/laser_snap.rb",
     "LeHai_Tools/shared/lehai_theme.css",
     "LeHai_Tools/soat_truoc_xuat/main.rb",

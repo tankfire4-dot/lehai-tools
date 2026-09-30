@@ -9,6 +9,7 @@
 # Toolbar do LeHai_Tools/main.rb quan ly chung — file nay chi expose create_cmd.
 
 require 'sketchup.rb'
+require File.join(File.dirname(__FILE__), '..', 'shared', 'huong_tu')
 
 module TK
   module QuickDim
@@ -235,6 +236,7 @@ module TK
           @a = hp(@edge.start); @b = hp(@edge.end)
           @mid = Geom::Point3d.linear_combination(0.5, @a, 0.5, @b)
           @ov = Geom::Vector3d.new(0, 0, 0)
+          @truc = truc_canh(@edge, @hover_tr, @b - @a)
         end
         @state = :place
         update_status
@@ -314,14 +316,25 @@ module TK
         end
       end
 
-      # offset KHOA THEO TRUC X/Y/Z (nhu Dimension xin) -> dim ngay ngan.
+      # Ba truc dat dim theo HO TRUC cua tu quanh canh (LUAT_NHA muc 9, 29/09): lay tu phap tuyen cac
+      # mat DUNG ke canh; canh ngang khong ke mat dung thi lay tu chinh huong canh. Tu thang truc file
+      # -> dung truc do/xanh la/lam nhu ban cu. Tu xien -> dim song song canh tu, khong xeo theo truc file.
+      def truc_canh(edge, tr, dir)
+        ns = edge.faces.map { |f| tr * f.normal }.select { |n| n.length > 1e-9 && n.z.abs < 0.02 * n.length }
+        ns = ns.map { |n| Geom::Vector3d.new(n.x, n.y, 0).normalize }
+        ns = [Geom::Vector3d.new(dir.x, dir.y, 0).normalize] if ns.empty? && dir.length > 1e-9 && dir.z.abs < 0.02 * dir.length
+        ho = LeHai::HuongTu.ho_truc(ns) || Geom::Vector3d.new(1, 0, 0)
+        [ho, Z_AXIS.cross(ho), Z_AXIS]
+      end
+
+      # offset KHOA THEO HO TRUC (nhu Dimension xin) -> dim ngay ngan.
       # Chon truc con tro keo nhieu nhat, bo qua truc trung huong canh.
       def axis_offset(cur)
         edir = (@b - @a); return @ov if edir.length < 1e-6
         edir.normalize!
         v = cur - @mid
         best = nil; score = -1.0
-        [X_AXIS, Y_AXIS, Z_AXIS].each do |ax|
+        (@truc || [X_AXIS, Y_AXIS, Z_AXIS]).each do |ax|
           next if edir.dot(ax).abs > 0.95 # truc gan trung huong canh -> bo
           c = v.dot(ax)
           if c.abs > score

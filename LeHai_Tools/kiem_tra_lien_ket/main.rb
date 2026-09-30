@@ -20,7 +20,11 @@
 # vùng giao của hai tấm chưa phay, mối đó sẽ bị coi nhầm là đã làm. File đo
 # 27/07 không có ca đó. Rãnh led có tag riêng (`...LED...`) thì đã loại sẵn.
 #
-# Cách dò: mỗi tấm là hộp bao trục (AABB) ở tọa độ thế giới (tủ thẳng trục).
+# Cách dò: mỗi tấm là hộp bao trục (AABB) ở tọa độ thế giới khi tấm THẲNG TRỤC file (kể cả tủ quay
+# 90/180/270°). Tấm XIÊN (tủ đặt chéo): hộp bao thế giới phình ra → trước 29/09 tấm xiên bị loại
+# khỏi phép kiểm mà vẫn báo "đạt" (im lặng). Nay (LUAT_NHA mục 9): tấm xiên đo theo HỘP RIÊNG của
+# chính nó (cạnh thật), cặp có tấm xiên đo khối giao trong hệ của tấm a. Tấm thẳng trục giữ nguyên
+# đường tính cũ (số y hệt bản cũ).
 # Độ ăn sâu = chiều NHỎ NHẤT của khối giao. Chặn nhầm "chồng mặt lớn" (trùng
 # tấm / ghép 2 lớp) bằng điều kiện vùng giao phải CỤC BỘ. Bỏ qua nhánh nesting.
 # CHỈ ĐỌC, không sửa model.
@@ -28,6 +32,7 @@
 # Toolbar do LeHai_Tools/main.rb quản lý chung — file này chỉ expose create_cmd.
 
 require 'sketchup.rb'
+require File.join(File.dirname(__FILE__), '..', 'shared', 'huong_tu')
 
 module TK
   module JointCheck
@@ -173,6 +178,7 @@ module TK
 
     # trả về Vio (kèm .made) nếu cặp là mối liên kết đặc trưng, ngược lại nil
     def self.pair_joint(a, b, rh, ng)
+      return pair_joint_xien(a, b, rh, ng) unless a[:hop][:thang] && b[:hop][:thang]
       ov = overlap_box(a[:aabb], b[:aabb])
       return nil unless ov
       dims = [ov[3] - ov[0], ov[4] - ov[1], ov[5] - ov[2]].sort  # inch tăng dần
@@ -195,11 +201,33 @@ module TK
               aabb_box_segs(a[:aabb]), aabb_box_segs(b[:aabb]), aabb_box_segs(ov), made)
     end
 
-    # =========================================================
-    #  ĐO ĐÂM XUYÊN GỖ ĐẶC (point-in-solid bằng bắn tia +X)
-    # =========================================================
-    # tỉ lệ điểm mẫu nằm trong CẢ 2 khối tấm (0..1)
-    def self.collide_frac(ov, ta, tb)
+    # Cặp có tấm XIÊN: khối giao đo trong hệ riêng (cứng) của tấm a. Tấm b phải cùng họ trục với a
+    # (mỗi cạnh b song song một cạnh a — cùng một tủ); lệch họ → không phải mối ghép tủ, bỏ.
+    def self.pair_joint_xien(a, b, rh, ng)
+      fa = a[:hop][:he]
+      return nil unless LeHai::HuongTu.cung_ho?(a[:hop], b[:hop])
+      fi = fa.inverse
+      ob = LeHai::HuongTu.hop_trong(b[:hop], fi)
+      ov = overlap_box([0.0, 0.0, 0.0] + a[:hop][:e], ob)
+      return nil unless ov
+      dims = [ov[3] - ov[0], ov[4] - ov[1], ov[5] - ov[2]].sort
+      pen_mm = dims[0] * MM
+      return nil if dims[1] * MM > MID_MAX_MM
+      kind = classify(pen_mm)
+      return nil unless kind
+      # Dấu ABF (tâm thế giới) đưa về hệ tấm a rồi dò như đường cũ
+      ds = (kind == :ranhhau ? rh : ng).map { |x| { c: (fi * Geom::Point3d.new(*x[:c])).to_a } }
+      made = has_intersect?(ds, ov)
+      unless made
+        frac = collide_frac(ov, tris_of(a), tris_of(b), fa)
+        made = frac < COLLIDE_THRESH
+      end
+      Vio.new(kind, a[:name], b[:name], pen_mm.round(1),
+              LeHai::HuongTu.net_hop(a[:hop]), LeHai::HuongTu.net_hop(b[:hop]), hop_segs_trong(ov, fa), made)
+    end
+
+    # tỉ lệ điểm mẫu nằm trong CẢ 2 khối tấm (0..1). he = hệ của ov (nil = thế giới)
+    def self.collide_frac(ov, ta, tb, he = nil)
       n = SAMPLE_N
       dx = ov[3] - ov[0]; dy = ov[4] - ov[1]; dz = ov[5] - ov[2]
       both = 0; total = 0
@@ -209,8 +237,9 @@ module TK
           y = ov[1] + dy * (j + 0.5) / n
           (0...n).each do |k|
             z = ov[2] + dz * (k + 0.5) / n
+            px, py, pz = he ? (he * Geom::Point3d.new(x, y, z)).to_a : [x, y, z]   # điểm mẫu → thế giới
             total += 1
-            both += 1 if point_inside?(x, y, z, ta) && point_inside?(x, y, z, tb)
+            both += 1 if point_inside?(px, py, pz, ta) && point_inside?(px, py, pz, tb)
           end
         end
       end
@@ -355,12 +384,20 @@ module TK
     def self.register_plank(e, te, ents, planks)
       ab = world_aabb(ents, te)
       return false unless ab
-      dims = [ab[3] - ab[0], ab[4] - ab[1], ab[5] - ab[2]].sort
+      h = LeHai::HuongTu.hop_rieng(ents, te)
+      # Tấm thẳng trục: kích thước theo AABB thế giới như cũ. Tấm xiên: theo hộp riêng (cạnh thật)
+      dims = (h[:thang] ? [ab[3] - ab[0], ab[4] - ab[1], ab[5] - ab[2]] : h[:e].dup).sort
       th = dims[0] * MM; mid = dims[1] * MM; big = dims[2] * MM
       return false unless th >= MIN_TH_MM && th <= MAX_TH_MM && mid >= MIN_SIDE_MM && big >= MIN_SIDE_MM
       # giữ faces + transform để LAZY dựng tam giác world khi cần đo đâm xuyên
-      planks << { name: label(e), aabb: ab, faces: ents.grep(Sketchup::Face), te: te }
+      planks << { name: label(e), aabb: ab, hop: h, faces: ents.grep(Sketchup::Face), te: te }
       true
+    end
+
+    # Nét khối giao ov (trong hệ he) → thế giới
+    def self.hop_segs_trong(ov, he)
+      pts = CORNERS.map { |cx, cy, cz| (he * Geom::Point3d.new(cx.zero? ? ov[0] : ov[3], cy.zero? ? ov[1] : ov[4], cz.zero? ? ov[2] : ov[5])).to_a }
+      EDGES12.map { |a, b| [pts[a], pts[b]] }
     end
 
     # world AABB tu face rieng cua e -> [minx,miny,minz,maxx,maxy,maxz] (inch)

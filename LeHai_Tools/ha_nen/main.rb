@@ -185,13 +185,14 @@ module LeHaiDecor
 
     # ── Đo đường cong + kích thước từ group 3D ─────────────────
     def self.measure(entity)
-      tr = entity.transformation; curves = []; seen = {}
+      tr = entity.transformation; curves = []; seen = {}; pts = []
 
       scan = lambda do |ents, t|
         ents.each do |e|
           next if e.deleted?
           case e
           when Sketchup::Edge
+            pts << e.start.position.transform(t) << e.end.position.transform(t)
             c = e.curve
             next unless c; next if seen[c.object_id]
             seen[c.object_id] = true
@@ -212,13 +213,31 @@ module LeHaiDecor
       return nil if curves.empty?
 
       arc_mm   = curves.max
-      bb       = entity.bounds
-      h_mm     = bb.depth.to_mm
+      rong, sau, cao = kich_thuoc(entity, tr, pts)
+      h_mm     = cao
       radius   = arc_mm / (Math::PI / 2.0)
-      left_mm  = [bb.width.to_mm  - radius, 0].max
-      right_mm = [bb.height.to_mm - radius, 0].max
+      left_mm  = [rong - radius, 0].max
+      right_mm = [sau - radius, 0].max
 
       { arc_mm: arc_mm, h_mm: h_mm, left_mm: left_mm, right_mm: right_mm }
+    end
+
+    # [rộng, sâu, cao] mm của cục uốn cong. Chân trái = theo trục ĐỎ RIÊNG của group, chân phải =
+    # theo trục XANH LÁ RIÊNG (LUAT_NHA mục 9, 29/09): bản cũ đo hộp bao theo trục FILE → group xoay
+    # 90° thì đảo trái/phải, đặt xiên thì hộp phình → tấm cắt sai kích thước.
+    # Group thẳng trục file (không xoay / xoay 180°): giữ đo hộp bao như cũ (số y hệt).
+    def self.kich_thuoc(entity, tr, pts)
+      ux = Geom::Vector3d.new(1, 0, 0).transform(tr)
+      uy = Geom::Vector3d.new(0, 1, 0).transform(tr)
+      if (ux.y.abs < 1e-9 && ux.z.abs < 1e-9 && uy.x.abs < 1e-9 && uy.z.abs < 1e-9) || pts.empty?
+        bb = entity.bounds
+        return [bb.width.to_mm, bb.height.to_mm, bb.depth.to_mm]
+      end
+      o = Geom::Point3d.new(0, 0, 0)
+      [ux.normalize, uy.normalize, Geom::Vector3d.new(0, 0, 1)].map do |u|
+        d = pts.map { |p| (p - o).dot(u) }
+        (d.max - d.min).to_mm
+      end
     end
 
     def self.create_cmd

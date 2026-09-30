@@ -62,6 +62,15 @@ module TK
         return
       end
 
+      # Tấm XIÊN (trục group đang theo cạnh tấm, tủ đặt chéo): Reset về Global làm trục group lệch khỏi
+      # tấm → ABF, KT Độ Dày, Mộng xương chó đo tấm phình sai (LUAT_NHA mục 9, 29/09). Bỏ qua + báo.
+      xien  = plain.select { |e| xien?(e) }
+      plain -= xien
+      if plain.empty?
+        status("⚠ #{xien.size} đối tượng đang XIÊN (tủ đặt chéo) — không Reset: trục group sẽ lệch khỏi "                "tấm, ABF / KT Độ Dày đo sai. Tấm xiên giữ trục theo cạnh tấm là đúng.")
+        return
+      end
+
       model = Sketchup.active_model
       n = 0
       model.start_operation('Reset truc ve global', true)
@@ -76,9 +85,21 @@ module TK
 
       msg = "✓ Đã reset trục #{n} đối tượng về global (gốc về góc hình)."
       msg += " ⚠ Bỏ qua #{dcs.size} DC — gỡ DC trước rồi reset." unless dcs.empty?
+      msg += " ⚠ Bỏ qua #{xien.size} tấm XIÊN (reset sẽ làm trục lệch khỏi tấm)." unless xien.empty?
       status(msg)
     end
     private_class_method :reset_axes
+
+    # Trục group KHÔNG trùng trục file (xoay quanh trục đứng một góc không chia hết 90°, hoặc nghiêng)
+    def self.xien?(entity)
+      t = entity.transformation
+      [t.xaxis, t.yaxis, t.zaxis].any? do |v|
+        v = v.clone
+        v.normalize!
+        v.to_a.count { |c| c.abs < 1e-6 } != 2
+      end
+    end
+    private_class_method :xien?
 
     # DC còn sống = có dictionary 'dynamic_attributes'
     def self.dynamic?(entity)

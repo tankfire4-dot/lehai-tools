@@ -10,6 +10,7 @@
 # Toolbar do LeHai_Tools/main.rb quản lý — dashboard gọi qua audit/review.
 
 require 'sketchup.rb'
+require File.join(File.dirname(__FILE__), '..', 'shared', 'huong_tu')
 
 module TK
   module NameCheck
@@ -91,11 +92,15 @@ module TK
     def self.register(e, te, ents, unnamed, total)
       ab = world_aabb(ents, te)
       return false unless ab
-      dims = [ab[3] - ab[0], ab[4] - ab[1], ab[5] - ab[2]].sort
+      # Tấm thẳng trục: đo hộp bao thế giới như cũ. Tấm XIÊN: hộp thế giới phình → trước 29/09 bị bỏ
+      # sót không nhắc; nay đo theo hộp riêng (LUAT_NHA mục 9).
+      h = LeHai::HuongTu.hop_rieng(ents, te)
+      dims = (h[:thang] ? [ab[3] - ab[0], ab[4] - ab[1], ab[5] - ab[2]] : h[:e].dup).sort
       th = dims[0] * MM; mid = dims[1] * MM; big = dims[2] * MM
       return false unless th >= MIN_TH_MM && th <= MAX_TH_MM && mid >= MIN_SIDE_MM && big >= MIN_SIDE_MM
       total[0] += 1
-      unnamed << Item.new(e.name.to_s.empty? ? '(trống)' : e.name.to_s, aabb_box_segs(ab)) if unnamed?(e.name)
+      net = h[:thang] ? aabb_box_segs(ab) : LeHai::HuongTu.net_hop(h)
+      unnamed << Item.new(e.name.to_s.empty? ? '(trống)' : e.name.to_s, net) if unnamed?(e.name)
       true
     end
 

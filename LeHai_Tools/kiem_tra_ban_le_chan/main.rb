@@ -35,6 +35,7 @@
 # Không có nút riêng — chạy trong dashboard Check Chốt Sản Xuất qua audit/review.
 
 require 'sketchup.rb'
+require File.join(File.dirname(__FILE__), '..', 'shared', 'huong_tu')
 
 module TK
   module HingeBlockCheck
@@ -59,7 +60,7 @@ module TK
     EDGES12 = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4],
                [0, 4], [1, 5], [2, 6], [3, 7]].freeze
 
-    Panel = Struct.new(:name, :ab)                        # ab = [xmin,ymin,zmin,xmax,ymax,zmax] world
+    Panel = Struct.new(:name, :ab, :hop)                  # ab = [xmin,ymin,zmin,xmax,ymax,zmax] world; hop = hộp riêng
     Cup   = Struct.new(:center, :door)                    # tâm cốc + cánh chứa nó
     Vio   = Struct.new(:door_name, :shelf_name, :gap_mm, :cup_segs, :shelf_segs, :center)
 
@@ -112,24 +113,43 @@ module TK
           #    bỏ nốt dung sai này thì cốc rơi ra ngoài bóng tấm → tool BẮT HỤT, im
           #    lặng báo "đạt" đúng lúc có lỗi thật.
           #    Trục SÂU = trục ngang MỎNG hơn của cánh (bề dày cánh nằm theo chiều sâu).
-          sau_theo_x = (d[3] - d[0]) < (d[4] - d[1])
-          near = GAN_XY_MM / MM
-          nx   = sau_theo_x ? near : 0.0
-          ny   = sau_theo_x ? 0.0  : near
           c = cup.center
-          next unless c.x >= a[0] - nx && c.x <= a[3] + nx
-          next unless c.y >= a[1] - ny && c.y <= a[4] + ny
+          if cup.door.hop[:thang] && s.hop[:thang]
+            sau_theo_x = (d[3] - d[0]) < (d[4] - d[1])
+            near = GAN_XY_MM / MM
+            nx   = sau_theo_x ? near : 0.0
+            ny   = sau_theo_x ? 0.0  : near
+            next unless c.x >= a[0] - nx && c.x <= a[3] + nx
+            next unless c.y >= a[1] - ny && c.y <= a[4] + ny
+          else
+            next unless trong_bong_xien?(c, cup.door.hop, s.hop)
+          end
           # 3. khoảng cách đứng từ tâm cốc tới KHỐI tấm (nằm trong khối = 0)
           gap = if c.z >= a[2] && c.z <= a[5] then 0.0
                 else [(c.z - a[2]).abs, (c.z - a[5]).abs].min
                 end
           gap_mm = gap * MM
           next if gap_mm >= HO_MM
-          vios << Vio.new(cup.door.name, s.name, gap_mm,
-                          cup_box_segs(c), aabb_box_segs(a), c)
+          net = s.hop[:thang] ? aabb_box_segs(a) : LeHai::HuongTu.net_hop(s.hop)
+          vios << Vio.new(cup.door.name, s.name, gap_mm, cup_box_segs(c), net, c)
         end
       end
       vios.sort_by(&:gap_mm)
+    end
+
+    # Tủ XIÊN (LUAT_NHA mục 9, 29/09): hộp bao thế giới phình → trước đây báo thừa / bắt sai.
+    # Chiếu bằng cốc + tấm đợt về HỆ CỦA CÁNH: trục sâu = cạnh ngang mỏng nhất của cánh (dung sai
+    # GAN_XY_MM), trục rộng = cạnh ngang còn lại (dung sai 0) — cùng luật với đường thẳng trục.
+    def self.trong_bong_xien?(c, hc, hs)
+      return false unless LeHai::HuongTu.cung_ho?(hc, hs)
+      fi = hc[:he].inverse
+      ngang = (0..2).reject { |i| hc[:u][i].z.abs > 0.9 }            # 2 cạnh ngang của cánh
+      return false unless ngang.size == 2
+      sau, rong = ngang.sort_by { |i| hc[:e][i] }
+      ob = LeHai::HuongTu.hop_trong(hs, fi)
+      q = (fi * c).to_a
+      near = GAN_XY_MM / MM
+      q[rong] >= ob[rong] && q[rong] <= ob[rong + 3] && q[sau] >= ob[sau] - near && q[sau] <= ob[sau + 3] + near
     end
 
     # =========================================================
@@ -154,8 +174,8 @@ module TK
 
         ab = world_aabb(ents, te)     # nil nếu group không có face trực tiếp (vd cốc, nhãn)
         if ab
-          panel = Panel.new(label(e), ab)
-          shelves << panel if nam_ngang?(ab)
+          panel = Panel.new(label(e), ab, LeHai::HuongTu.hop_rieng(ents, te))
+          shelves << panel if nam_ngang?(ab, panel.hop)
           # cốc nằm trong tấm nào thì tấm đó là CÁNH — không cần tên
           centers = []
           collect_cups(ents, te, 0, centers)
@@ -191,7 +211,14 @@ module TK
       false
     end
 
-    def self.nam_ngang?(ab)
+    def self.nam_ngang?(ab, hop = nil)
+      unless hop.nil? || hop[:thang]
+        # Tấm xiên: đo theo hộp riêng — cạnh đứng mỏng, hai cạnh ngang đủ rộng
+        dung = (0..2).find { |i| hop[:u][i].z.abs > 0.9 }
+        return false unless dung
+        ngang = [0, 1, 2] - [dung]
+        return hop[:e][dung] * MM <= DAY_MAX_MM && ngang.all? { |i| hop[:e][i] * MM >= CANH_MIN_MM }
+      end
       dz = (ab[5] - ab[2]) * MM
       dx = (ab[3] - ab[0]) * MM
       dy = (ab[4] - ab[1]) * MM

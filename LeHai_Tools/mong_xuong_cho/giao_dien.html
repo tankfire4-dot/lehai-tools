@@ -19,7 +19,8 @@
 <p class="hint" id="hint"></p>
 <section class="pairs">
  <div class="section-head"><h2>Các cặp tool tự ghép</h2><p>Bấm một dòng để tô cặp đó trên model. Mặt A/B có in trên từng tấm ngàm.</p></div>
- <table><thead><tr><th class="c-on">Làm</th><th>Tấm ngàm · đầu</th><th>Tấm nhận</th><th class="num">Dài đầu</th><th class="num">Số mộng</th><th class="num">Lùi tâm</th><th>Thu dấu</th><th class="num">Dày dấu</th></tr></thead><tbody id="rows"></tbody></table>
+ <table><thead><tr><th class="c-on">Làm</th><th>Tấm ngàm · đầu</th><th>Tấm nhận</th><th class="num">Dài đầu</th><th class="num">Số mộng</th><th class="num">Lùi tâm</th><th>Thu dấu</th><th class="num">Dày dấu</th></tr>
+  <tr class="all" id="allRow"><td class="c-on"></td><td class="all-lbl">Tất cả <span>gõ ở đây → điền xuống mọi dòng đang tick</span></td><td></td><td></td><td class="num"><input type="number" data-all="count" min="1" step="1" placeholder="—"></td><td class="num"><input type="number" data-all="inset" min="1" step="1" placeholder="—"></td><td><select data-all="side"><option value="">—</option><option value="none">Không thu</option><option value="A">Giữ mặt A</option><option value="B">Giữ mặt B</option></select></td><td class="num"><input type="number" data-all="fit" min="1" step=".1" placeholder="—"></td></tr></thead><tbody id="rows"></tbody></table>
  <p class="empty" id="empty"></p>
 </section>
 <section class="preview" id="preview">

@@ -71,6 +71,14 @@ module MongXuongCho
       }
   end
 
+  # Hộp 6 mặt/12 cạnh nguyên vẹn nhưng cạnh KHÔNG song song trục local = tấm xiên trong group
+  # (LUAT_NHA mục 9, 29/09): trước đây rơi vào câu "đã có mộng/khoét" — sai lý do, thợ không biết sửa.
+  def self.xien_trong_group?(group)
+    ents = group.entities
+    ents.to_a.length == 18 && ents.grep(Sketchup::Face).length == 6 && ents.grep(Sketchup::Edge).length == 12 &&
+      !plain_box?(group)
+  end
+
   # Không Scale, không xiên ở cấp group: thông số mm mới đúng với hình học.
   def self.rigid?(group)
     t = AXES.map { |axis| group.transformation * axis }
@@ -126,6 +134,7 @@ module MongXuongCho
   # Lý do tấm không làm ngàm được, hoặc nil nếu được.
   def self.tenon_problem(group)
     box = tenon_box(group)
+    return 'nằm XIÊN trong group (trục group không theo cạnh tấm — thường do Reset về Global hoặc vẽ xiên rồi mới gom group) — đặt trục group theo cạnh tấm rồi làm lại' if !box && xien_trong_group?(group)
     return 'đã có mộng/khoét nhưng không phải do tool này làm (hoặc làm bằng bản cũ) — Undo về tấm nguyên rồi làm lại' unless box
     return 'đang bị Scale hoặc xiên ở cấp group' unless rigid?(group)
     sizes = [box.width, box.height, box.depth]

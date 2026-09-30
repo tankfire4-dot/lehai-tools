@@ -7,6 +7,7 @@
 # giữ nguyên thuật toán, bỏ toolbar/menu riêng — chỉ expose create_cmd (luật nhà).
 
 require 'sketchup.rb'
+require File.join(File.dirname(__FILE__), '..', 'shared', 'huong_tu')
 require 'json'
 
 module TK
@@ -187,6 +188,7 @@ module TK
         axes = normal_world.axes
         u_vec = axes[0].normalize
         v_vec = axes[1].normalize
+        u_vec, v_vec = xoay_theo_ho(u_vec, v_vec, normal_world)
         u_vec, v_vec = v_vec, u_vec unless @vertical
 
         all_loops = [@picked_face.outer_loop] + @picked_face.loops.select { |l| l != @picked_face.outer_loop }
@@ -266,6 +268,33 @@ module TK
         end
       end
 
+      # Mặt NẰM: normal.axes luôn ra trục file → tủ xiên thì lam chạy chéo cạnh tấm. Xoay (u, v) theo
+      # HỌ TRỤC các cạnh của chính mặt đó (LUAT_NHA mục 9, 29/09). Mặt đứng / mặt thẳng trục: như cũ.
+      def xoay_theo_ho(u, v, n)
+        return [u, v] unless n.parallel?(Z_AXIS)
+        ds = @picked_face.edges.map { |e| (e.end.position - e.start.position).transform(@transformation) }
+        ds = ds.select { |d| d.length > 1e-9 && d.z.abs < 0.02 * d.length }
+        ho = LeHai::HuongTu.ho_truc(ds.map { |d| Geom::Vector3d.new(d.x, d.y, 0).normalize })
+        return [u, v] if ho.nil? || (ho.y.zero? && ho.x == 1)
+        hy = Z_AXIS.cross(ho)
+        [Geom::Vector3d.new(u.x * ho.x + u.y * hy.x, u.x * ho.y + u.y * hy.y, 0),
+         Geom::Vector3d.new(v.x * ho.x + v.y * hy.x, v.x * ho.y + v.y * hy.y, 0)]
+      end
+
+      # Hệ riêng của một lam: x = cạnh dài nhất (chiều lam), z = pháp tuyến mặt, y = z × x.
+      # nil nếu cả 3 trục trùng trục file (lam thẳng trục → dựng như bản cũ).
+      def he_lam(pts, n)
+        canh = pts.each_with_index.map { |q, i| pts[(i + 1) % pts.size] - q }
+        x = canh.max_by(&:length)
+        k = x.dot(n)
+        x = Geom::Vector3d.new(x.x - n.x * k, x.y - n.y * k, x.z - n.z * k)   # bỏ phần dọc pháp tuyến
+        return nil if x.length < 1e-9
+        x = x.normalize
+        y = n.cross(x).normalize
+        thang = [x, y, n].all? { |v| v.to_a.count { |c| c.abs < 1e-9 } == 2 }
+        thang ? nil : Geom::Transformation.axes(pts[0], x, y, n)
+      end
+
       def generate_clipped_slat_polygon(u1, u2, edges_2d, origin_world, u_vec, v_vec, lift_origin)
         samples = 20
         left_pts = []
@@ -335,10 +364,16 @@ module TK
 
           real_pts = poly_pts.map { |pt| pt.offset(normal_world, -0.5.mm) }
 
-          face = slat_group.entities.add_face(real_pts)
+          # Lam XIÊN (mặt không thẳng trục file): dựng thẳng trong hệ riêng rồi xoay group vào chỗ —
+          # group trục thẳng file mà lam xiên thì ABF / KT Độ Dày đọc phình (LUAT_NHA mục 9, Codex
+          # soát 29/09). Lam thẳng trục: dựng như cũ.
+          he = he_lam(real_pts, normal_world)
+          hi = he && he.inverse
+          face = slat_group.entities.add_face(he ? real_pts.map { |q| hi * q } : real_pts)
           if face
-            face.reverse! if face.normal.dot(normal_world) < 0
+            face.reverse! if face.normal.dot(he ? hi * normal_world : normal_world) < 0
             face.pushpull(@thick) if @thick > 0
+            slat_group.transform!(he) if he
 
             # Tự động ẩn và làm mềm các cạnh phân đoạn bên trong mặt phẳng
             slat_group.entities.each do |ent|

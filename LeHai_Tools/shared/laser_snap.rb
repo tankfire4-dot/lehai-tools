@@ -11,6 +11,8 @@
 # chạy qua gần con trỏ thì hút vào đó — ví dụ rê trên dải mặt của tấm
 # ngang vẫn bắt được đường tim của tấm đứng bên dưới.
 
+require File.join(File.dirname(__FILE__), 'huong_tu')
+
 module LeHai
   module LaserSnap
 
@@ -59,7 +61,7 @@ module LeHai
       path[0..-2].each { |e| xform = xform * e.transformation if e.respond_to?(:transformation) }
 
       n    = world_normal(face, xform)
-      u, v = plane_axes(n)
+      u, v = plane_axes(n, face, xform)
 
       pts2d = boundary_2d(face, xform, hit, u, v)
       return nil if pts2d.length < 3
@@ -356,13 +358,27 @@ module LeHai
       face.normal
     end
 
-    # Trục u (ngang) / v (dọc) trong mặt phẳng có pháp tuyến n
-    def plane_axes(n)
-      return [X_AXIS, Y_AXIS] if n.parallel?(Z_AXIS)
+    # Trục u (ngang) / v (dọc) trong mặt phẳng có pháp tuyến n.
+    # Mặt NẰM: theo họ trục các cạnh của chính mặt đó (LUAT_NHA mục 9, 29/09) — tủ xiên thì tia laser
+    # chạy dọc cạnh tấm, không chéo theo trục file. Mặt thẳng trục → đỏ/xanh lá như bản cũ.
+    def plane_axes(n, face = nil, xform = nil)
+      if n.parallel?(Z_AXIS)
+        ho = face && ho_mat(face, xform)
+        return ho ? [ho, Z_AXIS.cross(ho)] : [X_AXIS, Y_AXIS]
+      end
       u = n.cross(Z_AXIS)
       return [X_AXIS, Y_AXIS] if u.length.zero?
       u.normalize!
       [u, u.cross(n).normalize]
+    end
+
+    # Họ trục (LeHai::HuongTu) từ hướng các cạnh ngang của mặt; nil nếu không có cạnh ngang
+    def ho_mat(face, xform)
+      ds = face.edges.map { |e| xform * (e.end.position - e.start.position) }
+      ds = ds.select { |d| d.length > 1e-9 && d.z.abs < 0.02 * d.length }
+      LeHai::HuongTu.ho_truc(ds.map { |d| Geom::Vector3d.new(d.x, d.y, 0).normalize })
+    rescue StandardError
+      nil
     end
 
     # Đỉnh biên ngoài của face quy về toạ độ 2D (gốc = điểm chuột chạm face)

@@ -6,19 +6,23 @@
 require 'sketchup.rb'
 require 'json'
 require File.join(File.dirname(__FILE__), '..', 'shared', 'laser_snap')
+require File.join(File.dirname(__FILE__), '..', 'shared', 'huong_tu')
 
 module CanhCNC
   PLUGIN_NAME = "Tạo Cánh_LeHaiDecor".freeze
   MIN_SIZE_MM = 10.0  # 2 điểm cách nhau ít nhất 10mm
 
   # ----------------------------------------------------------
-  # HELPER: Detect mặt phẳng vẽ dựa trên 2 điểm
-  # Trả về :xz | :yz | :xy (mặt nằm — không hợp lý)
+  # HELPER: Detect mặt phẳng vẽ dựa trên 2 điểm, trong HỌ TRỤC của tủ (LUAT_NHA mục 9, 29/09):
+  # ho = trục ngang của tủ lấy từ hình (LeHai::HuongTu), x = dọc ho, y = dọc Z × ho.
+  # Tủ thẳng trục file thì ho = trục đỏ → y hệt bản cũ (x/y = trục đỏ/xanh lá).
+  # Trả về :xz (mặt chứa ho, pháp tuyến Z×ho) | :yz (mặt chứa Z×ho, pháp tuyến ho) | :xy (mặt nằm)
   # ----------------------------------------------------------
-  def self.detect_plane(p1, p2)
-    dx = (p2.x - p1.x).abs
-    dy = (p2.y - p1.y).abs
-    dz = (p2.z - p1.z).abs
+  def self.detect_plane(p1, p2, ho = X_AXIS)
+    d  = p2 - p1
+    dx = d.dot(ho).abs
+    dy = d.dot(Z_AXIS.cross(ho)).abs
+    dz = d.z.abs
 
     if dy <= dx && dy <= dz
       :xz  # mặt đứng nhìn theo trục Y (mặt trước phổ biến)
@@ -29,24 +33,52 @@ module CanhCNC
     end
   end
 
-  # Tạo 4 góc rectangle preview theo mặt phẳng
-  def self.rect_corners(p1, p2, plane)
-    case plane
-    when :xz
-      y = p1.y
-      [Geom::Point3d.new(p1.x, y, p1.z),
-       Geom::Point3d.new(p2.x, y, p1.z),
-       Geom::Point3d.new(p2.x, y, p2.z),
-       Geom::Point3d.new(p1.x, y, p2.z)]
-    when :yz
-      x = p1.x
-      [Geom::Point3d.new(x, p1.y, p1.z),
-       Geom::Point3d.new(x, p2.y, p1.z),
-       Geom::Point3d.new(x, p2.y, p2.z),
-       Geom::Point3d.new(x, p1.y, p2.z)]
-    else
-      nil
-    end
+  # Pháp tuyến (ngang, đơn vị) của mặt phẳng cánh trong họ trục ho
+  def self.phap_tuyen_mat(plane, ho)
+    plane == :xz ? Z_AXIS.cross(ho) : ho.clone
+  end
+
+  # Chiếu p về mặt phẳng (o, n). n trùng trục file → thay đúng toạ độ như bản cũ (số y hệt).
+  def self.chieu(p, o, n)
+    return Geom::Point3d.new(p.x, o.y, p.z) if n.x.zero? && n.y.abs == 1
+    return Geom::Point3d.new(o.x, p.y, p.z) if n.y.zero? && n.x.abs == 1
+    k = (p - o).dot(n)
+    Geom::Point3d.new(p.x - n.x * k, p.y - n.y * k, p.z - n.z * k)
+  end
+
+  # Tạo 4 góc rectangle preview theo mặt phẳng (chỉ để vẽ khung xem trước)
+  def self.rect_corners(p1, p2, plane, ho = X_AXIS)
+    return nil if plane == :xy
+    u = Z_AXIS.cross(phap_tuyen_mat(plane, ho))   # dọc bề rộng
+    k = (p2 - p1).dot(u)
+    a = Geom::Point3d.new(p1.x + u.x * k, p1.y + u.y * k, p1.z)
+    [p1, a, Geom::Point3d.new(a.x, a.y, p2.z), Geom::Point3d.new(p1.x, p1.y, p2.z)]
+  end
+
+  # ----------------------------------------------------------
+  # MỘT LẦN TÍNH cho preview + dựng + thử (29/09): p1, p2 = điểm THẾ GIỚI (p2 đã chiếu về mặt
+  # phẳng cánh), ho = họ trục tủ, nhin = hướng camera, plane = :xz/:yz/:xy.
+  # Phía nào là LÒNG TỦ lấy theo hình (LeHai::HuongTu.huong_vao) — bản cũ luôn đắp bề dày về
+  # phía + của trục file → tủ quay mặt về đỏ/xanh lá DƯƠNG thì cánh lòi ra ngoài.
+  # Trả layout của door_layout, tính trong HỆ CÁNH (x dọc bề rộng từ trái sang theo mắt nhìn vào,
+  # y vào lòng tủ, z lên), kèm :he (hệ cánh → thế giới) và :doan (lòng tủ phải đoán theo hướng nhìn).
+  # ----------------------------------------------------------
+  # lat = người dùng bấm Tab lật phía (chỉ có tác dụng khi lòng tủ phải ĐOÁN theo hướng nhìn).
+  def self.tinh(model, p1, p2, p, ho, nhin, plane, lat = false)
+    return { plane: :xy, error: :plane } if plane == :xy
+    n = phap_tuyen_mat(plane, ho)
+    u = Z_AXIS.cross(n)
+    c = Geom::Point3d.new((p1.x + p2.x) / 2, (p1.y + p2.y) / 2, (p1.z + p2.z) / 2)
+    vao = LeHai::HuongTu.huong_vao(model, c, n, u, (p2 - p1).dot(u).abs / 2, nhin)
+    return { plane: plane, error: :huong } unless vao
+    vao = [vao[0].reverse, true] if vao[1] && lat
+    # Hai hông khoang lệch song song > 1° → không dựng (LUAT_NHA mục 9; Codex soát 29/09 bắt bản đầu
+    # vẫn dựng khi một hông lệch 3°). Đo từ tâm khoang lùi vào lòng tủ 20mm.
+    lech = LeHai::HuongTu.lech_hai_vach(model, c.offset(vao[0], 20.0 / 25.4))
+    return { plane: plane, error: :lech, lech: lech } if lech && lech > 1.0
+    he = LeHai::HuongTu.he(vao[0])
+    hi = he.inverse
+    door_layout(hi * p1, hi * p2, p).merge(he: he, doan: vao[1])
   end
 
   # ----------------------------------------------------------
@@ -161,6 +193,8 @@ module CanhCNC
       @laser      = nil
       @plane_lock = nil
       @preview    = nil
+      @ho         = nil   # họ trục tủ quanh điểm 1 (LeHai::HuongTu)
+      @lat        = false # Tab: lật phía lòng tủ khi phải đoán theo hướng nhìn
     end
 
     def activate
@@ -203,10 +237,13 @@ module CanhCNC
       @preview = nil
       return unless @state == 1 && @pt1 && @ip2.valid?
       pt2    = project_to_door_plane(LeHai::LaserSnap.snapped_point(@laser) || @ip2.position)
-      layout = CanhCNC.door_layout(@pt1, pt2, @params)
+      plane  = @plane_lock || CanhCNC.detect_plane(@pt1, pt2, @ho)
+      view   = Sketchup.active_model.active_view
+      layout = CanhCNC.tinh(view.model, @pt1, pt2, @params, @ho, view.camera.direction, plane, @lat)
+      bao_trang_thai(layout)
       if layout[:doors]
         boxes = layout[:doors].map do |d|
-          CanhCNC.door_box_corners(layout[:plane], d, @params[:day])
+          CanhCNC.door_box_corners(layout[:plane], d, @params[:day]).map { |q| layout[:he] * q }
         end
         @preview = { boxes: boxes }
       else
@@ -216,38 +253,72 @@ module CanhCNC
       @preview = nil
     end
 
+    # Thanh trạng thái bước điểm 2: nói rõ khi lòng tủ phải ĐOÁN (Tab lật) hoặc hông lệch
+    def bao_trang_thai(layout)
+      Sketchup.status_text =
+        if layout[:error] == :lech
+          "Hai hông khoang lệch #{layout[:lech].round(1)}° — tool không dựng cánh trên khoang lệch.  |  ESC=Chọn lại điểm 1"
+        elsif layout[:error] == :huong
+          "Không rõ phía nào là lòng tủ — nhìn chính diện mặt trước khoang.  |  ESC=Chọn lại điểm 1"
+        elsif layout[:doan]
+          "⚠ Không phân được lòng tủ bằng hình — đang lấy theo hướng nhìn. Cánh ra sai phía thì bấm Tab để lật.  |  ESC=Chọn lại điểm 1"
+        else
+          "Click điểm 2: Chọn góc đối diện để dựng cánh tủ.  |  ESC=Chọn lại điểm 1"
+        end
+    end
+
+    # Tab (chỉ ở bước điểm 2): lật phía lòng tủ — chỉ có tác dụng khi đang phải đoán theo hướng nhìn
+    def onKeyDown(key, repeat, _flags, view)
+      return false unless key == 9 && repeat == 1 && @state == 1
+      @lat = !@lat
+      update_preview
+      view.invalidate
+      false
+    end
+
     # Mặt phẳng cánh ở bước điểm 2 (suy từ điểm 1 + con trỏ).
     # Giữ mặt cũ khi con trỏ gần đường chéo 45° để tránh nhấp nháy XZ/YZ.
     def door_plane
       return nil unless @pt1 && @ip2.valid?
       p2   = @ip2.position
-      cand = CanhCNC.detect_plane(@pt1, p2)
+      cand = CanhCNC.detect_plane(@pt1, p2, @ho)
       return nil if cand == :xy
       if @plane_lock && @plane_lock != cand
-        dx = (p2.x - @pt1.x).abs
-        dy = (p2.y - @pt1.y).abs
+        d  = p2 - @pt1
+        dx = d.dot(@ho).abs
+        dy = d.dot(Z_AXIS.cross(@ho)).abs
         lo, hi = [dx, dy].minmax
         cand = @plane_lock if hi < 1.0e-9 || lo / hi > 0.8
       end
       @plane_lock = cand
-      [@pt1, cand == :xz ? Y_AXIS : X_AXIS]
+      [@pt1, CanhCNC.phap_tuyen_mat(cand, @ho)]
     end
 
     def onLButtonDown(flags, x, y, view)
       if @state == 0
         @ip1.pick(view, x, y)
         if @ip1.valid?
-          @pt1        = LeHai::LaserSnap.snapped_point(@laser) || @ip1.position
-          @state      = 1
-          @plane_lock = nil
-          Sketchup.status_text = "Click điểm 2: Chọn góc đối diện để dựng cánh tủ.  |  ESC=Chọn lại điểm 1"
+          pt1 = LeHai::LaserSnap.snapped_point(@laser) || @ip1.position
+          # Họ trục tủ quét quanh điểm 1, lùi 1mm về phía mắt cho khỏi đứng trên mặt tấm
+          mat = view.camera.eye - pt1
+          ho  = LeHai::HuongTu.ho_quanh(view.model, mat.length > 0 ? pt1.offset(mat, 1.0 / 25.4) : pt1)
+          if ho
+            @pt1        = pt1
+            @ho         = ho
+            @state      = 1
+            @plane_lock = nil
+            Sketchup.status_text = "Click điểm 2: Chọn góc đối diện để dựng cánh tủ.  |  ESC=Chọn lại điểm 1"
+          else
+            Sketchup.status_text = "Không nhận ra hướng tủ quanh điểm 1 — click đúng góc khoang tủ."
+          end
         end
       else
         @ip2.pick(view, x, y, @ip1)
         if @ip2.valid?
           pt2 = LeHai::LaserSnap.snapped_point(@laser) || @ip2.position
           pt2 = project_to_door_plane(pt2)
-          CanhCNC.process_geometry(@pt1, pt2, @params)
+          plane = @plane_lock || CanhCNC.detect_plane(@pt1, pt2, @ho)
+          CanhCNC.process_geometry(@pt1, pt2, @params, @ho, view.camera.direction, plane, @lat)
           LeHai::LaserSnap.clear_cache!
           reset_to_pt1
           Sketchup.status_text = "Đã tạo cánh xong! Click điểm 1 để tiếp tục khoang mới..."
@@ -275,17 +346,16 @@ module CanhCNC
       @pt1        = nil
       @plane_lock = nil
       @preview    = nil
+      @ho         = nil
+      @lat        = false
     end
 
     # Chiếu điểm 2 về mặt phẳng cánh: click xuyên khoang trống trúng tấm hậu
     # hay đợt bên trong cũng không làm cánh chạy sâu vào thùng tủ
     def project_to_door_plane(pt2)
-      plane = @plane_lock || CanhCNC.detect_plane(@pt1, pt2)
-      case plane
-      when :xz then Geom::Point3d.new(pt2.x, @pt1.y, pt2.z)
-      when :yz then Geom::Point3d.new(@pt1.x, pt2.y, pt2.z)
-      else pt2
-      end
+      plane = @plane_lock || CanhCNC.detect_plane(@pt1, pt2, @ho)
+      return pt2 if plane == :xy
+      CanhCNC.chieu(pt2, @pt1, CanhCNC.phap_tuyen_mat(plane, @ho))
     end
 
     def getExtents
@@ -349,8 +419,8 @@ module CanhCNC
 
       p1 = @pt1
       p2 = project_to_door_plane(LeHai::LaserSnap.snapped_point(@laser) || @ip2.position)
-      plane = CanhCNC.detect_plane(p1, p2)
-      corners = CanhCNC.rect_corners(p1, p2, plane)
+      plane = @plane_lock || CanhCNC.detect_plane(p1, p2, @ho)
+      corners = CanhCNC.rect_corners(p1, p2, plane, @ho)
 
       if @preview && @preview[:boxes] && !@preview[:boxes].empty?
         # Khung khoang mờ nét đứt + các cánh ma 3D đúng khe hở/độ dày
@@ -437,15 +507,21 @@ module CanhCNC
   # ----------------------------------------------------------
   # XỬ LÝ TOẠ ĐỘ & DỰNG HÌNH KHÔNG GIAN
   # ----------------------------------------------------------
-  def self.process_geometry(pt1, pt2, p)
+  def self.process_geometry(pt1, pt2, p, ho, nhin, plane, lat = false)
     model = Sketchup.active_model
 
-    # Quy về toạ độ local của context đang edit rồi tính layout
-    # bằng CÙNG công thức với preview (door_layout)
-    tr_inverse = model.edit_transform.inverse
-    layout = door_layout(pt1.transform(tr_inverse), pt2.transform(tr_inverse), p)
+    # Tính bằng CÙNG hàm với preview (tinh → door_layout) trong hệ cánh; tấm dựng thẳng trong hệ
+    # cánh rồi xoay CẢ group vào chỗ → trục từng cánh theo cánh (tủ xiên ABF vẫn đọc đúng).
+    layout = tinh(model, pt1, pt2, p, ho, nhin, plane, lat)
+    dat = model.edit_transform.inverse * layout[:he] if layout[:he]
 
     case layout[:error]
+    when :huong
+      UI.messagebox("Không rõ phía nào là lòng tủ.\nNhìn chính diện mặt trước khoang tủ rồi vẽ lại.")
+      return
+    when :lech
+      UI.messagebox("Hai hông khoang lệch #{layout[:lech].round(1)}° (không song song).\nTool không dựng cánh trên khoang lệch — sửa hông cho song song rồi vẽ lại.")
+      return
     when :plane
       UI.messagebox("Plugin chỉ hỗ trợ vẽ cánh trên mặt đứng.\nCố gắng click 2 góc của mặt trước hoặc mặt hông khoang tủ.")
       return
@@ -460,11 +536,17 @@ module CanhCNC
       return
     end
 
+    unless LeHai::HuongTu.cung?(dat)
+      UI.messagebox("Đang vẽ trong một group bị Scale.\nThoát ra ngoài group đó rồi vẽ cánh.")
+      return
+    end
+
     model.start_operation(PLUGIN_NAME, true)
     begin
       layout[:doors].each_with_index do |d, i|
-        draw_one(model.active_entities, layout[:plane],
-                 d[0], d[1], d[2], d[3], d[4], p[:day], "Canh_#{i + 1}")
+        g = draw_one(model.active_entities, layout[:plane],
+                     d[0], d[1], d[2], d[3], d[4], p[:day], "Canh_#{i + 1}")
+        g.transform!(dat)
       end
       model.commit_operation
     rescue => e
@@ -582,7 +664,8 @@ module CanhCNC
         <button onclick="activateTool()">📐 Kích Hoạt Chuột Vẽ</button>
         <p class="credit">@lab by MK</p>
         <p class="note">💡 Bấm nút → ra ngoài click 2 điểm góc chéo của khoang tủ (Kiểm tra kĩ ĐIỂM CLICK khi bấm!).<br>
-        Plugin tự nhận mặt phẳng XZ hoặc YZ.</p>
+        Hở TRÁI / PHẢI tính theo người đứng TRƯỚC mặt khoang nhìn vào — tủ quay hướng nào cũng vậy.
+        Xem kĩ khung cánh xem trước rồi mới click điểm 2; thanh dưới báo "đang lấy theo hướng nhìn" thì bấm Tab để lật phía.</p>
         <script>
           function toggleGap() {
             var n = parseInt(document.getElementById('so_canh').value) || 1;

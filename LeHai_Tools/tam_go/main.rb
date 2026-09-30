@@ -5,6 +5,7 @@
 require 'sketchup.rb'
 require 'json'
 require File.join(File.dirname(__FILE__), '..', 'shared', 'laser_snap')
+require File.join(File.dirname(__FILE__), '..', 'shared', 'huong_tu')
 
 module Lehai
   module TamGoGen
@@ -149,6 +150,7 @@ module Lehai
         @dialog   = params[:dialog]
         @ip       = Sketchup::InputPoint.new
         @pos      = ORIGIN
+        @ho       = Geom::Vector3d.new(1, 0, 0)   # họ trục tủ dưới chuột (LeHai::HuongTu)
       end
 
       def activate
@@ -194,6 +196,11 @@ module Lehai
       def onMouseMove(flags, x, y, view)
         @ip.pick(view, x, y)
         @pos = @ip.position
+        # Tấm đặt theo HỌ TRỤC của mặt đứng dưới chuột (LUAT_NHA mục 9, 29/09): tủ xiên thì tấm xiên
+        # theo. Chuột trên mặt nằm → giữ họ trục lần trước. Tủ thẳng trục → trục file như bản cũ.
+        hit = view.model.raytest(view.pickray(x, y))
+        n = hit && LeHai::HuongTu.phap_tuyen(hit)
+        @ho = LeHai::HuongTu.ho_truc([Geom::Vector3d.new(n.x, n.y, 0).normalize]) if n && n.z.abs < 0.02
         view.invalidate
       end
 
@@ -278,19 +285,16 @@ module Lehai
         end
       end
 
+      # Hệ đặt tấm: gốc = chỗ chuột, trục theo họ trục tủ (tủ thẳng trục → trùng trục file)
+      def khung_dat
+        Geom::Transformation.axes(@pos, @ho, Z_AXIS.cross(@ho), Z_AXIS)
+      end
+
       def box_corners
-        x, y, z    = @pos.x, @pos.y, @pos.z
         dx, dy, dz = dims
-        [
-          Geom::Point3d.new(x,    y,    z),
-          Geom::Point3d.new(x+dx, y,    z),
-          Geom::Point3d.new(x+dx, y+dy, z),
-          Geom::Point3d.new(x,    y+dy, z),
-          Geom::Point3d.new(x,    y,    z+dz),
-          Geom::Point3d.new(x+dx, y,    z+dz),
-          Geom::Point3d.new(x+dx, y+dy, z+dz),
-          Geom::Point3d.new(x,    y+dy, z+dz)
-        ]
+        t = khung_dat
+        [[0, 0, 0], [dx, 0, 0], [dx, dy, 0], [0, dy, 0],
+         [0, 0, dz], [dx, 0, dz], [dx, dy, dz], [0, dy, dz]].map { |c| t * Geom::Point3d.new(*c) }
       end
 
       def place_board(model)
@@ -308,7 +312,7 @@ module Lehai
           )
           push_dist = face.normal.z >= 0 ? dz : -dz
           face.pushpull(push_dist)
-          grp.transform!(Geom::Transformation.translation(@pos))
+          grp.transform!(khung_dat)
           model.commit_operation
         rescue => e
           model.abort_operation
@@ -332,6 +336,7 @@ module Lehai
         @laser       = nil
         @lock_normal = nil    # mũi tên khoá mặt phẳng
         @flip        = false  # Tab đổi phía đùn độ dày
+        @ho          = Geom::Vector3d.new(1, 0, 0)   # họ trục tủ quanh điểm 1 (LeHai::HuongTu)
         @cursor_pt2  = nil
         @last_du     = nil
         @last_dv     = nil
@@ -397,6 +402,10 @@ module Lehai
                     else
                       Z_AXIS
                     end
+          # Họ trục tủ quét quanh điểm 1 (lùi 1mm về phía mắt); không có mặt đứng nào → trục file
+          mat = view.camera.eye - @pt1
+          @ho = LeHai::HuongTu.ho_quanh(view.model, mat.length > 0 ? @pt1.offset(mat, 1.0 / 25.4) : @pt1) ||
+                Geom::Vector3d.new(1, 0, 0)
           @state  = :pt2
           update_status
         else
@@ -418,11 +427,11 @@ module Lehai
         when VK_ESCAPE
           @state == :pt2 ? reset_to_pt1 : view.model.select_tool(nil)
         when VK_RIGHT
-          toggle_lock(X_AXIS)
+          toggle_lock(:x)
         when VK_LEFT
-          toggle_lock(Y_AXIS)
+          toggle_lock(:y)
         when VK_UP
-          toggle_lock(Z_AXIS)
+          toggle_lock(:z)
         when VK_DOWN
           @lock_normal = nil
           update_status
@@ -514,9 +523,9 @@ module Lehai
       private
 
       def update_status
-        lock = if    @lock_normal == X_AXIS then '  [Khoá ĐỎ]'
-               elsif @lock_normal == Y_AXIS then '  [Khoá XANH LÁ]'
-               elsif @lock_normal == Z_AXIS then '  [Khoá XANH DƯƠNG]'
+        lock = if    @lock_normal == :x then '  [Khoá ĐỎ]'
+               elsif @lock_normal == :y then '  [Khoá XANH LÁ]'
+               elsif @lock_normal == :z then '  [Khoá XANH DƯƠNG]'
                else ''
                end
         text = @state == :pt1 \
@@ -537,23 +546,31 @@ module Lehai
         update_status
       end
 
-      # Mặt phẳng vẽ hiện tại:
+      # Mặt phẳng vẽ hiện tại (trục = HỌ TRỤC tủ quanh điểm 1, LUAT_NHA mục 9 — tủ thẳng trục thì
+      # trùng trục đỏ/xanh lá như bản cũ):
       # 1. Khoá bằng mũi tên → dùng trục khoá
       # 2. Tự nhận theo hướng kéo: trục có chênh lệch nhỏ nhất giữa 2 điểm
       # 3. Fallback: normal của face tại điểm 1
       def current_normal(pt2 = nil)
-        return @lock_normal if @lock_normal
+        return truc_khoa(@lock_normal) if @lock_normal
         pt2 ||= @cursor_pt2
         if @pt1 && pt2
-          dx = (pt2.x - @pt1.x).abs
-          dy = (pt2.y - @pt1.y).abs
-          dz = (pt2.z - @pt1.z).abs
+          d  = pt2 - @pt1
+          hy = Z_AXIS.cross(@ho)
+          dx = d.dot(@ho).abs
+          dy = d.dot(hy).abs
+          dz = d.z.abs
           min = [dx, dy, dz].min
-          return X_AXIS if dx == min
-          return Y_AXIS if dy == min
+          return @ho if dx == min
+          return hy if dy == min
           return Z_AXIS
         end
         @normal || Z_AXIS
+      end
+
+      # :x / :y / :z (mũi tên khoá) → trục trong họ trục tủ
+      def truc_khoa(k)
+        { x: @ho, y: Z_AXIS.cross(@ho), z: Z_AXIS }[k]
       end
 
       def toggle_lock(axis)
@@ -563,16 +580,20 @@ module Lehai
       end
 
       def preview_color
-        if    @lock_normal == X_AXIS then Sketchup::Color.new(255, 60, 60, 220)
-        elsif @lock_normal == Y_AXIS then Sketchup::Color.new(60, 200, 60, 220)
-        elsif @lock_normal == Z_AXIS then Sketchup::Color.new(60, 120, 255, 220)
+        if    @lock_normal == :x then Sketchup::Color.new(255, 60, 60, 220)
+        elsif @lock_normal == :y then Sketchup::Color.new(60, 200, 60, 220)
+        elsif @lock_normal == :z then Sketchup::Color.new(60, 120, 255, 220)
         else  Sketchup::Color.new(30, 144, 255, 220)
         end
       end
 
+      def thang_truc?(v)   # vector trùng một trục file?
+        v.to_a.count { |c| c.abs < 1e-9 } == 2
+      end
+
       def plane_axes(normal)
         n = normal.normalize
-        return [X_AXIS, Y_AXIS] if n.parallel?(Z_AXIS)
+        return [@ho, Z_AXIS.cross(@ho)] if n.parallel?(Z_AXIS)
         u = n.cross(Z_AXIS).normalize
         v = u.cross(n).normalize
         [u, v]
@@ -603,9 +624,27 @@ module Lehai
         begin
           grp  = model.active_entities.add_group
           grp.name = @name
-          face = grp.entities.add_face(corners)
-          face.reverse! if face.normal.dot(normal) < 0
-          face.pushpull(@flip ? -@thick : @thick)
+          u = corners[1] - corners[0]
+          v = corners[3] - corners[0]
+          if thang_truc?(u) && thang_truc?(v)
+            # Tấm thẳng trục file: dựng như bản cũ (số y hệt)
+            face = grp.entities.add_face(corners)
+            face.reverse! if face.normal.dot(normal) < 0
+            face.pushpull(@flip ? -@thick : @thick)
+          else
+            # Tấm XIÊN: dựng thẳng trong hệ riêng rồi xoay group vào chỗ → trục group theo tấm
+            # (group trục thẳng mà tấm xiên thì ABF + KT Độ Dày đọc tấm phình to — LUAT_NHA mục 9)
+            eu = u.normalize
+            ev = v.normalize
+            f  = Geom::Transformation.axes(corners[0], eu, ev, eu.cross(ev))
+            du = u.length
+            dv = v.length
+            face = grp.entities.add_face(Geom::Point3d.new(0, 0, 0), Geom::Point3d.new(du, 0, 0),
+                                         Geom::Point3d.new(du, dv, 0), Geom::Point3d.new(0, dv, 0))
+            face.reverse! if face.normal.dot(f.inverse * normal) < 0
+            face.pushpull(@flip ? -@thick : @thick)
+            grp.transform!(f)
+          end
           model.commit_operation
         rescue => e
           model.abort_operation

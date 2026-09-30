@@ -43,6 +43,8 @@ td{padding:6px;border-bottom:1px solid var(--line);vertical-align:middle}
 th.num,td.num{text-align:right}
 .c-on{width:40px;text-align:center}
 td.c-on input{width:auto}
+tr.all td{background:#faf6f0;border-bottom:2px solid var(--line)}
+.all-lbl{font-size:12px;font-weight:600;white-space:nowrap}.all-lbl span{display:block;font-weight:400;color:var(--muted);font-size:11px}
 tbody tr{cursor:pointer}
 tbody tr:hover{background:#faf8f5}
 tbody tr.focus{background:#fdf0f6;box-shadow:inset 3px 0 0 var(--hot)}

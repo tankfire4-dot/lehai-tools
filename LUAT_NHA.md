@@ -85,6 +85,28 @@ end
 ### 8. Comment
 - Tiếng Việt. Tiêu đề mục dùng dạng `# ── Tên mục ──────`.
 
+### 9. Trục — hướng lấy từ HÌNH, không từ trục file (Khoa chốt 29/09/2026)
+Soát 29/09: Hộc kéo chỉ nhận tủ quay mặt về xanh lá âm, Tạo Cánh đắp cánh ra ngoài khi tủ quay
+về đỏ/xanh lá dương, KT Liên Kết bỏ sót im lặng tấm xiên — vì code coi trục đỏ/xanh lá của FILE là
+trái-phải/trước-sau của tủ. Thợ đặt tủ theo tường nên gặp thường xuyên.
+- **Không tool nào lấy hướng tủ từ trục file.** Hướng lấy từ chính hình đang bấm: pháp tuyến mặt
+  hông/mặt vừa bấm; tool kiểm đo từng tấm theo cạnh thật của nó, không theo hộp bao của file.
+- **Mặt trước lấy theo hình:** có hậu thì phía đối diện hậu; không hậu thì phía hở. Không rõ thì
+  BÁO, không đoán. Tool dựng có nút **Lật mặt** khi xem trước.
+- **Không dựng bừa trên hình lệch:** hai hông không song song (lệch > 1°) → báo.
+- **Dựng tấm thẳng trong hệ riêng rồi xoay cả group vào chỗ** — tấm xiên mà trục group thẳng file
+  thì ABF + KT Độ Dày đọc tấm phình to.
+- **Ca đang đúng phải ra y hệt bản cũ** (tủ quay mặt về xanh lá âm): lệch 0,1mm là không phát.
+- **Luật thử — mọi tool đụng hình 3D, trước khi phát:** 5 ca = tủ quay 4 hướng + 1 tủ xiên 30°;
+  dựng xong chạy KT Độ Dày trên tấm vừa dựng phải ra đúng bề dày. Làm từng tool, phát từng bản.
+- **Trạng thái 30/09:** Hộc kéo quay 90° — Khoa thử SketchUp thật ĐẠT (load từ lab). Các tool khác mới qua mô
+  phỏng `tao-modul-nhanh/thu_truc` + Codex soát; lần Khoa thử 30/09 sáng KHÔNG tính (chạy nhầm bản cũ — xem bẫy
+  dưới). Khoa: thợ không vẽ tủ xiên, chỉ cần đúng các hướng 90°.
+- **BẪY chép tay LeHai_Tools vào máy:** thư mục repo có `LeHai_Tools/_installed_version` (1.7.1, cũ) — chép cả nó
+  thì lúc mở SketchUp bộ tự cập nhật thấy "máy 1.7.1 < GitHub" và TẢI ĐÈ bản GitHub lên mọi file (30/09: Khoa
+  thử nhầm bản cũ vì vậy). Chép tay phải BỎ file này: `robocopy <lab>\LeHai_Tools <Plugins>\LeHai_Tools /E /XF _installed_version`.
+  `release.py` đã loại file `_*` nên máy thợ không dính.
+
 ---
 
 ## C. Bẫy hạ tầng — KẾT THÚC DÒNG (CRLF vs LF)
@@ -109,6 +131,9 @@ Công cụ sửa file của agent có thể **ghi lại cả file theo kiểu kh
 git diff --stat            # số dòng đổi có khớp việc mình làm không?
 file LeHai_Tools/main.rb   # CRLF hay LF — phải giống bản trên origin/master
 ```
+
+**Đo bản trên Git, không đo file trên đĩa** (`git show HEAD:<file>`): 29/09 bản trên đĩa của 4 file đã
+CRLF sẵn trong khi Git là LF — "giữ nguyên như trên đĩa" vẫn sinh diff cả file.
 
 Lệch thì sửa trước khi commit:
 

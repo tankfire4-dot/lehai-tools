@@ -151,7 +151,10 @@
       (daKhoa ? '<b style="color:#15803d">ĐÃ CHỌN</b>' : '<span class="mo">Đang xem — click trên model để chọn</span>') + '<br>' +
       'Lòng: <b>' + so(k.x[1] - k.x[0]) + ' × ' + so(k.z[1] - k.z[0]) + ' × ' + so(k.y_sau - k.y_truoc) + '</b><br>' +
       '<span class="mo">' + (k.co_hau ? 'Có hậu' : 'Không hậu — đo tới mép sau hông') + '</span>' +
-      (k.da_co_hoc ? '<br><b style="color:#b91c1c">Khoang này đã có hộc kéo</b>' : '');
+      (k.da_co_hoc ? '<br><b style="color:#b91c1c">Khoang này đã có hộc kéo</b>' : '') +
+      // Có hậu thì mặt trước chắc chắn; không hậu thì lấy theo hướng nhìn → cho Lật
+      (daKhoa && k.doan_mat ? '<br><span style="color:#b45309">Không có hậu: mặt trước lấy theo hướng nhìn.</span>' +
+        '<br><button class="lh-btn lh-btn--ghost" id="lat" title="Mặt hộc đang ra phía sau tủ → đảo trước/sau">Lật mặt trước/sau</button>' : '');
     ve();
   };
 
@@ -166,6 +169,7 @@
   // Ruby báo tool chọn khoang tắt/bật (tắt = người dùng bấm tool khác mà bảng còn mở)
   window.toolTat = function (tat) { $('tat').hidden = !tat; };
   $('chontiep').addEventListener('click', function () { if (window.sketchup) sketchup.chon_tiep(); });
+  $('khung').addEventListener('click', function (e) { if (e.target.id === 'lat' && window.sketchup) sketchup.lat_mat(); });
   // Bảng nhớ số lần trước → gõ nhầm một lần là nhớ mãi (Khoa 27/09: khe ray 50). Nút này trả về
   // mặc định LẤY TỪ LÕI Ruby (hoi[].mac_dinh), JS không giữ bản sao số nào. Giữ nguyên lọt/phủ.
   $('macdinh').addEventListener('click', function () {

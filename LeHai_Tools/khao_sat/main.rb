@@ -153,7 +153,9 @@ module TK
       g.name = it['name'].to_s
       g.layer = tag(model, it['tag']) if it['tag']
       g.material = mau(model, it['mat']) if it['mat']
-      ok = ve_theo_loai(model, g.entities, it)
+      thieu = [] # chi tiết hỏng bên trong khối dựng được (lỗ cửa, hốc): khối giữ lại nhưng PHẢI báo, không im
+      ok = ve_theo_loai(model, g.entities, it, thieu)
+      thieu.each { |t| loi << "#{phong} · #{it['name']}: #{t}" }
       g.set_attribute('KhaoSat', 'raw', JSON.generate(it['raw'])) if ok && it['raw']
       return true if ok
       loi << "#{phong} · #{it['name']}: không dựng được"
@@ -165,10 +167,10 @@ module TK
       false
     end
 
-    def self.ve_theo_loai(model, ents, it)
+    def self.ve_theo_loai(model, ents, it, thieu = [])
       case it['t']
       when 'face'  then !ents.add_face(pts(it['pts'])).nil?
-      when 'wall'  then ve_tuong(model, ents, it)
+      when 'wall'  then ve_tuong(model, ents, it, thieu)
       when 'prism' then ve_lang_tru(ents, it)
       when 'line'  then !ents.add_line(pt(it['pts'][0]), pt(it['pts'][1])).nil?
       when 'text'  then !ents.add_text(it['text'].to_s, pt(it['pos'])).nil?
@@ -179,24 +181,28 @@ module TK
     # Tường dày (30/09): đế 4 góc ở sàn -> đẩy lên cao trần thành khối. Cửa/cửa sổ: vẽ chữ nhật lên mặt trong
     # (SketchUp tự chẻ mặt) rồi đẩy xuyên đúng bề dày T ra phía ngoài -> lỗ thủng, như thợ làm tay bằng Push/Pull.
     # Hốc có số sâu: đẩy lõm vào d; hốc chưa có số sâu: chỉ tô màu trên mặt tường.
-    def self.ve_tuong(model, ents, it)
+    # add_face được phép trả nil (tài liệu Trimble): lỗ / hốc nào không tạo được mặt thì ghi vào `thieu` để bảng
+    # báo đỏ đúng chi tiết (Codex soát 01/10: trước đây bỏ qua im lặng mà vẫn báo "Đã dựng xong").
+    def self.ve_tuong(model, ents, it, thieu = [])
       de = ents.add_face(pts(it['foot']))
       return false if de.nil?
       day(de, [0, 0, it['pts'][2][2]])
       out = it['out']
-      (it['holes'] || []).each do |h|
+      (it['holes'] || []).each_with_index do |h, i|
         lo = ents.add_face(pts(h))
-        day(lo, out.map { |x| x.to_f * it['T'].to_f }) if lo
+        next thieu << "không khoét được lỗ cửa thứ #{i + 1} — khoét tay bằng Push/Pull" if lo.nil?
+        day(lo, out.map { |x| x.to_f * it['T'].to_f })
       end
-      (it['recesses'] || []).each do |rc|
+      (it['recesses'] || []).each_with_index do |rc, i|
         f = ents.add_face(pts(rc['pts']))
-        next unless f
+        next thieu << "không đẩy được hốc thứ #{i + 1} — đẩy tay bằng Push/Pull" if f.nil?
         f.material = mau(model, 'hoc')
         day(f, out.map { |x| x.to_f * rc['d'].to_f })
       end
-      (it['marks'] || []).each do |m|
+      (it['marks'] || []).each_with_index do |m, i|
         f = ents.add_face(pts(m))
-        f.material = mau(model, 'hoc') if f
+        next thieu << "không tô được vùng hốc thứ #{i + 1} (chưa có số sâu)" if f.nil?
+        f.material = mau(model, 'hoc')
       end
       true
     end

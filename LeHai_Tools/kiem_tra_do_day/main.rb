@@ -85,33 +85,40 @@ module TK
 
     def self.collect_leaves
       leaves = []
-      walk(Sketchup.active_model.entities, 0, leaves)
+      walk(Sketchup.active_model.entities, 0, leaves, Geom::Transformation.new)
       leaves
     end
     private_class_method :collect_leaves
 
-    def self.walk(entities, depth, leaves)
+    # t = transform WORLD tích luỹ của cấp cha (01/10: mang theo để tính scale — xem own_thickness_mm)
+    def self.walk(entities, depth, leaves, t)
       return if depth > 40
       entities.to_a.each do |e|
         next if e.deleted?
         next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
         ents = ents_of(e)
         next unless ents
-        th   = own_thickness_mm(ents)
+        te   = t * e.transformation
+        th   = own_thickness_mm(ents, te)
         subs = ents.any? { |c| c.is_a?(Sketchup::Group) || c.is_a?(Sketchup::ComponentInstance) }
         leaves << [e, th] if th && th >= MIN_MM
-        walk(ents, depth + 1, leaves) if subs
+        walk(ents, depth + 1, leaves, te) if subs
       end
     end
     private_class_method :walk
 
-    def self.own_thickness_mm(ents)
+    # Hộp LOCAL các mặt của riêng tấm, mỗi chiều NHÂN hệ số scale world của trục đó (SOAT_LOI A2, soát 01/10):
+    # thợ kéo Scale tool thì hình gốc không đổi, chỉ transform đổi → không nhân là đọc ra bề dày BẢN GỐC.
+    # Hệ số = độ dài (te * trục) — sketchup-api.md "Lấy hệ số scale", đúng cả khi có xoay. Tấm không scale:
+    # hệ số 1 → ra y hệt bản cũ.
+    def self.own_thickness_mm(ents, te = Geom::Transformation.new)
       bb = Geom::BoundingBox.new
       ents.each { |c| bb.add(c.bounds) if c.is_a?(Sketchup::Face) }
       return nil if bb.empty?
-      [bb.width, bb.height, bb.depth].min.to_mm
+      k = [X_AXIS, Y_AXIS, Z_AXIS].map { |a| (te * a).length.to_f }
+      [bb.width * k[0], bb.height * k[1], bb.depth * k[2]].min.to_mm
     rescue StandardError
-      nil
+      nil   # helper thuần đọc: tấm không đo được = bỏ qua (nil là kết quả hợp lệ, walk lọc đi)
     end
     private_class_method :own_thickness_mm
 
@@ -123,7 +130,7 @@ module TK
 
     def self.isolate_faulty
       n = run_isolate { |mm| !standard?(mm) }
-      UI.messagebox('✓ Không có tấm nào sai độ dày.') if n.zero?
+      UI.messagebox('✓ Không có tấm nào sai độ dày.') if n == 0
     end
     private_class_method :isolate_faulty
 
@@ -132,16 +139,22 @@ module TK
       leaves = collect_leaves
       shown  = []
       model.start_operation('Co lap do day', true)
-      unhide_all_mine(leaves)
-      leaves.each do |e, th|
-        if keep.call(round1(th))
-          e.hidden = false
-          shown << e
-        else
-          hide_mine(e)
+      begin
+        unhide_all_mine(leaves)
+        leaves.each do |e, th|
+          if keep.call(round1(th))
+            e.hidden = false
+            shown << e
+          else
+            hide_mine(e)
+          end
         end
+        model.commit_operation
+      rescue => err
+        model.abort_operation   # lỗi giữa chừng: trả model về như trước, không kẹt nửa ẩn nửa hiện
+        UI.messagebox("Lỗi: #{err.message}")
+        return nil   # nil = lỗi (khác 0 = không tấm nào khớp)
       end
-      model.commit_operation
 
       unless shown.empty?
         model.selection.clear
@@ -155,8 +168,14 @@ module TK
     def self.show_all
       model = Sketchup.active_model
       model.start_operation('Hien lai tat ca', true)
-      unhide_all_mine(collect_leaves)
-      model.commit_operation
+      begin
+        unhide_all_mine(collect_leaves)
+        model.commit_operation
+      rescue => err
+        model.abort_operation
+        UI.messagebox("Lỗi: #{err.message}")
+        return
+      end
       model.selection.clear
     end
     private_class_method :show_all

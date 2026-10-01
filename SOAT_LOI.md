@@ -13,6 +13,28 @@ Số mục trong ngoặc (3a, 5…) trỏ về [SKETCHUP_NEN_TANG.md](SKETCHUP_N
 
 ---
 
+# SOÁT LẠI 01/10/2026 (Claude Opus 5.5) — kết quả + đã sửa
+
+Sổ chi tiết: lab `scratch/soat-lehai/loi.md`. Test: `node tests/soat_0110.test.mjs` (18 ca; chạy trên bản cũ đỏ đúng
+14 ca lỗi, 4 ca "y hệt cũ" xanh). Chưa chạy SketchUp thật — Codex soát + Khoa thử trước khi phát.
+
+| Mục | Kết quả 01/10 |
+|---|---|
+| A1 Điền Tên scale | **ĐÃ SỬA** — nhân hệ số scale world; component scale khác → tách dòng. Không scale: y hệt |
+| A2 Độ Dày scale | **ĐÃ SỬA** (rủi ro tiềm ẩn) — mang transform cha xuống; không scale: y hệt. + thêm abort 2 chỗ |
+| A3 Trùng Tấm scale | **ĐÃ SỬA** — cùng công thức |
+| B tấm nghiêng | GIỮ — Khoa 29/09: thợ không vẽ tủ xiên |
+| C, D Dán Cạnh trong group / lật gương | GIỮ — phụ thuộc hành vi SketchUp, phải kiểm tay |
+| E thiếu abort | **ĐÃ SỬA** — chia_lam đã đủ từ trước; Độ Dày 2 chỗ, Dim Nhanh 1 chỗ |
+| F1 tên lây component | HỎI Khoa (chưa trả lời) |
+| **MỚI** Dán Cạnh ghi đè loại chỉ | **ĐÃ SỬA** — GỘP mảng `edge-band-types` (giữ Vát45), mặt nhận đúng id; quét đủ mọi loại |
+| **MỚI** Điền Tên `view.zoom(bb)` + mở trùng bảng | **ĐÃ SỬA** — `frame(bb)`; mở lại = đóng bảng cũ trước |
+| **MỚI** Thư Viện catalog hỏng bị ghi đè | **ĐÃ SỬA** — đọc hỏng thì không ghi, báo |
+| **MỚI** Trục Tọa Độ reset lỗi im lặng | **ĐÃ SỬA** — đếm + báo |
+| **MỚI** Dọn Component → group mất trục tấm | HỎI Khoa |
+
+---
+
 # A. NẶNG — số sai đi thẳng ra sản phẩm
 
 ## A1. Điền Tên đặt SAI TÊN khi tấm bị Scale (và gộp nhóm sai)

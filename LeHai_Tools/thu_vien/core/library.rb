@@ -394,17 +394,27 @@ module TK
       end
       private_class_method :catalog_path
 
+      # Soát 01/10: catalog hỏng (ghi dở trên ổ mạng / 2 máy ghi cùng lúc) từng đọc ra {} rồi lần LƯU kế GHI ĐÈ
+      # → mất sạch phân loại cả thư viện. Nay nhớ cờ @catalog_hong; write_catalog thấy cờ thì KHÔNG ghi.
       def self.read_catalog
+        @catalog_hong = false
         path = catalog_path
         return {} unless File.exist?(path)
         content = File.open(path, 'r:UTF-8') { |f| f.read }
         JSON.parse(content)
       rescue JSON::ParserError
+        @catalog_hong = true
         {}
       end
       private_class_method :read_catalog
 
       def self.write_catalog(catalog)
+        if @catalog_hong
+          UI.messagebox("Chưa ghi phân loại: file catalog.json đang hỏng (có thể máy khác đang ghi dở).\n" \
+                        "Giữ nguyên file để không mất phân loại cả thư viện — thử lại sau, hoặc mở thư mục kiểm file:\n" \
+                        "#{catalog_path}")
+          return
+        end
         File.open(catalog_path, 'w:UTF-8') { |f| f.write(JSON.pretty_generate(catalog)) }
       rescue IOError, Errno::EACCES => e
         UI.messagebox("Không ghi được catalog:\n#{e.message}")

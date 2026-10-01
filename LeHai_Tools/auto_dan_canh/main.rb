@@ -106,8 +106,13 @@ module MyStudio
         @highlight_face = nil
         @highlight_pts  = nil
         model.start_operation('Xóa Dán Cạnh Mặt', true)
-        MyStudio::AutoEdgeBand.clear_band(face)
-        model.commit_operation
+        begin
+          MyStudio::AutoEdgeBand.clear_band(face)
+          model.commit_operation
+        rescue => e
+          model.abort_operation
+          UI.messagebox("Lỗi: #{e.message}")
+        end
       end
     end
     # ═══════════════════════════════════════════════════════
@@ -199,6 +204,7 @@ module MyStudio
               if entity.edges.any? { |e| e.length <= MyStudio::AutoEdgeBand::MAX_EDGE_FACE_IN }
                 @highlight_face = entity
                 @highlight_pts  = entity.vertices.map { |v| v.position.transform(xform) }
+                @highlight_inst = tam_chua(path)
                 return
               end
 
@@ -211,6 +217,7 @@ module MyStudio
               if thin
                 @highlight_face = thin
                 @highlight_pts  = thin.vertices.map { |v| v.position.transform(xform) }
+                @highlight_inst = tam_chua(path)
                 return
               end
             end
@@ -220,15 +227,30 @@ module MyStudio
         end
       end
 
+      # Tấm (group/component) trực tiếp chứa mặt vừa pick = container cuối trong đường pick.
+      def tam_chua(path)
+        path[0..-2].reverse.find { |c| c.is_a?(Sketchup::Group) || c.is_a?(Sketchup::ComponentInstance) }
+      end
+
       def paint_highlighted(model)
         return unless @highlight_face && !@highlight_face.deleted?
         return if MyStudio::AutoEdgeBand.face_has_banding?(@highlight_face)
         face = @highlight_face
+        inst = @highlight_inst
         @highlight_face = nil
         @highlight_pts  = nil
+        @highlight_inst = nil
         model.start_operation('Dán Cạnh Mặt', true)
-        MyStudio::AutoEdgeBand.apply_band(face, 0, @mat)
-        model.commit_operation
+        begin
+          # Soát 01/10: trước đây mặt luôn id 0 mà KHÔNG ghi loại chỉ vào tấm → ABF đọc ra loại đang ở vị trí 0 của
+          # tấm (có khi là loại khác hẳn). Nay ghi/gộp loại vào tấm, mặt nhận đúng id.
+          bid = inst && inst.valid? ? MyStudio::AutoEdgeBand.ensure_band_type(inst, @band_type) : 0
+          MyStudio::AutoEdgeBand.apply_band(face, bid, @mat)
+          model.commit_operation
+        rescue => e
+          model.abort_operation
+          UI.messagebox("Lỗi: #{e.message}")
+        end
       end
     end
     # ═══════════════════════════════════════════════════════
@@ -281,7 +303,7 @@ module MyStudio
           dlg.execute_script("setStatus('✓ Dán #{total} cạnh mặt [#{mode_label}]', 'ok')")
         rescue => e
           model.abort_operation rescue nil
-          dlg.execute_script("setStatus('❌ Lỗi: #{e.message.gsub("'","\\\\'")}', 'error')")
+          dlg.execute_script("setStatus(#{('❌ Lỗi: ' + e.message.to_s).to_json}, 'error')")
         end
       end
 
@@ -308,7 +330,7 @@ module MyStudio
           dlg.execute_script("setStatus('🗑 Đã xóa #{count} cạnh mặt', 'ok')")
         rescue => e
           model.abort_operation rescue nil
-          dlg.execute_script("setStatus('❌ #{e.message.gsub("'","\\\\'")}', 'error')")
+          dlg.execute_script("setStatus(#{('❌ ' + e.message.to_s).to_json}, 'error')")
         end
       end
 
@@ -323,7 +345,7 @@ module MyStudio
           mat       = ensure_display_material(model, band_type[3])
           model.select_tool(PainterTool.new(band_type, mat))
         rescue => e
-          dlg.execute_script("setStatus('❌ #{e.message.gsub("'","\\\\'")}', 'error')")
+          dlg.execute_script("setStatus(#{('❌ ' + e.message.to_s).to_json}, 'error')")
         end
       end
 
@@ -360,7 +382,7 @@ module MyStudio
       inst.make_unique if inst.is_a?(Sketchup::ComponentInstance)
       ents = raw_entities(inst)
       inst.set_attribute('ABF', 'is-board',       true)
-      inst.set_attribute('ABF', 'edge-band-types', band_type)
+      bid = ensure_band_type(inst, band_type)   # GỘP loại chỉ (không ghi đè) — soát 01/10, xem ensure_band_type
       if mode == :reset
         ents.grep(Sketchup::Face).each do |face|
           next if face.deleted?
@@ -379,7 +401,7 @@ module MyStudio
         next if face.deleted?
         next if mode == :accumulate && face_has_banding?(face)
         if face_visible_from_camera?(face, world_xform, camera_dir, camera_eye, model)
-          apply_band(face, 0, mat)
+          apply_band(face, bid, mat)
           count += 1
         end
       end
@@ -395,7 +417,7 @@ module MyStudio
         group.each do |face|
           next if face.deleted?
           next if mode == :accumulate && face_has_banding?(face)
-          apply_band(face, 0, mat)
+          apply_band(face, bid, mat)
           count += 1
         end
       end
@@ -493,6 +515,22 @@ module MyStudio
       face.material&.name&.start_with?('Hung_Show_ABF_') ||
         !face.attribute_dictionary('Hung_EdgeBanding').nil? ||
         !face.get_attribute('ABF', 'edge-band-id').nil?
+    end
+
+    # Loại chỉ của tấm: ABF lưu MẢNG NHIỀU BỘ 5 [id, tên chỉ, ?, màu, ?] ở `ABF/edge-band-types`; mặt cạnh tra loại
+    # bằng `edge-band-id` (sketchup-api.md, đo file sản xuất 28/07: `[0,"don 205 SH",…, 1,"Vat45",…]`).
+    # Soát 01/10: trước đây GHI ĐÈ cả mảng bằng một bộ + mặt luôn id 0 → tấm có Vát45 mất loại đó; dán chỉ B lên
+    # tấm đang chỉ A thì mọi cạnh A cũ đọc ra B (màn hình vẫn 2 màu nên không ai thấy).
+    # Nay GỘP: đã có loại CÙNG TÊN → dùng lại id đó; chưa có → thêm bộ mới, id = id lớn nhất + 1 (tấm trống: 0).
+    # Ca cũ đang đúng (tấm chưa có loại / cùng một loại) vẫn ra id 0 như trước. Trả id cho mặt cạnh.
+    def self.ensure_band_type(inst, band_type)
+      cu = inst.get_attribute('ABF', 'edge-band-types')
+      bo = cu.is_a?(Array) ? cu.each_slice(5).select { |b| b.size == 5 } : []
+      co = bo.find { |b| b[1].to_s == band_type[1].to_s }
+      return co[0].to_i if co
+      id = bo.empty? ? 0 : bo.map { |b| b[0].to_i }.max + 1
+      inst.set_attribute('ABF', 'edge-band-types', bo.flatten(1) + [id, band_type[1], band_type[2], band_type[3], band_type[4]])
+      id
     end
 
     def self.raw_entities(inst)
@@ -603,7 +641,12 @@ module MyStudio
       entities.each do |e|
         next unless e.is_a?(Sketchup::ComponentInstance) || e.is_a?(Sketchup::Group)
         raw = e.get_attribute('ABF', 'edge-band-types')
-        seen[raw[1].to_s] ||= raw if raw.is_a?(Array) && raw.size >= 4
+        # mảng nhiều bộ 5 → lấy ĐỦ mọi loại (trước 01/10 chỉ lấy bộ đầu: loại thứ 2 như Vát45 không bao giờ chọn được)
+        if raw.is_a?(Array) && raw.size >= 5
+          raw.each_slice(5) { |b| seen[b[1].to_s] ||= b if b.size == 5 }
+        elsif raw.is_a?(Array) && raw.size >= 4
+          seen[raw[1].to_s] ||= raw
+        end
         scan_for_types(raw_entities(e), seen, depth + 1)
       end
     end

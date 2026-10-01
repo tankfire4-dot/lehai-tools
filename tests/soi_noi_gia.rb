@@ -74,7 +74,7 @@ module Sketchup
     def draw2d(m, pts)
       raise "draw2d GL_LINES lẻ điểm (#{pts.size})" if m == GL_LINES && pts.size.odd?
       raise 'draw2d điểm không phải Point3d' unless pts.all? { |p| p.is_a?(Geom::Point3d) }
-      @ghi << [:d2, m, pts.size, @mau]
+      @ghi << [:d2, m, pts.size, @mau, @line_width]   # độ dày: kiểm nét khuất mảnh hơn (01/10)
     end
     def draw(m, pts); @ghi << [:d3, m, pts.size, @mau]; end
     def draw_polyline(*pts); @ghi << [:d3, :poly, pts.flatten.size, @mau]; end

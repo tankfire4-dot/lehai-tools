@@ -235,8 +235,7 @@ module TK
         spts = quad.map { |i| view.screen_coords(match.corners[i]) }
         view.drawing_color = Sketchup::Color.new(base.red, base.green, base.blue, 70)
         view.draw2d(GL_POLYGON, spts)
-        view.line_width = 3
-        view.drawing_color = base
+        LeHai::SoiNoi.but(view, base, 3)   # bút: nét khuất tự nhạt hơn (01/10)
         LeHai::SoiNoi.day2d(view, (quad + [quad.first]).map { |i| match.corners[i] })   # soi nổi: đoạn thấy liền, đoạn khuất đứt (30/09)
       end
 

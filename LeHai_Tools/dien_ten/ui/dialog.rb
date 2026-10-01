@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require File.join(File.dirname(__FILE__), '..', '..', 'shared', 'soi_noi')
 
 module TuDong
   module DienTen
@@ -39,22 +40,21 @@ module TuDong
       end
     end
 
-    # Vẽ khung tấm đang chọn bằng lớp 2D (draw2d) → LUÔN NỔI TRÊN, không bị tấm
-    # khác che (giống cách check Trùng Tấm). Chạy nền khi bảng đặt tên mở.
+    # Vẽ các tấm đang chọn kiểu SOI NỔI (shared/soi_noi.rb) — Khoa 01/10: Điền Tên còn viền hồng cũ, chưa theo
+    # kiểu đã chốt 30/09. Mờ phần còn lại của model + tấm thành khối sáng nhẹ (xanh = tấm tìm thấy); phần bị tấm
+    # khác che: trong suốt + nét đứt nhạt. Chỉ vẽ (draw2d), không đổi model. Chạy nền khi bảng đặt tên mở.
     class HiliteTool
-      HOT = Sketchup::Color.new(255, 20, 200)   # hồng nổi
-
       def initialize
-        @segs = []   # [[p1,p2], ...] điểm world
+        @boxes = []   # mỗi tấm = 24 điểm world (12 cạnh hộp, nối cặp GL_LINES)
       end
 
-      def set(segs)
-        @segs = segs || []
+      def set(boxes)
+        @boxes = boxes || []
         invalidate
       end
 
       def clear
-        @segs = []
+        @boxes = []
         invalidate
       end
 
@@ -63,12 +63,14 @@ module TuDong
       def deactivate(view); view.invalidate end
 
       def draw(view)
-        return if @segs.empty?
-        pts = []
-        @segs.each { |a, b| pts << a << b }
-        view.line_width    = 4
-        view.drawing_color = HOT
-        view.draw2d(GL_LINES, pts.map { |p| view.screen_coords(p) })
+        return if @boxes.empty?
+        LeHai::SoiNoi.phu_mo(view)
+        hop, le = @boxes.partition { |pts| LeHai::SoiNoi.khoi_tu_net(pts) }
+        LeHai::SoiNoi.ve_nets(view, hop.map { |pts| [pts, :xanh] })
+        le.each do |pts|   # tấm không dựng được hộp (dẹt lạ) → chỉ vẽ nét
+          LeHai::SoiNoi.but(view, Sketchup::Color.new(*LeHai::SoiNoi::VIEN[:xanh]), 2)
+          LeHai::SoiNoi.net2d(view, pts)
+        end
       end
 
       private
@@ -141,7 +143,7 @@ module TuDong
         end
 
         model = Sketchup.active_model
-        model.selection.clear   # bỏ viền xanh chọn sẵn — chỉ để lại viền hồng của bộ vẽ
+        model.selection.clear   # bỏ viền xanh chọn sẵn — chỉ để lại lớp soi nổi của bộ vẽ
 
         dlg = UI::HtmlDialog.new(
           dialog_title:    'Ho Tro Dien Ten Nhanh',
@@ -170,7 +172,7 @@ module TuDong
           save_suggestions(json)
         end
 
-        # Click dòng cha → vẽ khung TẤT CẢ tấm cùng loại (overlay hồng) + zoom tới.
+        # Click dòng cha → soi nổi TẤT CẢ tấm cùng loại + zoom tới.
         dlg.add_action_callback('highlight') do |_ctx, def_id|
           group = @groups.find { |g| g[:defId] == def_id }
           next unless group
@@ -203,19 +205,19 @@ module TuDong
         dlg.show
       end
 
-      # Vẽ khung các tấm (overlay) + zoom tới chúng.
+      # Soi nổi các tấm (overlay) + zoom tới chúng.
       def self.hilite(ents)
         return if ents.empty? || @hilite.nil?
         Sketchup.active_model.selection.clear   # không lẫn viền xanh
-        segs = []
-        bb   = Geom::BoundingBox.new
+        boxes = []
+        bb    = Geom::BoundingBox.new
         ents.each do |e|
-          plank_box_segs(e).each do |a, b|
-            segs << [a, b]
-            bb.add(a); bb.add(b)
-          end
+          segs = plank_box_segs(e)
+          next if segs.empty?
+          boxes << segs.flat_map { |a, b| [a, b] }
+          segs.each { |a, b| bb.add(a); bb.add(b) }
         end
-        @hilite.set(segs)
+        @hilite.set(boxes)
         Sketchup.active_model.active_view.zoom(bb) unless bb.empty?
       end
 

@@ -22,6 +22,9 @@ const tep = [
   ['huong_tu.rb', doc(path.join(LT, 'shared/huong_tu.rb'))],
   ['soi_noi.rb', doc(path.join(LT, 'shared/soi_noi.rb'))],
   ...TOOL.map(t => [t + '/main.rb', doc(path.join(LT, t, 'main.rb'))]),
+  // Điền Tên (01/10): bộ vẽ chọn tấm cũng soi nổi. Giả SelectionObserver vì file khai lớp con của nó lúc nạp.
+  ['gia_observer.rb', 'module Sketchup; class SelectionObserver; end unless const_defined?(:SelectionObserver); end'],
+  ['dien_ten/ui/dialog.rb', doc(path.join(LT, 'dien_ten/ui/dialog.rb'))],
   ['soi_noi_ca.rb', doc(path.join(here, 'soi_noi_ca.rb'))]];
 const { vm } = await RubyVM.instantiateModule({ module: wasm, wasip1: new WASI({ version: 'preview1', returnOnExit: true }) });
 const kq = JSON.parse(vm.eval(`require 'json'\n` + tep.map(([t, s]) => nap(t, bo(s))).join('\n')).toString());

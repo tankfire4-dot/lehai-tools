@@ -220,8 +220,7 @@ module TK
 
       def draw_arc(view)
         return if @draw.nil? || @draw.empty?
-        view.line_width = 3
-        view.drawing_color = COLOR_WARN
+        LeHai::SoiNoi.but(view, COLOR_WARN, 3)   # bút: nét khuất tự nhạt hơn (01/10)
         view.draw(GL_LINE_STRIP, @draw)
         LeHai::SoiNoi.day2d(view, @draw)   # soi nổi: đoạn thấy liền, đoạn khuất đứt (30/09)
       end

@@ -85,8 +85,7 @@ module LeHai
       end
       # viền 12 cạnh mỗi tấm: đoạn thấy liền, đoạn khuất đứt; cả tấm khuất → nhãn nhỏ
       ds.each_with_index do |(g, mau), gi|
-        view.line_width = 2
-        view.drawing_color = Sketchup::Color.new(*VIEN[mau])
+        but(view, Sketchup::Color.new(*VIEN[mau]), 2)
         net2d(view, CANH12.flat_map { |a, b| [g[a], g[b]] })
         o = mat.select { |_p, _m, truoc, _k, g2| truoc && g2 == gi }
         next if o.empty?
@@ -101,6 +100,18 @@ module LeHai
     NHIEU_DOAN = 60   # quá số đoạn này thì net2d không bắn tia
     NET = 7        # px nét đứt
     HO  = 5        # px hở giữa hai nét
+    # Nét KHUẤT nhạt hơn nét thấy (Khoa 01/10: nét đứt đậm ngang nét liền thì tấm bị che vẫn tranh mắt):
+    # đục 45% (alpha 115/255) màu bút, mảnh bằng nửa nét thấy (tối thiểu 1px). Nhịp đứt giữ nguyên (Khoa: "không cần giảm độ thưa").
+    KHUAT_DUC = 0.45
+
+    # Đặt bút cho net2d/day2d: màu + độ dày nét THẤY. net2d nhớ để vẽ nét KHUẤT nhạt + mảnh hơn.
+    # SketchUp không có lệnh ĐỌC lại màu/độ dày đang đặt trên view nên phải đi qua đây; gọi thẳng
+    # drawing_color= rồi net2d thì nét khuất vẽ cùng màu như trước (không vỡ, chỉ không nhạt).
+    def but(view, mau, day)
+      view.drawing_color = mau
+      view.line_width = day
+      @but = [mau, day]
+    end
 
     # Nét (GL_LINES, điểm thế giới): mỗi đoạn chia đôi, nửa nào THẤY vẽ liền, nửa KHUẤT vẽ đứt.
     # Dùng màu / độ dày đang đặt trên view — tool đặt màu rồi gọi, như gọi draw2d.
@@ -109,6 +120,7 @@ module LeHai
       # xoay — soát chéo 30/09 điểm 3) → vẽ liền như cũ, không bắn tia.
       if pts.size > 2 * NHIEU_DOAN
         view.draw2d(GL_LINES, pts.map { |p| view.screen_coords(p) })
+        @but = nil
         return
       end
       lien = []
@@ -125,7 +137,19 @@ module LeHai
         end
       end
       view.draw2d(GL_LINES, lien) unless lien.empty?
-      view.draw2d(GL_LINES, dut) unless dut.empty?
+      ve_khuat(view, dut) unless dut.empty?
+      @but = nil   # chỉ dùng cho đúng một lần vẽ: lần sau tool đặt màu kiểu cũ thì không mang màu cũ sang
+    end
+
+    # Nét khuất theo bút đang đặt (but): nhạt KHUAT_DUC + mảnh một nửa, vẽ xong trả bút về như cũ.
+    def ve_khuat(view, dut)
+      return view.draw2d(GL_LINES, dut) unless @but
+      mau, day = @but
+      view.drawing_color = Sketchup::Color.new(mau.red, mau.green, mau.blue, (255 * KHUAT_DUC).round)   # bút các tool đều màu đặc
+      view.line_width = [1, (day / 2.0).round].max
+      view.draw2d(GL_LINES, dut)
+      view.drawing_color = mau
+      view.line_width = day
     end
 
     # Đường gấp khúc (GL_LINE_STRIP) → như net2d

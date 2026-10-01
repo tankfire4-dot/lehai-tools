@@ -532,16 +532,14 @@ module TK
 
       def draw_outline(view, pts, w)
         return if pts.empty?
-        view.line_width = w
-        view.drawing_color = @color
+        LeHai::SoiNoi.but(view, @color, w)   # bút: nét khuất tự nhạt hơn (01/10)
         view.draw(GL_LINES, pts)
         LeHai::SoiNoi.net2d(view, pts)   # soi nổi: đoạn thấy liền, đoạn khuất đứt (30/09)
       end
 
       def draw_gap(view)
         return if @draw_g.empty?
-        view.line_width = 4
-        view.drawing_color = @gapcol
+        LeHai::SoiNoi.but(view, @gapcol, 4)   # bút: nét khuất tự nhạt hơn (01/10)
         view.draw(GL_LINES, @draw_g)
         LeHai::SoiNoi.net2d(view, @draw_g)   # soi nổi: đoạn thấy liền, đoạn khuất đứt (30/09)
       end

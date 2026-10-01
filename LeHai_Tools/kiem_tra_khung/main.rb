@@ -559,6 +559,7 @@ module TK
         @tams.each do |g|
           pts = net(g)
           view.draw(GL_LINES, pts)
+          LeHai::SoiNoi.but(view, @mau, 3)   # bút: nét khuất tự nhạt hơn (01/10)
           LeHai::SoiNoi.net2d(view, pts)   # soi nổi: đoạn thấy liền, đoạn khuất đứt (30/09)
         end
         ve_dau(view)
@@ -570,10 +571,9 @@ module TK
         c = @cho[@i]
         LeHai::SoiNoi.phu_mo(view)
         LeHai::SoiNoi.ve_khois(view, [[c[:hop_ban], :la], [c[:hop], :do]].select(&:first))
-        view.line_width = 4
-        view.drawing_color = XANH_LA
+        LeHai::SoiNoi.but(view, XANH_LA, 4)   # bút: nét khuất tự nhạt hơn (01/10)
         LeHai::SoiNoi.net2d(view, c[:xanh])   # soi nổi: đoạn thấy liền, đoạn khuất đứt (30/09)
-        view.drawing_color = DO
+        LeHai::SoiNoi.but(view, DO, 4)
         LeHai::SoiNoi.net2d(view, c[:do])
         s = view.screen_coords(c[:o])
         ve_huong(view, c, s)

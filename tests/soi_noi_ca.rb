@@ -110,4 +110,58 @@ it = (0...10).flat_map { |i| [Geom::Point3d.new(i, 0, 0), Geom::Point3d.new(i + 
 LeHai::SoiNoi.net2d(m.active_view, it)
 out << { ten: 'net2d: 200 đoạn → 0 tia (vẽ liền); 10 đoạn → có bắn tia', rieng: m.so_tia.between?(1, 20), kq: "#{m.so_tia} tia" }
 
+# 01/10 Khoa: nét KHUẤT nhạt hơn nét THẤY — đục 45% (115/255) + mảnh một nửa; nhịp đứt giữ nguyên.
+def canh_xem(nua)
+  tam = Sketchup::Group.new([0, 0, 0], [18 / 25.4, 600 / 25.4, 300 / 25.4], Geom::Transformation.new, 'hông trái')
+  vach = Sketchup::Group.new([-200 / 25.4, -1000 / 25.4, -1000 / 25.4], [-180 / 25.4, (nua ? 280 : 1600) / 25.4, 1300 / 25.4], Geom::Transformation.new, 'vách')
+  m = Sketchup::ModelSoi.new([tam, vach])
+  Sketchup.gia_model = m
+  v = m.active_view
+  v.camera.set(Geom::Point3d.new(-2000 / 25.4, 250 / 25.4, 200 / 25.4), Geom::Point3d.new(9 / 25.4, 300 / 25.4, 150 / 25.4), Geom::Vector3d.new(0, 0, 1))
+  v
+end
+def nhom_net(v)
+  l = v.ghi.select { |k, gl| k == :d2 && gl == GL_LINES }
+  [l.select { |*_, mau, _w| mau.rgba.size == 3 }, l.select { |*_, mau, _w| mau.rgba.size == 4 && mau.rgba[3] == 115 }]
+end
+begin
+  v = canh_xem(true)
+  hop_a = TK::DuplicateCheck::ReviewTool.allocate.send(:flatten, A)
+  LeHai::SoiNoi.ve_nets(v, [[hop_a, :do]])
+  lien, dut = nhom_net(v)
+  out << { ten: 'Nét KHUẤT nhạt + mảnh: đoạn thấy liền 2px màu đặc, đoạn khuất đục 115 dày 1px',
+           rieng: !lien.empty? && !dut.empty? && lien.map(&:last).uniq == [2] && dut.map(&:last).uniq == [1],
+           kq: "liền #{lien.size} (dày #{lien.map(&:last).uniq}) · khuất #{dut.size} (dày #{dut.map(&:last).uniq})" }
+  # Bút chỉ dùng cho MỘT lần net2d: tool đặt màu kiểu cũ rồi gọi net2d → nét khuất cùng màu tool, không mang màu cũ sang
+  v.ghi.clear
+  v.drawing_color = Sketchup::Color.new(1, 2, 3)
+  v.line_width = 3
+  LeHai::SoiNoi.net2d(v, hop_a)
+  l2 = v.ghi.select { |k, gl| k == :d2 && gl == GL_LINES }
+  out << { ten: 'Bút không dính sang lần sau: net2d không qua but → mọi nét đúng màu tool (1,2,3), dày 3',
+           rieng: !l2.empty? && l2.all? { |*_, mau, w| mau.rgba == [1, 2, 3] && w == 3 }, kq: l2.map { |*_, mau, w| [mau.rgba, w] }.uniq.inspect }
+rescue StandardError => e
+  out << { ten: 'Nét KHUẤT nhạt', loi: "#{e.class}: #{e.message} #{(e.backtrace || []).first(2).join(' | ')}" }
+end
+
+# Điền Tên (01/10): chọn tấm → SOI NỔI (mờ + khối xanh), KHÔNG còn viền hồng cũ (255,20,200)
+begin
+  v = canh_xem(false)
+  ht = TuDong::DienTen::HiliteTool.new
+  ht.set([TK::DuplicateCheck::ReviewTool.allocate.send(:flatten, A)])
+  ht.draw(v)
+  mo = v.ghi.count { |k, gl, _n, mau| k == :d2 && gl == GL_POLYGON && mau.rgba == [246, 245, 241, 185] }
+  khoi = v.ghi.count { |k, gl, n| k == :d2 && gl == GL_POLYGON && n == 4 }
+  hong = v.ghi.any? { |*_, mau, _w| mau.respond_to?(:rgba) && mau.rgba[0, 3] == [255, 20, 200] }
+  xanh = v.ghi.any? { |k, gl, _n, mau| k == :d2 && gl == GL_LINES && mau.rgba[0, 3] == [30, 110, 230] }
+  out << { ten: 'Điền Tên: chọn tấm → mờ 1 lớp + khối + viền xanh, không còn hồng', rieng: mo == 1 && khoi >= 6 && xanh && !hong,
+           kq: "mờ #{mo} · mặt khối #{khoi} · viền xanh #{xanh} · hồng #{hong}" }
+  v.ghi.clear
+  ht.set([TK::DuplicateCheck::ReviewTool.allocate.send(:flatten, hop_segs([0, 0, 0], [100, 0, 0]))])   # hộp bẹp thành 1 đoạn: không dựng được khối → chỉ vẽ nét, không văng
+  ht.draw(v)
+  out << { ten: 'Điền Tên: tấm không dựng được hộp → vẫn vẽ nét, không văng', rieng: LeHai::SoiNoi.khoi_tu_net(TK::DuplicateCheck::ReviewTool.allocate.send(:flatten, hop_segs([0, 0, 0], [100, 0, 0]))).nil? && v.ghi.any? { |k, gl| k == :d2 && gl == GL_LINES }, kq: v.ghi.map { |k, gl| [k, gl] }.inspect }
+rescue StandardError => e
+  out << { ten: 'Điền Tên soi nổi', loi: "#{e.class}: #{e.message} #{(e.backtrace || []).first(2).join(' | ')}" }
+end
+
 JSON.generate(out)

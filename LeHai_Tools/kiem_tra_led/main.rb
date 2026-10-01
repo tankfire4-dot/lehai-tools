@@ -255,8 +255,7 @@ module TK
 
       def draw_outline(view, pts)
         return if pts.empty?
-        view.line_width = 3
-        view.drawing_color = @color
+        LeHai::SoiNoi.but(view, @color, 3)   # bút: nét khuất tự nhạt hơn (01/10)
         view.draw(GL_LINES, pts)
         LeHai::SoiNoi.net2d(view, pts)   # soi nổi: đoạn thấy liền, đoạn khuất đứt (30/09)
       end

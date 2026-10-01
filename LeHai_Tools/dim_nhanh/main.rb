@@ -550,8 +550,14 @@ module TK
       return 0 if dims.empty?
       model = Sketchup.active_model
       model.start_operation('Don dim nhanh', true)
-      dims.each(&:erase!)
-      model.commit_operation
+      begin
+        dims.each(&:erase!)
+        model.commit_operation
+      rescue => e
+        model.abort_operation
+        UI.messagebox("Lỗi: #{e.message}")
+        return 0
+      end
       @last_dims = []
       dims.size
     end

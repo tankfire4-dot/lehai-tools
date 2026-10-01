@@ -133,9 +133,16 @@ module TuDong
       end
 
       def self.show(targets, parent = nil)
+        # Chốt mở trùng (luật nhà B2, soát 01/10): bấm lần 2 khi bảng cũ còn mở từng đẻ bảng thứ hai — observer
+        # bảng cũ treo mãi, @entity_map bị thay nên Áp dụng ở bảng cũ không ghi được tên mà không báo.
+        # Mở lại = đóng hẳn bảng cũ (dọn observer + bộ vẽ) rồi mới mở bảng cho lựa chọn mới.
+        if @dlg && @dlg.visible?
+          cleanup(Sketchup.active_model)
+          @dlg.close
+        end
+        @parent     = parent   # đặt TRƯỚC build_groups: world_tr_of cần cây cha để tính scale thật
         @entity_map = targets.each_with_object({}) { |e, h| h[e.entityID] = e }
-        @groups     = Namer.build_groups(targets)
-        @parent     = parent
+        @groups     = Namer.build_groups(targets, ->(e) { world_tr_of(e) })
 
         id_to_row = {}
         @groups.each_with_index do |g, i|
@@ -154,6 +161,7 @@ module TuDong
           min_height:      400,
           resizable:       true
         )
+        @dlg = dlg
         # Đọc HTML NẰM CẠNH file này (không theo PATH) — để khi load bản dev qua
         # Ruby Console, HTML cũng lấy từ repo chứ không dính bản cài ở %AppData%.
         dlg.set_file(File.join(File.dirname(__FILE__), 'dialog.html'))
@@ -218,7 +226,24 @@ module TuDong
           segs.each { |a, b| bb.add(a); bb.add(b) }
         end
         @hilite.set(boxes)
-        Sketchup.active_model.active_view.zoom(bb) unless bb.empty?
+        frame(bb) unless bb.empty?
+      end
+
+      # Đặt camera ôm hộp bb. View#zoom KHÔNG nhận BoundingBox (sketchup-api.md mục View#zoom — văng lỗi, trước
+      # 01/10 bấm dòng thấy soi nổi mà không zoom). Bản chạy thật: kiem_tra_ban_le/main.rb `frame`.
+      def self.frame(bb)
+        cam  = Sketchup.active_model.active_view.camera
+        ctr  = bb.center
+        diag = bb.diagonal
+        diag = 100.0 if diag < 1.0   # hộp quá bé → camera văng ra vô cực
+        if cam.perspective?
+          fov  = cam.fov * Math::PI / 180.0
+          dist = (diag / 2.0) / Math.tan(fov / 2.0) * 1.5
+          cam.set(ctr.offset(cam.direction.reverse, dist), ctr, cam.up)
+        else
+          cam.set(ctr.offset(cam.direction.reverse, diag * 3.0), ctr, cam.up)
+          cam.height = diag * 1.5
+        end
       end
 
       # 12 cạnh của hộp bao TẤM ở toạ độ WORLD.

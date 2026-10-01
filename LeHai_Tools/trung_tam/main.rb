@@ -145,7 +145,10 @@ module TK
       bb = Geom::BoundingBox.new
       ents.each { |c| bb.add(c.bounds) if c.is_a?(Sketchup::Face) }
       return if bb.empty?
-      dims   = [bb.width.to_f, bb.height.to_f, bb.depth.to_f].sort  # inch, tăng dần
+      # SOAT_LOI A3 (soát 01/10): nhân hệ số scale world từng trục — tấm kéo Scale không còn bị lọc/nhóm theo
+      # kích thước BẢN GỐC. Hệ số = độ dài (te * trục), sketchup-api.md. Tấm không scale: hệ số 1 → y hệt bản cũ.
+      k      = [X_AXIS, Y_AXIS, Z_AXIS].map { |a| (te * a).length.to_f }
+      dims   = [bb.width.to_f * k[0], bb.height.to_f * k[1], bb.depth.to_f * k[2]].sort  # inch, tăng dần
       th_mm  = dims[0] * MM
       mid_mm = dims[1] * MM
       big_mm = dims[2] * MM

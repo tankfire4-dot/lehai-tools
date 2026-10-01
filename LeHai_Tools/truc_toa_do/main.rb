@@ -73,9 +73,10 @@ module TK
 
       model = Sketchup.active_model
       n = 0
+      hong = 0   # soát 01/10: đối tượng reset lỗi trước đây bị bỏ qua im lặng — nay đếm và báo
       model.start_operation('Reset truc ve global', true)
       begin
-        plain.each { |e| n += 1 if reset_one(e) }
+        plain.each { |e| reset_one(e) ? n += 1 : hong += 1 }
         model.commit_operation
       rescue => err
         model.abort_operation
@@ -84,6 +85,7 @@ module TK
       end
 
       msg = "✓ Đã reset trục #{n} đối tượng về global (gốc về góc hình)."
+      msg += " ⚠ #{hong} đối tượng KHÔNG reset được (xem Ruby Console)." if hong > 0
       msg += " ⚠ Bỏ qua #{dcs.size} DC — gỡ DC trước rồi reset." unless dcs.empty?
       msg += " ⚠ Bỏ qua #{xien.size} tấm XIÊN (reset sẽ làm trục lệch khỏi tấm)." unless xien.empty?
       status(msg)
@@ -118,7 +120,8 @@ module TK
       ents.transform_entities(t2.inverse * t, ents.to_a)  # giữ hình đứng yên
       entity.transformation = t2
       true
-    rescue StandardError
+    rescue StandardError => e
+      puts "[Trục Tọa Độ] không reset được #{entity.class.name} '#{entity.name}': #{e.message}"   # đếm + báo ở reset_axes
       false
     end
     private_class_method :reset_one

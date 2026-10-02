@@ -12,6 +12,25 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-10-02 — 1.9.85: Mộng Xương Chó dựng từ ĐƯỜNG VIỀN THẬT — tấm khoét/có dấu ABF làm được
+
+**Vấn đề:** Khoa cần mọc mộng trên tấm đã có dấu ABF (khoét/khoan dạng group) và tấm khoét thẳng vào
+thân (khe ngàm âm dương). Tool cũ đếm đúng 18 thứ trong group mới nhận, rồi XÓA SẠCH và dựng lại từ
+HỘP chữ nhật → dấu con bị coi là "đã khoét", khe khoét bị lấp.
+**Quyết định:** thân tấm chỉ cần là LĂNG TRỤ (1 mặt A + 1 mặt B, mặt khác vuông góc trục dày, mọi
+đỉnh trên A/B) — khoét xuyên, lỗ xuyên vẫn đạt; rãnh/hốc không xuyên thì chặn. Dựng lại = lấy viền
+mặt A thật, chèn răng các đầu MỚI vào đoạn thẳng trùng mép (răng rơi vào khe → chặn trước khi đụng
+model), giữ lỗ xuyên, kéo dày. Chỉ xóa cạnh/mặt rời: group con (dấu ABF, dấu âm tấm khác, dấu phay
+đầu cũ) giữ nguyên; đầu cũ không dựng lại nữa. Vật liệu/vân/attribute (dán cạnh) chép lại theo mặt
+phẳng; mặt đầu mọc mộng bị răng chia nhiều mặt → bỏ dán cạnh ở đó và báo số mặt. Dấu ABF phẳng
+ngay trên mặt đầu sắp mọc mộng → chặn. Làm mềm cung theo góc 2 mặt < 20°.
+**Kiểm:** Ruby.wasm chạy code thật `frame_for`/`plan_edge`/`chen_rang` (scratch/mong-xuong-cho/
+run_thu.mjs): tấm đứng, tấm ngang 4 đầu, khe mép sau, răng tránh khe, răng rơi khe → chặn; đa giác
+đơn, diện tích răng đều. Khoa nghiệm thu SketchUp 02/10: tấm có khe âm dương → khe nguyên, mộng đúng.
+**Chưa:** preview chưa vẽ khe khoét + vùng phay (model đúng, chỉ preview thiếu).
+
+---
+
 ## 2026-10-02 — 1.9.84: Mộng Xương Chó soát trước ca sản xuất + tấm nằm ngang
 
 **Vấn đề:** người dùng mới gặp "đang bị Scale hoặc xiên ở cấp group" trên đợt kệ (đo thật: X ×0.9895,

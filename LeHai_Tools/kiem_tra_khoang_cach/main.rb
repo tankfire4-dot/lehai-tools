@@ -179,7 +179,7 @@ module TK
           co_cb    = a[:cb] || b[:cb]
           nguong   = co_cb ? GAP_CB_INCH : GAP_INCH
           next if aabb_far?(a[:bbox], b[:bbox], nguong)
-          dist, ca, cpb = min_dist(a[:segs], b[:segs])
+          dist, ca, cpb = min_dist(a[:segs], b[:segs], nguong)   # đo đủ tới ngưỡng của CẶP (chống bay 12mm)
           next if dist.nil?
           nhan = "#{a[:name]}  ↔  #{b[:name]}"
           if dist < GAP_INCH - TOL_INCH
@@ -302,9 +302,12 @@ module TK
     # khoang cach nho nhat giua 2 tap doan thang -> [dist, ca, cb] (inch)
     # Toi uu: bo qua cap canh co AABB cach xa hon GAP (khong the la min < 7mm)
     # -> chi tinh seg_seg cho cac cap canh THUC SU gan -> nhanh hon nhieu.
-    def self.min_dist(segs_a, segs_b)
+    # gap = ngưỡng của cặp đang xét. Soát 01/10: trước đây cứng 7mm cho MỌI cặp → cặp có chi tiết chống bay
+    # hở 7–12mm bị lọc sạch ở bước loại nhanh (hộp bao cạnh xa > 7mm) → dist nil → KHÔNG BAO GIỜ nhắc chống bay
+    # với tấm chữ nhật xếp thẳng (gần như mọi tấm nesting). Cặp thường vẫn 7mm → kết quả y hệt.
+    def self.min_dist(segs_a, segs_b, gap = GAP_INCH)
       best = nil; bca = nil; bcb = nil
-      g2 = GAP_INCH * GAP_INCH
+      g2 = gap * gap
       baabb = segs_b.map { |b1, b2| edge_aabb(b1, b2) }
       segs_a.each do |a1, a2|
         aab = edge_aabb(a1, a2)

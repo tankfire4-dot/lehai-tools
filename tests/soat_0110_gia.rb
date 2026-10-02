@@ -15,11 +15,14 @@ module Geom
     def initialize(x = 0, y = 0, z = 0); @x = x.to_f; @y = y.to_f; @z = z.to_f; end
     def to_a; [x, y, z]; end
     def -(o); Vector3d.new(x - o.x, y - o.y, z - o.z); end
+    def distance(o); (self - o).length; end
   end
   class Vector3d
     attr_reader :x, :y, :z
     def initialize(x = 0, y = 0, z = 0); @x = x.to_f; @y = y.to_f; @z = z.to_f; end
     def length; Math.sqrt(x * x + y * y + z * z); end
+    def -(o); Vector3d.new(x - o.x, y - o.y, z - o.z); end
+    def +(o); Vector3d.new(x + o.x, y + o.y, z + o.z); end
   end
   # r = ma trận 3×3 (xoay + scale), t = dời
   class Transformation

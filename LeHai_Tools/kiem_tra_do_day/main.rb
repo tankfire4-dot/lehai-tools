@@ -115,7 +115,7 @@ module TK
       bb = Geom::BoundingBox.new
       ents.each { |c| bb.add(c.bounds) if c.is_a?(Sketchup::Face) }
       return nil if bb.empty?
-      k = [X_AXIS, Y_AXIS, Z_AXIS].map { |a| (te * a).length.to_f }
+      k = [X_AXIS, Y_AXIS, Z_AXIS].map { |a| l = (te * a).length.to_f; (l - 1.0).abs < 1e-9 ? 1.0 : l }   # sai số máy khi tấm xoay (0.9999999999999999) ép về đúng 1 → tấm không scale ra SỐ Y HỆT bản cũ
       [bb.width * k[0], bb.height * k[1], bb.depth * k[2]].min.to_mm
     rescue StandardError
       nil   # helper thuần đọc: tấm không đo được = bỏ qua (nil là kết quả hợp lệ, walk lọc đi)

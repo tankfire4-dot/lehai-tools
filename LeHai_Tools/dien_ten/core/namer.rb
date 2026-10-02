@@ -74,7 +74,9 @@ module TuDong
 
         # Hệ số scale từng trục = độ dài (tr * trục) — sketchup-api.md "Lấy hệ số scale" (đúng cả khi có xoay).
         def scale_of(tr)
-          [X_AXIS, Y_AXIS, Z_AXIS].map { |a| (tr * a).length.to_f }
+          # sai số máy khi tấm xoay (0.9999999999999999) ép về đúng 1 → tấm không scale ra SỐ Y HỆT bản cũ
+          # (khoá nhóm làm tròn 0,01 inch: lệch 1e-16 cũng đủ tách 2 tấm giống hệt thành 2 dòng)
+          [X_AXIS, Y_AXIS, Z_AXIS].map { |a| l = (tr * a).length.to_f; (l - 1.0).abs < 1e-9 ? 1.0 : l }
         rescue StandardError
           [1.0, 1.0, 1.0]   # helper thuần đọc: không đọc được transform → coi như không scale (hành vi cũ)
         end

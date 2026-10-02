@@ -32,6 +32,10 @@ Sổ chi tiết: lab `scratch/soat-lehai/loi.md`. Test: `node tests/soat_0110.te
 | **MỚI** Thư Viện catalog hỏng bị ghi đè | **ĐÃ SỬA** — đọc hỏng thì không ghi, báo |
 | **MỚI** Trục Tọa Độ reset lỗi im lặng | **ĐÃ SỬA** — đếm + báo |
 | **MỚI** Dọn Component → group mất trục tấm | HỎI Khoa |
+| **Lượt 2 (tối 01/10)** Liên Kết gộp mối THIẾU theo cặp tên | **ĐÃ SỬA** — tủ 1 khoét rồi, tủ 2 chưa (cùng tên hông ↔ hậu) → mối thiếu tủ 2 bị nuốt, báo ĐẠT. Nay mối thiếu không bao giờ gộp |
+| **Lượt 2** Trùng Tấm chia ngăn theo số làm tròn | **ĐÃ SỬA** — 17,5 lệch sai số máy ra ngăn 17 / 18 → bỏ sót trùng. Nay so có dung sai |
+| **Lượt 2** Khoảng Cách không bao giờ nhắc chống bay 7–12mm | **ĐÃ SỬA** — lọc nhanh cứng 7mm; nay theo ngưỡng của cặp |
+| **Lượt 2** hệ số scale lệch sai số máy (bản sửa A1–A3 của 1.9.83) | **ĐÃ SỬA** — ép về đúng 1 khi sát 1 |
 
 ---
 

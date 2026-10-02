@@ -122,4 +122,84 @@ ca(out, 'Dán Cạnh: danh sách loại quét ĐỦ cả bộ thứ 2 (Vát45) �
   [seen.keys.sort == ['Vat45', 'don 221 T'], seen.keys.inspect]
 end
 
+# ── Lượt 2 (soát kỹ tối 01/10) ───────────────────────────────
+# Sai số máy khi tấm xoay: hệ số scale 0.9999999999999999 phải ép về đúng 1 → số y hệt tấm không xoay.
+GAN1 = Geom::Transformation.new([[0.9999999999999999, 0, 0], [0, 1.0000000000000002, 0], [0, 0, 0.9999999999999999]])
+ca(out, 'Sai số máy: hệ số 0.9999999999999999 ép về 1 — Độ Dày ra ĐÚNG số của tấm không xoay') do
+  a = TD.send(:own_thickness_mm, Sketchup.hop([0, 0, 0], [600, 300, 17.5]))
+  b = TD.send(:own_thickness_mm, Sketchup.hop([0, 0, 0], [600, 300, 17.5]), GAN1)
+  [a == b, "#{a.inspect} vs #{b.inspect}"]
+end
+ca(out, 'Sai số máy: Điền Tên 2 tấm giống hệt (1 tấm lệch sai số) → MỘT dòng, không tách') do
+  g1 = Sketchup::Group.new(Sketchup.hop([0, 0, 0], [600, 300, 17.5]))
+  g2 = Sketchup::Group.new(Sketchup.hop([0, 0, 0], [600, 300, 17.5]), GAN1)
+  gr = NM.build_groups([g1, g2])
+  [gr.size == 1, gr.map { |x| x[:defId] }.inspect]
+end
+
+# Trùng Tấm: 2 tấm 17,5 trùng khít, một tấm lệch sai số máy (17.499999999999996) → vẫn phải bắt
+def tam_tt(ten, day, x0 = 0.0)
+  { name: ten, wc: Geom::Point3d.new(x0 + 300 / 25.4, 150 / 25.4, day / 2 / 25.4), size: [day, 300.0, 600.0],
+    key: [day, 300.0, 600.0].map(&:round), segs: [],
+    edges: [Geom::Vector3d.new(600 / 25.4, 0, 0), Geom::Vector3d.new(0, 300 / 25.4, 0), Geom::Vector3d.new(0, 0, day / 25.4)] }
+end
+ca(out, 'Trùng Tấm: 17,5 vs 17,499999999999996 (sai số máy) → VẪN bắt trùng (trước đây khác ngăn 18 / 17 → sót)') do
+  v = TT.find_dups([tam_tt('a', 17.5), tam_tt('b', 17.499999999999996)])
+  [v.size == 1, "#{v.size} cặp · khoá cũ #{tam_tt('a', 17.5)[:key]} vs #{tam_tt('b', 17.499999999999996)[:key]}"]
+end
+ca(out, 'Trùng Tấm: hai tấm cách nhau 5mm → KHÔNG báo trùng') do
+  v = TT.find_dups([tam_tt('a', 17.5), tam_tt('b', 17.5, 5 / 25.4)])
+  [v.empty?, "#{v.size} cặp"]
+end
+ca(out, 'Trùng Tấm: ba tấm chồng khít → 3 cặp (như cũ: mỗi cặp một dòng)') do
+  v = TT.find_dups([tam_tt('a', 18.0), tam_tt('b', 18.0), tam_tt('c', 18.0)])
+  [v.size == 3, "#{v.size} cặp"]
+end
+
+# Khoảng Cách: cặp có chi tiết chống bay hở 10mm (7–12) → phải NHẮC; cặp thường 10mm → không; 5mm → lỗi
+KC = TK::SpacingCheck
+def chu_nhat(x0, x1, y0, y1)
+  p = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map { |x, y| [x / 25.4, y / 25.4, 0.0] }
+  (0..3).map { |i| [p[i], p[(i + 1) % 4]] }
+end
+def tam_kc(ten, segs, cb)
+  { name: ten, segs: segs, bbox: KC.bbox_of(segs), cb: cb }
+end
+ca(out, 'Khoảng Cách: chi tiết chống bay hở 10mm → NHẮC (trước đây lọt vì lọc nhanh cứng 7mm)') do
+  v = []; KC.check_pairs('sheet-1', [tam_kc('lớn', chu_nhat(0, 500, 0, 300), false), tam_kc('nhỏ', chu_nhat(510, 560, 0, 40), true)], v)
+  [v.size == 1 && v[0].kind == :pair_cb && (v[0].gap_mm - 10.0).abs < 0.05, v.map { |x| [x.kind, x.gap_mm] }.inspect]
+end
+ca(out, 'Khoảng Cách: cặp thường hở 10mm → không báo gì (y hệt cũ)') do
+  v = []; KC.check_pairs('sheet-1', [tam_kc('a', chu_nhat(0, 500, 0, 300), false), tam_kc('b', chu_nhat(510, 900, 0, 300), false)], v)
+  [v.empty?, v.map { |x| [x.kind, x.gap_mm] }.inspect]
+end
+ca(out, 'Khoảng Cách: cặp hở 5mm → LỖI 5mm (y hệt cũ, kể cả khi có chống bay)') do
+  v = []; KC.check_pairs('sheet-1', [tam_kc('a', chu_nhat(0, 500, 0, 300), false), tam_kc('b', chu_nhat(505, 560, 0, 40), true)], v)
+  [v.size == 1 && v[0].kind == :pair && (v[0].gap_mm - 5.0).abs < 0.05, v.map { |x| [x.kind, x.gap_mm] }.inspect]
+end
+
+# Liên Kết: 2 tủ giống nhau, cùng cặp tên "hông ↔ hậu" — tủ 1 đã khoét, tủ 2 CHƯA → mối thiếu phải hiện
+JC = TK::JointCheck
+def ca_lien_ket(jc, ket)   # ket = [[tên a, tên b, đã làm?]...] theo thứ tự quét
+  planks = ket.each_with_index.flat_map { |(na, nb, _m), i| [{ name: na, aabb: [i * 10.0, 0, 0, i * 10.0 + 5, 1, 1], k: i }, { name: nb, aabb: [i * 10.0 + 1, 0, 0, i * 10.0 + 4, 1, 1], k: i }] }
+  jc.define_singleton_method(:pair_joint) do |a, b, _rh, _ng|
+    next nil unless a[:k] == b[:k]
+    na, nb, m = ket[a[:k]]
+    TK::JointCheck::Vio.new(:ranhhau, na, nb, 9.0, [], [], [], m)
+  end
+  jc.find_joints(planks, [])
+end
+ca(out, 'Liên Kết: tủ 1 đã khoét, tủ 2 CHƯA (cùng tên hông ↔ hậu) → mối thiếu VẪN hiện (trước đây bị gộp mất)') do
+  j = ca_lien_ket(JC, [['hông', 'hậu', true], ['hông', 'hậu', false]])
+  [j.count { |v| !v.made } == 1, j.map { |v| [v.name_a, v.name_b, v.made] }.inspect]
+end
+ca(out, 'Liên Kết: 3 tủ đều thiếu cùng cặp tên → 3 mối thiếu, không gộp') do
+  j = ca_lien_ket(JC, [['hông', 'hậu', false], ['hông', 'hậu', false], ['hông', 'hậu', false]])
+  [j.count { |v| !v.made } == 3, j.size]
+end
+ca(out, 'Liên Kết: 3 tủ đều ĐÃ khoét → vẫn gộp 1 dòng "đã làm" như cũ') do
+  j = ca_lien_ket(JC, [['hông', 'hậu', true], ['hông', 'hậu', true], ['hông', 'hậu', true]])
+  [j.size == 1 && j[0].made, j.size]
+end
+
 JSON.generate(out)

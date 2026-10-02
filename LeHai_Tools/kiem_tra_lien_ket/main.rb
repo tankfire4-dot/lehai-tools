@@ -154,7 +154,11 @@ module TK
       planks = planks.sort_by { |p| p[:aabb][0] }   # sweep theo minX
       n = planks.size
       out  = []
-      seen = {}                                      # khử trùng: mỗi cặp 1 mối
+      # Gộp theo CẶP TÊN chỉ cho mối ĐÃ LÀM (bảng "Xem chỗ đã làm" khỏi lặp 10 tủ giống nhau). Mối THIẾU KHÔNG
+      # BAO GIỜ gộp — soát 01/10: trước đây gộp cả mối thiếu theo tên, mà Điền Tên đặt CÙNG tên cho tấm cùng cỡ
+      # (mọi tủ đều có "hông ↔ hậu") → tủ 1 đã khoét, tủ 2 chưa: chỉ giữ mối gặp trước → mối thiếu bị nuốt,
+      # dashboard báo ĐẠT trong khi hậu tủ 2 không lắp được.
+      seen = {}
       i = 0
       while i < n
         a = planks[i]; ax_hi = a[:aabb][3]
@@ -163,7 +167,9 @@ module TK
           b = planks[j]
           break if b[:aabb][0] > ax_hi
           v = pair_joint(a, b, rh, ng)
-          if v
+          if v && !v.made
+            out << v                                   # mối thiếu: luôn giữ, từng mối một
+          elsif v
             key = [v.name_a, v.name_b].sort.join(' || ')
             unless seen[key]
               seen[key] = true

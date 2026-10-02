@@ -78,19 +78,21 @@ module TK
     # ── So từng cặp trong cùng nhóm kích thước (nhanh) ──
     # Trùng khít THẬT = cùng tâm + 3 vector cạnh khớp (cùng hướng). Hai tấm cắt
     # mộng (xoay 90°) tuy cùng tâm + cùng bao nhưng cạnh lệch hướng → bị loại.
+    # Soát 01/10: trước đây chia "ngăn" theo kích thước LÀM TRÒN 1mm rồi chỉ so trong ngăn. Ván chuẩn 17,5 / 8,5
+    # nằm đúng ranh giới làm tròn: hai tấm giống hệt nhưng lệch sai số máy (tấm xoay, vẽ lại) ra 17 và 18 →
+    # khác ngăn → KHÔNG BAO GIỜ so → bỏ sót trùng im lặng. Nay quét theo trục x của tâm (cửa sổ CENTER_TOL)
+    # rồi so tâm + cạnh có DUNG SAI — không còn ranh giới làm tròn. Trùng thật (tâm ≤ 1mm, cạnh ≤ 1mm) vẫn bắt y hệt.
     def self.find_dups(boards)
-      buckets = Hash.new { |h, k| h[k] = [] }
-      boards.each { |b| buckets[b[:key]] << b }
+      ds = boards.sort_by { |b| b[:wc].x }
       vios = []
-      buckets.each_value do |grp|
-        next if grp.size < 2
-        grp.each_with_index do |a, i|
-          ((i + 1)...grp.size).each do |j|
-            b = grp[j]
-            next if a[:wc].distance(b[:wc]) > CENTER_TOL
-            next unless edges_match?(a[:edges], b[:edges])
-            vios << Dup.new(a[:name], b[:name], a[:segs], b[:segs])
-          end
+      ds.each_with_index do |a, i|
+        ((i + 1)...ds.size).each do |j|
+          b = ds[j]
+          break if b[:wc].x - a[:wc].x > CENTER_TOL                 # đã sắp theo x: xa hơn thì mọi tấm sau còn xa hơn
+          next if a[:wc].distance(b[:wc]) > CENTER_TOL
+          next unless a[:size].zip(b[:size]).all? { |p, q| (p - q).abs <= EDGE_TOL * MM }   # mm, cùng dung sai cạnh
+          next unless edges_match?(a[:edges], b[:edges])
+          vios << Dup.new(a[:name], b[:name], a[:segs], b[:segs])
         end
       end
       vios
@@ -147,7 +149,7 @@ module TK
       return if bb.empty?
       # SOAT_LOI A3 (soát 01/10): nhân hệ số scale world từng trục — tấm kéo Scale không còn bị lọc/nhóm theo
       # kích thước BẢN GỐC. Hệ số = độ dài (te * trục), sketchup-api.md. Tấm không scale: hệ số 1 → y hệt bản cũ.
-      k      = [X_AXIS, Y_AXIS, Z_AXIS].map { |a| (te * a).length.to_f }
+      k      = [X_AXIS, Y_AXIS, Z_AXIS].map { |a| l = (te * a).length.to_f; (l - 1.0).abs < 1e-9 ? 1.0 : l }   # sai số máy khi tấm xoay (0.9999999999999999) ép về đúng 1 → tấm không scale ra SỐ Y HỆT bản cũ
       dims   = [bb.width.to_f * k[0], bb.height.to_f * k[1], bb.depth.to_f * k[2]].sort  # inch, tăng dần
       th_mm  = dims[0] * MM
       mid_mm = dims[1] * MM
@@ -160,7 +162,7 @@ module TK
         name:  label(e),
         wc:    te * bb.center,
         size:  size,
-        key:   size.map(&:round),         # nhóm sơ bộ theo kích thước làm tròn 1mm
+        key:   size.map(&:round),         # chỉ để xem/gỡ lỗi — find_dups KHÔNG chia ngăn theo khoá này nữa (01/10)
         edges: [pts[1] - pts[0], pts[3] - pts[0], pts[4] - pts[0]], # 3 vector cạnh world
         segs:  segs_from_corners(pts)
       }

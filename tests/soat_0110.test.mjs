@@ -21,6 +21,8 @@ const tep = [
   ['kiem_tra_do_day/main.rb', doc(path.join(LT, 'kiem_tra_do_day/main.rb'))],
   ['trung_tam/main.rb', doc(path.join(LT, 'trung_tam/main.rb'))],
   ['auto_dan_canh/main.rb', doc(path.join(LT, 'auto_dan_canh/main.rb'))],
+  ['kiem_tra_khoang_cach/main.rb', doc(path.join(LT, 'kiem_tra_khoang_cach/main.rb'))],
+  ['kiem_tra_lien_ket/main.rb', doc(path.join(LT, 'kiem_tra_lien_ket/main.rb'))],
   ['soat_0110_ca.rb', doc(path.join(here, 'soat_0110_ca.rb'))]];
 const { vm } = await RubyVM.instantiateModule({ module: wasm, wasip1: new WASI({ version: 'preview1', returnOnExit: true }) });
 const kq = JSON.parse(vm.eval(`require 'json'\n` + tep.map(([t, s]) => nap(t, bo(s))).join('\n')).toString());

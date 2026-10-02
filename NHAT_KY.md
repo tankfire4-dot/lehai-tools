@@ -12,6 +12,26 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-10-02 — 1.9.84: Mộng Xương Chó soát trước ca sản xuất + tấm nằm ngang
+
+**Vấn đề:** người dùng mới gặp "đang bị Scale hoặc xiên ở cấp group" trên đợt kệ (đo thật: X ×0.9895,
+Y ×1.0212 do Scale tool bên ngoài vỏ). Gỡ Scale xong lộ chặn cũ "tấm nằm ngang" — tool từ 1.9.68 chỉ
+nhận tấm đứng, trong khi đợt kệ ngàm vào hông là ca phổ biến nhất (LUAT_NHA mục 9). Soát kỹ còn ra lỗi
+nặng: mọc mộng XÓA SẠCH hình tấm ngàm rồi dựng lại → mất im lặng dán cạnh (ABF edge-band-id nằm trên
+MẶT), vật liệu mặt, dấu/rãnh tấm khác đã đóng lên; tấm Push/Pull sau lần mộng đầu bị trả kích thước cũ.
+**Quyết định:** chặn (không đoán) mọi thứ không dựng lại được; chép lại vật liệu + vân 2 mặt lớn; so hình
+hiện tại với ghi nhớ; chặn module đang mở bị Scale; khóa thông số dòng theo persistent_id (trước theo số
+thứ tự → bớt tấm là thông số trượt sang tấm khác); nút Gỡ Scale (t = R·S, đưa S vào hình); tấm ngang
+xoay ảo 90° quanh X trong `frame_for` — chỉ số :thin/:u từ đây là của HỆ CẠNH, `build_tenon` so tọa độ
+trong hệ cạnh đầu 1. Giao diện gọn theo phản ánh người dùng: tên bỏ tiền tố chung, lỗi gom một khung,
+bấm khung = chọn nhóm, ô không dùng để trống, thêm kích thước chiều cao trên hình cả tấm.
+**Kiểm:** Khoa nghiệm thu trên SketchUp 02/10 (đợt kệ ngang → 2 hông); giao diện thử Chromium.
+**Chưa làm:** copy tấm ngàm đã làm → dấu phay vẫn trỏ b-id tấm nhận cũ (cần thử ABF xem có rơi LAYER0).
+**Phát kèm lỗi đã biết:** 2 P1 Tô tay Dán Cạnh (handoff/report-soat-lehai-0110.md) — có sẵn từ 1.9.83,
+phát 1.9.84 không làm nặng thêm; dặn thợ đứng ngoài tấm + Make Unique trước khi tô tay.
+
+---
+
 ## 2026-09-30 — Soát chéo trước khi phát (Khung Tổng Thể + Soi Nổi)
 
 Codex hết quota → Khoa chọn một phiên Claude MỚI (bối cảnh sạch, chỉ đọc) soát. Kết luận: phát được sau khi sửa

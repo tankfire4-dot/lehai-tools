@@ -6,7 +6,7 @@
 # Giữ mộng dương dày bằng thân ván; thông số dày/bên giữ chỉ đổi DẤU ÂM.
 # Toolbar do LeHai_Tools/main.rb quản lý — file này chỉ expose create_cmd.
 # Dấu âm ra layer DXF LEHAI_MONGAM: Khoa nghiệm thu 27/09/2026 (file sạch → nest → xuất ABF).
-# Dấu phay mộng + viền 2mm ra LEHAI_PHAYMONG / LEHAI_PHAYVIENMONG: nghiệm thu 27/09 (Desktop/ketqua).
+# Dấu phay mộng + viền (2mm, từ 03/10 là 3mm) ra LEHAI_PHAYMONG / LEHAI_PHAYVIENMONG: nghiệm thu 27/09 (Desktop/ketqua).
 
 require 'sketchup.rb'
 require 'json'
@@ -26,7 +26,7 @@ module MongXuongCho
   # viền tràn VIEN_PHAY ra hai hông + phía đầu mộng (chân giữ nguyên, không lẹm thân tấm) để dao ăn sạch mép.
   TAG_PHAY_MONG = 'LEHAI_PHAYMONG'.freeze
   TAG_PHAY_VIEN = 'LEHAI_PHAYVIENMONG'.freeze
-  VIEN_PHAY = 2.mm
+  VIEN_PHAY = 3.mm # Khoa đổi 2 → 3mm 03/10/2026 (file đã làm sửa bằng scratch/mong-xuong-cho/sua_vien_3mm.rb)
   # ── Tên layer DXF lấy từ TAG CỦA MẶT ──────
   # Exporter DXF của ABF đặt layer cho _ABF_Intersect theo tag của MẶT bên trong nhóm; tag của
   # group và của cạnh bị bỏ qua, hướng mặt không ảnh hưởng. Đo 27/09/2026 trên file sạch: cùng

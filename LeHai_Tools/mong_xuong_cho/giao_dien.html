@@ -5,22 +5,22 @@
 <header><h1>Mộng xương chó</h1><span id="demo" class="badge">Đang kết nối SketchUp…</span></header>
 <main>
 <section class="roles">
- <div class="role ngam" id="roleNgam">
-  <div class="role-head"><span class="dot"></span><h2>Tấm ngàm <small>mọc mộng</small></h2><span class="count" id="countNgam">0</span></div>
+ <div class="role ngam" id="roleNgam" data-mode="ngam">
+  <div class="role-head"><span class="dot"></span><h2>Tấm ngàm <span class="count" id="countNgam">0</span></h2><span class="picking">Đang chọn · bấm tấm trên model</span></div>
   <ul id="listNgam" class="boards"></ul>
-  <div class="role-actions"><button data-mode="ngam">Bấm tấm trên model</button><button data-take="ngam">Lấy vùng chọn</button><button data-clear="ngam" class="ghost">Xóa</button></div>
+  <div class="role-actions"><button data-take="ngam" class="link">Lấy vùng chọn</button><button data-clear="ngam" class="link">Xóa hết</button></div>
  </div>
- <div class="role nhan" id="roleNhan">
-  <div class="role-head"><span class="dot"></span><h2>Tấm nhận <small>đóng dấu</small></h2><span class="count" id="countNhan">0</span></div>
+ <div class="role nhan" id="roleNhan" data-mode="nhan">
+  <div class="role-head"><span class="dot"></span><h2>Tấm nhận <span class="count" id="countNhan">0</span></h2><span class="picking">Đang chọn · bấm tấm trên model</span></div>
   <ul id="listNhan" class="boards"></ul>
-  <div class="role-actions"><button data-mode="nhan">Bấm tấm trên model</button><button data-take="nhan">Lấy vùng chọn</button><button data-clear="nhan" class="ghost">Xóa</button></div>
+  <div class="role-actions"><button data-take="nhan" class="link">Lấy vùng chọn</button><button data-clear="nhan" class="link">Xóa hết</button></div>
  </div>
 </section>
-<p class="hint" id="hint"></p>
+<div class="problems" id="problems" hidden><ul id="problemList"></ul><button id="unscale" hidden title="Đưa Scale của vỏ group vào hình bên trong; tấm đứng yên, kích thước giữ như đang thấy">Gỡ Scale</button></div>
 <section class="pairs">
- <div class="section-head"><h2>Các cặp tool tự ghép</h2><p>Bấm một dòng để tô cặp đó trên model. Mặt A/B có in trên từng tấm ngàm.</p></div>
- <table><thead><tr><th class="c-on">Làm</th><th>Tấm ngàm · đầu</th><th>Tấm nhận</th><th class="num">Dài đầu</th><th class="num">Số mộng</th><th class="num">Lùi tâm</th><th>Thu dấu</th><th class="num">Dày dấu</th></tr>
-  <tr class="all" id="allRow"><td class="c-on"></td><td class="all-lbl">Tất cả <span>gõ ở đây → điền xuống mọi dòng đang tick</span></td><td></td><td></td><td class="num"><input type="number" data-all="count" min="1" step="1" placeholder="—"></td><td class="num"><input type="number" data-all="inset" min="1" step="1" placeholder="—"></td><td><select data-all="side"><option value="">—</option><option value="none">Không thu</option><option value="A">Giữ mặt A</option><option value="B">Giữ mặt B</option></select></td><td class="num"><input type="number" data-all="fit" min="1" step=".1" placeholder="—"></td></tr></thead><tbody id="rows"></tbody></table>
+ <div class="section-head"><h2>Cặp mộng</h2><p>Bấm một dòng để tô cặp đó trên model</p></div>
+ <table><thead><tr><th class="c-on">Làm</th><th>Ngàm → Nhận</th><th class="num">Dài đầu</th><th class="num">Số mộng</th><th class="num">Lùi tâm</th><th>Thu dấu</th><th class="num">Dày dấu</th></tr>
+  <tr class="all" id="allRow"><td class="c-on"></td><td class="all-lbl" title="Gõ ở đây → điền xuống mọi dòng đang tick">Tất cả</td><td></td><td class="num"><input type="number" data-all="count" min="1" step="1" placeholder="—"></td><td class="num"><input type="number" data-all="inset" min="1" step="1" placeholder="—"></td><td><select data-all="side"><option value="">—</option><option value="none">Không thu</option><option value="A">Giữ mặt A</option><option value="B">Giữ mặt B</option></select></td><td class="num"><input type="number" data-all="fit" min="1" step=".1" placeholder="—"></td></tr></thead><tbody id="rows"></tbody></table>
  <p class="empty" id="empty"></p>
 </section>
 <section class="preview" id="preview">

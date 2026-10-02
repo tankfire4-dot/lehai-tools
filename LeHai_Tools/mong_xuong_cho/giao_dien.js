@@ -21,6 +21,7 @@ function loadShape(){try{const s=JSON.parse(localStorage.getItem('mxc.shape')||'
 
 // Lỗi của một cặp MỚI, hoặc ''. Cùng luật với plan_edge bên Ruby.
 function check(r,p,s){
+ if(p.block)return `Tấm ngàm ${p.block}.`;   // Ruby chặn: mọc mộng sẽ xóa mất thứ không dựng lại được
  const L=p.length,T=p.thickness,fit=r.side==='none'?T:r.fit;
  const vals=[r.count,...shapeKeys.map(k=>s[k]),...(r.count===1?[]:[r.inset]),...(r.side==='none'?[]:[r.fit])];
  if(vals.some(v=>!Number.isFinite(v)))return 'Nhập đủ thông số bằng số.';
@@ -37,17 +38,37 @@ function check(r,p,s){
 // Số mộng đề xuất theo độ dài đầu: ngắn dưới 150 mm thì 1 mộng giữa, dài thì ~1 mộng / 300 mm.
 function suggest(p,base){let n=p.length<150?1:Math.max(2,Math.round(p.length/300)+1);const s=shape();while(n>1&&check({...base,count:n},p,s))n--;return n;}
 
+// Nhãn Ruby "Ngàm 1 · PNmas_tuaothang_modul01_dotke2" → {tag:'Ngàm 1', name:'dotke2'}: bỏ phần đầu tên
+// mọi tấm cùng có (tên module), cắt ở dấu _ - . hoặc khoảng trắng. Tên đầy đủ vẫn hiện khi rê chuột.
+let namePrefix='';
+function splitLabel(l){const i=String(l).indexOf(' · ');return i<0?{tag:String(l),name:''}:{tag:l.slice(0,i),name:l.slice(i+3)};}
+function computePrefix(m){
+ const names=m.tenons.concat(m.receivers).map(b=>splitLabel(b.label).name).filter(Boolean);
+ if(names.length<2){namePrefix='';return;}
+ let pre=names.reduce((a,n)=>{let i=0;while(i<a.length&&i<n.length&&a[i]===n[i])i++;return a.slice(0,i);});
+ const cut=Math.max(...['_','-','.',' '].map(c=>pre.lastIndexOf(c)));
+ pre=cut>=0?pre.slice(0,cut+1):'';
+ namePrefix=names.every(n=>n.length>pre.length)?pre:'';
+}
+function short(l){const {tag,name}=splitLabel(l);return {tag,name:name.startsWith(namePrefix)?name.slice(namePrefix.length):name};}
+function shortText(l){const s=short(l);return s.name?`${s.tag} ${s.name}`:s.tag;}
+function chip(b){const s=short(b.label),li=el('li',b.problem?'bad':'');li.title=b.problem?`${b.label} — ${b.problem}`:b.label;
+ li.append(el('b',null,s.tag));if(s.name)li.append(el('span',null,s.name));if(b.problem)li.append(el('i',null,'!'));return li;}
+
 function renderLists(){
- const m=state.model;
+ const m=state.model;computePrefix(m);
  [['ngam',m.tenons,'listNgam','countNgam','roleNgam'],['nhan',m.receivers,'listNhan','countNhan','roleNhan']].forEach(([role,list,listId,countId,boxId])=>{
   const ul=$(listId);ul.replaceChildren();
-  if(!list.length)ul.append(el('li','none','Chưa có — bấm tấm trên model'));
-  list.forEach(b=>{const li=el('li',b.problem?'bad':'',b.problem?`${b.label} — ${b.problem}`:b.label);ul.append(li);});
+  if(!list.length)ul.append(el('li','none','Chưa có tấm nào'));
+  list.forEach(b=>ul.append(chip(b)));
   $(countId).textContent=list.length;
   $(boxId).classList.toggle('active',state.mode===role);
  });
- document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('on',b.dataset.mode===state.mode));
- $('hint').textContent=`Đang thêm ${state.mode==='ngam'?'TẤM NGÀM':'TẤM NHẬN'}: bấm tấm trên model để thêm/bớt. Muốn quét chọn: phím Space → quét → bấm “Lấy vùng chọn”.`;
+ // Tấm bị loại: gom một chỗ, mỗi tấm một dòng, thay vì nhét câu dài vào thẻ tên.
+ const bad=m.tenons.concat(m.receivers).filter(b=>b.problem),pl=$('problemList');pl.replaceChildren();
+ bad.forEach(b=>{const li=el('li');li.append(el('b',null,shortText(b.label)),document.createTextNode(` — ${b.problem}`));pl.append(li);});
+ $('problems').hidden=!bad.length;
+ $('unscale').hidden=!bad.some(b=>b.scaled);
 }
 
 function buildRows(){
@@ -59,13 +80,16 @@ function buildRows(){
   const r=p.state==='moi'?state.rows[p.key]:{...p.stored,on:p.state==='chi_dau'&&state.rows[p.key].on};
   const tr=el('tr');tr.dataset.key=p.key;
   const on=el('td','c-on'),box=el('input');box.type='checkbox';box.dataset.k='on';box.checked=!!r.on;box.disabled=p.state==='da_lam';on.append(box);
-  const who=el('td');who.append(el('span','who',p.tenon),el('span','edge',`đầu ${p.edgeName}`));
-  if(p.state!=='moi')who.append(el('span',`tag ${p.state}`,p.state==='da_lam'?'đã làm':'chỉ đóng dấu · thông số cũ'));
+  const who=el('td','pair'),a=short(p.tenon),b=short(p.receiver),l1=el('div');
+  l1.append(el('b',null,a.tag),el('span','edge',` đầu ${p.edgeName} → `),el('b',null,b.tag));
+  if(p.state!=='moi')l1.append(el('span',`tag ${p.state}`,p.state==='da_lam'?'đã làm':'chỉ đóng dấu'));
+  who.append(l1);if(a.name||b.name)who.append(el('div','names',`${a.name||'—'} → ${b.name||'—'}`));
+  who.title=`${p.tenon}, đầu ${p.edgeName} → ${p.receiver}`;
   const cell=(k,attrs)=>{const td=el('td','num'),i=el('input');i.type='number';i.dataset.k=k;Object.assign(i,attrs);i.value=Number.isFinite(r[k])?r[k]:'';td.append(i);return td;};
   const sideTd=el('td'),sel=el('select');sel.dataset.k='side';[['none','Không thu'],['A','Giữ mặt A'],['B','Giữ mặt B']].forEach(([v,t])=>{const o=el('option',null,t);o.value=v;sel.append(o);});sel.value=r.side||'none';sideTd.append(sel);
-  tr.append(on,who,el('td',null,p.receiver),el('td','num',fmt(p.length)),cell('count',{min:1,step:1}),cell('inset',{min:1,step:1}),sideTd,cell('fit',{min:1,step:.1}));
-  if(p.state!=='moi')tr.querySelectorAll('input[type=number],select').forEach(i=>i.disabled=true);
-  const err=el('tr','err');err.hidden=true;const etd=el('td');etd.colSpan=8;err.append(etd);
+  tr.append(on,who,el('td','num',fmt(p.length)),cell('count',{min:1,step:1}),cell('inset',{min:1,step:1}),sideTd,cell('fit',{min:1,step:.1}));
+  if(p.state!=='moi'){tr.querySelectorAll('input[type=number],select').forEach(i=>i.disabled=true);blankUnused(tr,r);}
+  const err=el('tr','err');err.hidden=true;const etd=el('td');etd.colSpan=7;err.append(etd);
   tb.append(tr,err);
  }
  const m=state.model;
@@ -73,6 +97,12 @@ function buildRows(){
  markFocus();
 }
 
+// Ô không dùng tới thì để trống thay vì hiện số mờ: 1 mộng → lùi tâm "giữa"; không thu → dày dấu "—".
+// Giá trị vẫn nằm trong state.rows, bật lại là hiện lại.
+function blankUnused(tr,r){
+ [['inset',r.count===1,'giữa'],['fit',(r.side||'none')==='none','—']].forEach(([k,unused,ph])=>{const i=tr.querySelector(`[data-k=${k}]`);if(!i)return;
+  if(unused){i.value='';i.placeholder=ph;}else if(i.value===''&&Number.isFinite(r[k]))i.value=r[k];});
+}
 function markFocus(){document.querySelectorAll('#rows tr[data-key]').forEach(tr=>tr.classList.toggle('focus',tr.dataset.key===state.focus));}
 
 // Kiểm lại mọi cặp, bật/tắt ô nhập, cập nhật tóm tắt. Không dựng lại bảng để giữ con trỏ nhập.
@@ -87,18 +117,19 @@ function validate(){
   if(p.state==='moi'){
    tr.querySelectorAll('input[type=number],select').forEach(i=>i.disabled=!on);
    if(on){tr.querySelector('[data-k=inset]').disabled=r.count===1;tr.querySelector('[data-k=fit]').disabled=r.side==='none';e=check(r,p,s);}
+   blankUnused(tr,r);
    tr.querySelector('[data-k=count]').classList.toggle('bad',!!e);
   }
   err.hidden=!e;err.firstChild.textContent=e;tr.classList.toggle('row-error',!!e);
   if(on){count++;const n=p.state==='moi'?r.count:p.stored.count;marks+=Number.isFinite(n)?n:0;if(p.state==='moi')newTeeth+=Number.isFinite(n)?n:0;}
-  if(e&&!first)first=`${p.tenon}, đầu ${p.edgeName}: ${e}`;
+  if(e&&!first)first=`${short(p.tenon).tag}, đầu ${p.edgeName}: ${e}`;
  }
  $('summary').textContent=count?`${count} cặp sẽ làm · ${marks} dấu âm${newTeeth?` · ${newTeeth} mộng mới`:''}`:'Chưa có cặp nào để làm';
  $('shapeSummary').textContent=`rộng ${fmt(s.head)} · cao ${fmt(s.height)} · cổ Ø${fmt(s.neck)} · dao Ø${fmt(s.cutter)} mm`;
  $('apply').disabled=!count||!!first||state.busy;
- const bad=state.model.tenons.find(t=>t.problem);
+ const bad=state.model.tenons.find(t=>t.problem)||state.model.receivers.find(t=>t.problem);
  drawPreview();
- showMessage(first||(bad?`${bad.label}: ${bad.problem}.`:count?'Bấm từng dòng để soát cặp trên model rồi Áp dụng.':''),!!first||!!bad);
+ showMessage(first||(bad?'Có tấm bị loại — xem khung đỏ phía trên.':count?'Bấm từng dòng để soát cặp trên model rồi Áp dụng.':''),!!first||!!bad);
 }
 
 // ---- Nền vẽ chung ----
@@ -147,8 +178,9 @@ function drawFace(id,p,zoom){
  const sp=pairSpec(p),L=p.edge%2?W:H,out=(sp.s.height||10)+8;
  let box=[-out,-out,W+out,H+out];
  if(zoom){const d0=edges[p.edge]||sp,n0=d0.r.count||1,m0=n0===1?L/2:d0.r.inset+Math.floor((n0-1)/2)*(L-2*d0.r.inset)/(n0-1),half=(d0.s.head||35)/2+Math.max(d0.s.neck||6,8)+10;const a=mapEdge(p.edge,m0-half,-14,W,H),b=mapEdge(p.edge,m0+half,(d0.s.height||10)+14,W,H);box=[Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[0],b[0]),Math.max(a[1],b[1])];if(t.mirror)box=[W-box[2],box[1],W-box[0],box[3]];}
- const pad=26,s=Math.min((w-2*pad)/(box[2]-box[0]),(h-2*pad)/(box[3]-box[1]));
- const ox=(w-(box[2]-box[0])*s)/2,oy=(h-(box[3]-box[1])*s)/2,P=([x,y])=>[ox+(x-box[0])*s,h-oy-(y-box[1])*s];
+ // Hình cả tấm chừa thêm dải bên phải cho kích thước chiều cao tấm.
+ const pad=26,padR=zoom?0:44,s=Math.min((w-2*pad-padR)/(box[2]-box[0]),(h-2*pad)/(box[3]-box[1]));
+ const ox=(w-padR-(box[2]-box[0])*s)/2,oy=(h-(box[3]-box[1])*s)/2,P=([x,y])=>[ox+(x-box[0])*s,h-oy-(y-box[1])*s];
  c.save();c.beginPath();c.rect(0,0,w,h);c.clip();
  poly(c,pts.map(P),'#f4efe7','#6b4226',1.4);
  // Đầu đang chọn: vạch hồng dọc mép + tên tấm nhận phía ngoài.
@@ -157,7 +189,7 @@ function drawFace(id,p,zoom){
  // Tên tấm nhận ngoài mỗi đầu (chỉ ở hình cả tấm); canh chữ ra phía ngoài để không đè mép.
  if(!zoom)state.model.pairs.filter(q=>q.ti===p.ti).forEach(q=>{const Lq=q.edge%2?W:H,m=mapEdge(q.edge,Lq/2,out,W,H),pt=P([fx(m[0]),m[1]]),cx=P([W/2,H/2]);const al=Math.abs(pt[0]-cx[0])<4?'center':pt[0]<cx[0]?'right':'left';text(c,q.receiver.split(' · ')[0],pt[0],Math.min(Math.max(pt[1],10),h-8),q.key===p.key?'#db2777':'#8a7f75',al,'middle');});
  c.restore();
- if(!zoom){dimension(c,[P([0,0])[0],h-10],[P([W,0])[0],h-10],fmt(W));return;}
+ if(!zoom){dimension(c,[P([0,0])[0],h-10],[P([W,0])[0],h-10],fmt(W));dimension(c,[w-padR/2-4,P([0,0])[1]],[w-padR/2-4,P([0,H])[1]],fmt(H));return;}
  // Phóng to: ghi rộng đầu + cao mộng trên răng gần giữa của đầu đang chọn.
  const d=edges[p.edge];if(!d)return;
  const n=d.r.count,mid=n===1?L/2:d.r.inset+Math.floor((n-1)/2)*(L-2*d.r.inset)/(n-1);
@@ -189,7 +221,7 @@ function drawPreview(){
  const p=state.model.pairs.find(q=>q.key===state.focus)||state.model.pairs.find(q=>q.state!=='da_lam')||state.model.pairs[0];
  $('preview').hidden=!p;if(!p)return;
  const t=state.model.tenons[p.ti]||{};
- $('previewTitle').textContent=`${p.tenon}, đầu ${p.edgeName} → ${p.receiver} · nhìn từ mặt A`;
+ $('previewTitle').textContent=`${shortText(p.tenon)}, đầu ${p.edgeName} → ${shortText(p.receiver)} · nhìn từ mặt A`;
  const {r,s}=pairSpec(p);
  if(p.state==='moi'&&check(r,p,s)){['faceAll','faceZoom','section','mortise'].forEach(id=>{const [c,w,h]=canvas(id);text(c,'Sửa lỗi của dòng này để xem hình',w/2,h/2,'#b91c1c','center','middle');});$('markSize').textContent='';return;}
  drawFace('faceAll',p,false);drawFace('faceZoom',p,true);drawSection(p);drawMortise(p);
@@ -208,9 +240,11 @@ $('allRow').addEventListener('input',ev=>{const k=ev.target.dataset.all;if(!k)re
  validate();});
 $('rows').addEventListener('click',ev=>{const tr=ev.target.closest('tr[data-key]');if(!tr||ev.target.closest('input,select'))return;state.focus=tr.dataset.key;markFocus();drawPreview();bridge('focus',state.focus);});
 shapeKeys.forEach(k=>$(k).addEventListener('input',()=>{saveShape();validate();}));
-document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{state.mode=b.dataset.mode;bridge('mode',state.mode);renderLists();});
+// Bấm vào khung nào = đang chọn tấm cho nhóm đó (thay nút "Bấm tấm trên model").
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=ev=>{if(ev.target.closest('button'))return;state.mode=b.dataset.mode;bridge('mode',state.mode);renderLists();});
 document.querySelectorAll('[data-take]').forEach(b=>b.onclick=()=>state.live?bridge('take',b.dataset.take):showMessage('Bản xem giao diện: chọn tấm trong SketchUp.',true));
 document.querySelectorAll('[data-clear]').forEach(b=>b.onclick=()=>{if(state.live)bridge('clear',b.dataset.clear);else showMessage('Bản xem giao diện: không xóa được.',true);});
+$('unscale').onclick=()=>state.live?bridge('unscale',''):showMessage('Bản xem giao diện.');
 $('refresh').onclick=()=>state.live?bridge('refresh',''):showMessage('Bản xem giao diện.');
 $('cancel').onclick=()=>state.live?bridge('cancel',''):showMessage('Đây là bản xem giao diện. Đóng tab để thoát.');
 $('apply').onclick=()=>{validate();if($('apply').disabled)return;

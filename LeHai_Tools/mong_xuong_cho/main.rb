@@ -81,9 +81,55 @@ module MongXuongCho
 
   # Không Scale, không xiên ở cấp group: thông số mm mới đúng với hình học.
   def self.rigid?(group)
-    t = AXES.map { |axis| group.transformation * axis }
+    rigid_t?(group.transformation)
+  end
+
+  def self.rigid_t?(tr)
+    t = AXES.map { |axis| tr * axis }
     t.all? { |axis| (axis.length - 1.0).abs < 0.000001 } &&
       [[0, 1], [0, 2], [1, 2]].all? { |a, b| t[a].dot(t[b]).abs < 0.000001 }
+  end
+
+  # Ba trục group có còn vuông góc không (Scale theo trục group thì còn; kéo méo thì không).
+  def self.skew?(group)
+    t = AXES.map { |axis| group.transformation * axis }
+    [[0, 1], [0, 2], [1, 2]].any? { |a, b| (t[a].dot(t[b]) / (t[a].length * t[b].length)).abs > 0.000001 }
+  end
+
+  # Câu báo Scale/xiên ghi rõ bao nhiêu lần, theo trục nào (02/10: "Scale hoặc xiên" chung chung
+  # làm thợ không biết sửa gì). nil nếu group không bị gì.
+  def self.scale_problem(group)
+    return nil if rigid?(group)
+    return 'đang bị XIÊN (méo xéo) ở cấp group — không gỡ tự động được, vẽ lại tấm' if skew?(group)
+    parts = %w[X Y Z].zip(AXES.map { |a| (group.transformation * a).length }).reject { |_n, l| (l - 1.0).abs < 0.000001 }
+    "đang bị Scale ở cấp group (#{parts.map { |n, l| "#{n} ×#{l.round(4)}" }.join(', ')}) — bấm \"Gỡ Scale\" rồi đo lại bề dày ván"
+  end
+
+  # Đưa phần Scale của vỏ group vào hình bên trong: t = R·S (R cứng, S co giãn theo trục group)
+  # → hình nhân S, vỏ còn R. Tấm đứng yên chỗ cũ, kích thước thật giữ nguyên như đang thấy.
+  def self.go_scale(groups)
+    model = Sketchup.active_model
+    list = groups.select { |g| g.valid? && !rigid?(g) && !skew?(g) }
+    raise 'Không có tấm nào bị Scale để gỡ (tấm XIÊN phải vẽ lại).' if list.empty?
+    model.start_operation('Go Scale tam', true)
+    begin
+      list.each do |g|
+        g.make_unique
+        t = g.transformation
+        l = AXES.map { |a| (t * a).length }
+        g.entities.transform_entities(Geom::Transformation.scaling(*l), g.entities.to_a)
+        g.transformation = t * Geom::Transformation.scaling(*l.map { |v| 1.0 / v })
+      end
+      raise 'Gỡ Scale chưa sạch.' unless list.all? { |g| rigid?(g) }
+      model.commit_operation
+    rescue StandardError
+      model.abort_operation
+      raise
+    end
+    list.map { |g|
+      b = board_bounds(g)
+      "#{g.name.empty? ? 'tấm' : g.name}: #{[b.width, b.height, b.depth].map { |v| v.to_mm.round(2) }.sort.join(' × ')}"
+    }
   end
 
   def self.dau_abf?(entity)
@@ -133,12 +179,58 @@ module MongXuongCho
 
   # Lý do tấm không làm ngàm được, hoặc nil nếu được.
   def self.tenon_problem(group)
+    scaled = scale_problem(group)
+    return scaled if scaled
+    mem = memory(group)
+    if mem && !khop_ghi_nho?(group, mem)
+      return 'đã bị sửa hình/kích thước sau khi làm mộng (không còn khớp ghi nhớ) — Undo về lúc vừa làm mộng, hoặc vẽ lại tấm nguyên'
+    end
     box = tenon_box(group)
     return 'nằm XIÊN trong group (trục group không theo cạnh tấm — thường do Reset về Global hoặc vẽ xiên rồi mới gom group) — đặt trục group theo cạnh tấm rồi làm lại' if !box && xien_trong_group?(group)
     return 'đã có mộng/khoét nhưng không phải do tool này làm (hoặc làm bằng bản cũ) — Undo về tấm nguyên rồi làm lại' unless box
-    return 'đang bị Scale hoặc xiên ở cấp group' unless rigid?(group)
-    sizes = [box.width, box.height, box.depth]
-    return 'là tấm nằm ngang — tool chỉ mọc mộng trên tấm đứng (trục Z local là chiều cao)' if sizes.each_with_index.min_by { |v, _i| v }[1] == 2
+    nil
+  end
+
+  # Hình hiện tại = hộp ghi nhớ + răng các đầu đã làm? Lệch nghĩa là tấm bị Push/Pull/sửa sau lần
+  # mộng trước: dựng lại từ ghi nhớ sẽ trả kích thước CŨ, đóng dấu theo hộp cũ sẽ lệch (soát 02/10).
+  def self.khop_ghi_nho?(group, mem)
+    box = mem[:box]
+    want = Geom::BoundingBox.new.add(box.min, box.max)
+    mem[:edges].each do |edge, spec|
+      h = spec['height']
+      return false unless h.is_a?(Numeric) && (1..4).include?(edge)
+      fd = frame_for(group, edge, box)
+      b = fd[:bounds]
+      [[0, 0], [b.max.x, 0], [b.max.x, b.max.y], [0, b.max.y]].each { |x, y|
+        want.add(fd[:frame] * Geom::Point3d.new(x, y, b.max.z + h.mm))
+      }
+    end
+    have = board_bounds(group)
+    (want.min.to_a + want.max.to_a).zip(have.min.to_a + have.max.to_a).all? { |a, b| (a - b).abs < 0.01.mm }
+  end
+
+  def self.dau_phay_cua_tool?(entity)
+    dau_abf?(entity) && [TAG_PHAY_MONG, TAG_PHAY_VIEN].include?(entity.layer.name)
+  end
+
+  # Mọc mộng XÓA hết hình tấm ngàm rồi dựng lại. Thứ gì không dựng lại được thì phải chặn trước,
+  # không được mất im lặng (soát 02/10): dán cạnh trên mặt, dấu/rãnh của tấm khác, mặt cạnh nhiều
+  # vật liệu. Vật liệu hai mặt lớn + một vật liệu chung mặt cạnh thì build_tenon chép lại.
+  def self.rebuild_problem(group, box)
+    ents = group.entities
+    la = ents.reject { |e| e.is_a?(Sketchup::Edge) || e.is_a?(Sketchup::Face) || dau_phay_cua_tool?(e) }
+    unless la.empty?
+      return "đang chứa #{la.length} thứ khác (dấu âm/rãnh/khoan của tấm khác...) — mọc thêm mộng sẽ xóa mất. Mọc mộng tấm này TRƯỚC khi đóng dấu lên nó"
+    end
+    faces = ents.grep(Sketchup::Face)
+    if faces.any? { |f| f.get_attribute('ABF', 'edge-band-id') || f.attribute_dictionary('Hung_EdgeBanding') }
+      return 'đã dán cạnh — mọc mộng sẽ xóa dán cạnh. Gỡ dán cạnh, làm mộng xong rồi mới dán'
+    end
+    thin = [box.width, box.height, box.depth].each_with_index.min_by { |v, _i| v }[1]
+    sides = faces.reject { |f| f.normal.to_a[thin].abs > 0.999999 }
+    if sides.map { |f| [f.material, f.back_material] }.uniq.length > 1
+      return 'mặt cạnh tấm đang có nhiều vật liệu/màu khác nhau — mọc mộng sẽ mất. Làm mộng trước rồi mới tô'
+    end
     nil
   end
 
@@ -146,9 +238,17 @@ module MongXuongCho
 
   # Hệ cạnh: cạnh `edge` của hộp `box` thành cạnh trên, u chạy dọc cạnh, z hướng ra ngoài,
   # trục dày giữ nguyên (mặt A = mặt thấp của trục dày).
+  # Tấm NẰM NGANG (dày theo Z local, vd đợt kệ — LUAT_NHA mục 9): xoay ảo 90° quanh X để thành
+  # tấm đứng (Z local → +Y, giữ mặt A là mặt thấp của trục dày), tính như cũ rồi xoay về.
+  # Mọi chỉ số :thin/:u trả ra là của HỆ CẠNH, không phải của tọa độ local tấm (02/10).
   def self.frame_for(group, edge, box = nil)
     raise 'Chọn cạnh từ 1 đến 4.' unless (1..4).include?(edge)
     b = box || group.definition.bounds
+    upright = nil
+    if [b.width, b.height, b.depth].each_with_index.min_by { |v, _i| v }[1] == 2
+      upright = Geom::Transformation.axes(ORIGIN, X_AXIS, Z_AXIS.reverse, Y_AXIS)
+      b = Geom::BoundingBox.new.add(upright * b.min, upright * b.max)
+    end
     lengths = [b.width, b.height, b.depth]
     thin = lengths.each_with_index.min_by { |v, _i| v }[1]
     raise 'Tấm tạo mộng cần là tấm đứng với trục Z dọc mặt lớn.' if thin == 2
@@ -176,7 +276,9 @@ module MongXuongCho
     dimensions[u], dimensions[2] = lengths[2], lengths[u] if [2, 4].include?(edge)
     bounds = Geom::BoundingBox.new
     bounds.add(Geom::Point3d.new(0, 0, 0), Geom::Point3d.new(dimensions))
-    {frame: Geom::Transformation.axes(Geom::Point3d.new(origin), *basis), bounds: bounds,
+    frame = Geom::Transformation.axes(Geom::Point3d.new(origin), *basis)
+    frame = upright.inverse * frame if upright
+    {frame: frame, bounds: bounds,
      thin: thin, u: u, width: lengths[u].to_mm, height: lengths[2].to_mm, thickness: lengths[thin].to_mm}
   end
 
@@ -419,8 +521,10 @@ module MongXuongCho
       next if tenon_problem(t)
       box = tenon_box(t)
       mem = memory(t)
+      block = rebuild_problem(t, box)
       (1..4).each do |edge|
-        r = receivers.find { |g| contact_info(t, edge, g, box) }
+        # Tấm nhận bị Scale: hệ tọa độ không đúng mm, không ghép (chip tấm đó đã báo đỏ).
+        r = receivers.find { |g| rigid?(g) && contact_info(t, edge, g, box) }
         next unless r
         stored = mem && mem[:edges][edge]
         state = if stored.nil? then 'moi'
@@ -428,8 +532,10 @@ module MongXuongCho
                 else 'chi_dau'
                 end
         fd = frame_for(t, edge, box)
-        list << {key: "#{ti}-#{edge}", tenon: t, ti: ti, edge: edge, receiver: r, ri: receivers.index(r),
-                 state: state, stored: stored, length: edge_length(fd, edge),
+        # Khóa theo persistent_id, không theo thứ tự: bớt một tấm khỏi danh sách thì thông số
+        # đã gõ không trượt sang đầu của tấm khác (soát 02/10).
+        list << {key: "#{t.persistent_id}-#{edge}", tenon: t, ti: ti, edge: edge, receiver: r, ri: receivers.index(r),
+                 state: state, stored: stored, length: edge_length(fd, edge), block: state == 'moi' ? block : nil,
                  thickness: fd[:thickness], edge_name: edge_name(edge, fd[:thin])}
       end
     end
@@ -448,7 +554,10 @@ module MongXuongCho
     fd1 = frame_for(source, 1, box)
     thin = fd1[:thin]
     u_axis = fd1[:u]
-    thickness = [box.width, box.height, box.depth][thin]
+    # thin/u_axis là chỉ số HỆ CẠNH; so tọa độ thì đổi điểm local về hệ cạnh đầu 1 (to_f1).
+    thickness = [fd1[:bounds].width, fd1[:bounds].height, fd1[:bounds].depth][thin]
+    to_f1 = fd1[:frame].inverse
+    thin_local = [box.width, box.height, box.depth].each_with_index.min_by { |v, _i| v }[1]
     # Biên chung: đi vòng 4 cạnh theo chiều kim đồng hồ (cạnh 1 trái→phải, cạnh 2 trên→dưới…);
     # đoạn u tăng dần của mỗi cạnh trong hệ cạnh trùng đúng chiều đi vòng này.
     # Điểm (u, z) hệ cạnh nằm trên mặt A (trục dày = 0) rồi đổi về tọa độ local của tấm.
@@ -469,16 +578,20 @@ module MongXuongCho
       plan[:arc_seams].each { |u, z| seams << local.call(fd, u, z) }
     end
     ring = ring.chunk_while { |a, b| a == b }.map(&:first)
+    # Vật liệu mặt (ABF có thể xếp ván theo vật liệu): chép trước khi xóa, dán lại sau khi dựng.
+    dress = nho_vat_lieu(source.entities.grep(Sketchup::Face), thin_local)
     # Giữ group, transformation, tên, tag và thuộc tính cấp group; chỉ thay hình bên trong.
     source.entities.erase_entities(source.entities.to_a)
     face = source.entities.add_face(ring)
     raise 'Không dựng được mặt biên mộng.' unless face
-    face.reverse! if face.normal.dot(AXES[thin]) < 0
+    face.reverse! if face.normal.dot(fd1[:frame] * AXES[thin]) < 0
     face.pushpull(thickness)
+    dan_vat_lieu(source.entities.grep(Sketchup::Face), thin_local, dress)
+    seams = seams.map { |s| to_f1 * s }
     softened = 0
     source.entities.grep(Sketchup::Edge).each do |e|
-      a = e.start.position.to_a
-      b = e.end.position.to_a
+      a = (to_f1 * e.start.position).to_a
+      b = (to_f1 * e.end.position).to_a
       next unless (a[thin] - b[thin]).abs > 0.001.mm
       next unless (a[u_axis] - b[u_axis]).abs < 0.001.mm && (a[2] - b[2]).abs < 0.001.mm
       next unless seams.any? { |s| (a[u_axis] - s[u_axis]).abs < 0.001.mm && (a[2] - s.z).abs < 0.001.mm }
@@ -513,6 +626,50 @@ module MongXuongCho
       end
     end
     softened
+  end
+
+  # Hai mặt lớn: vật liệu + vị trí vân (UV tại 3 điểm, cùng mặt phẳng nên dán lại khớp).
+  # Mặt cạnh: một vật liệu chung (rebuild_problem đã chặn trường hợp nhiều vật liệu).
+  def self.nho_vat_lieu(faces, thin)
+    big = {}
+    side = nil
+    faces.each do |f|
+      n = f.normal.to_a[thin]
+      unless n.abs > 0.999999
+        side ||= [f.material, f.back_material]
+        next
+      end
+      uv = nil
+      if f.material && f.material.texture
+        vs = f.outer_loop.vertices.map(&:position)
+        p0 = vs.first
+        p1 = vs.max_by { |p| p.distance(p0) }
+        p2 = vs.max_by { |p| ((p1 - p0) * (p - p0)).length }
+        uvh = f.get_UVHelper(true, false)
+        uv = [p0, p1, p2].flat_map { |p| q = uvh.get_front_UVQ(p); [p, Geom::Point3d.new(q.x / q.z, q.y / q.z, 1.0)] }
+      end
+      big[n > 0] = [f.material, f.back_material, uv]
+    end
+    {big: big, side: side}
+  end
+
+  def self.dan_vat_lieu(faces, thin, dress)
+    faces.each do |f|
+      n = f.normal.to_a[thin]
+      mat, back, uv = n.abs > 0.999999 ? dress[:big][n > 0] : dress[:side]
+      next unless mat || back
+      if uv
+        begin
+          f.position_material(mat, uv, true)
+        rescue ArgumentError => ex
+          puts "XUONG CHO vân: #{ex.message}"
+          f.material = mat
+        end
+      else
+        f.material = mat
+      end
+      f.back_material = back
+    end
   end
 
   # DẤU MỘNG ÂM = hốc khoét trên tấm NHẬN do mộng dương tấm NGÀM đâm vào; b-id trỏ tấm ngàm.
@@ -576,6 +733,8 @@ module MongXuongCho
       # Có đầu mới thì dựng lại cả tấm: đầu cũ tính lại từ thông số đã ghi (không đóng dấu lại).
       rebuild = nil
       unless fresh.empty?
+        problem = rebuild_problem(tenon, box)
+        raise "#{name}: #{problem}." if problem
         old = (mem ? mem[:edges] : {}).reject { |e, _| fresh.any? { |pl| pl[:edge] == e } }.map { |e, s|
           pl = plan_edge(tenon, s, nil, box, "#{name}, đầu #{edge_name(e, frame_for(tenon, 1, box)[:thin])} (đã làm): ")
           pl[:phay_b] = s['phay_b']
@@ -691,6 +850,10 @@ module MongXuongCho
   def self.check_context
     raise 'Model đã đổi. Đóng bảng rồi mở lại.' unless Sketchup.active_model == @model
     raise 'Đã đổi cấp chỉnh sửa (mở/đóng group). Đóng bảng rồi mở lại.' unless (@model.active_path || []) == @path
+    # Group/module đang mở bị Scale: mm trong tấm không còn là mm thật, mộng ra méo mà tấm vẫn "lành".
+    unless rigid_t?(path_transform)
+      raise "Group/module đang mở (#{@path.map { |i| i.name.empty? ? i.definition.name : i.name }.join(' › ')}) bị Scale — thoát ra ngoài, gỡ Scale module rồi làm lại."
+    end
     @tenons.select!(&:valid?)
     @receivers.select!(&:valid?)
   end
@@ -761,8 +924,7 @@ module MongXuongCho
       texts << [tr * box.center, "Ngàm #{i + 1}", RoleTool::ORANGE, 16]
       sizes = [box.width, box.height, box.depth]
       thin = sizes.each_with_index.min_by { |v, _i| v }[1]
-      row = {label: board_label(g, :ngam, i), problem: problem}
-      next row if thin == 2
+      row = {label: board_label(g, :ngam, i), problem: problem, scaled: !rigid?(g) && !skew?(g)}
       # Chữ A/B đặt NGOÀI hai mặt lớn, cách mặt 60mm theo pháp tuyến: nhìn xiên là tách hẳn
       # hai phía, không đè lên nhãn "Ngàm" ở giữa tấm.
       { 'A' => box.min.to_a[thin] - 60.mm, 'B' => box.max.to_a[thin] + 60.mm }.each do |name, v|
@@ -773,19 +935,19 @@ module MongXuongCho
       # Dữ liệu vẽ xem trước: mặt tấm (u × z) nhìn từ mặt A + các đầu đã làm từ trước.
       fd = frame_for(g, 1, box)
       mem = memory(g)
-      row.merge(faceW: fd[:width], faceH: fd[:height], thickness: fd[:thickness], mirror: thin == 0,
+      row.merge(faceW: fd[:width], faceH: fd[:height], thickness: fd[:thickness], mirror: fd[:thin] == 0,
                 done: mem ? mem[:edges].map { |e, spec| spec.merge('edge' => e) } : [])
     end
     receiver_rows = @receivers.each_with_index.map do |g, i|
       board_lines.call(g, RoleTool::BLUE)
       texts << [world * g.transformation * board_bounds(g).center, "Nhận #{i + 1}", RoleTool::BLUE, 16]
-      {label: board_label(g, :nhan, i)}
+      {label: board_label(g, :nhan, i), problem: scale_problem(g), scaled: !rigid?(g) && !skew?(g)}
     end
     @tool.set(lines, texts, focus_lines(@focus))
     rows = @pairs.map do |p|
       {key: p[:key], ti: p[:ti], tenon: board_label(p[:tenon], :ngam, p[:ti]), edge: p[:edge], edgeName: p[:edge_name],
        receiver: board_label(p[:receiver], :nhan, p[:ri]), state: p[:state], length: p[:length],
-       thickness: p[:thickness], stored: p[:stored]}
+       thickness: p[:thickness], stored: p[:stored], block: p[:block]}
     end
     data = {mode: @mode.to_s, tenons: tenon_rows, receivers: receiver_rows, pairs: rows, live: true}
     @dlg.execute_script("window.receiveModel(#{JSON.generate(data)})") if @dlg
@@ -847,6 +1009,14 @@ module MongXuongCho
       rescue => ex
         puts "XUONG CHO UI: #{ex.class}: #{ex.message}"
         dialog.execute_script("window.applyFinished(false, #{("Lỗi: " + ex.message).to_json})")
+      end
+    end
+    dialog.add_action_callback('unscale') do |_c|
+      safely do
+        check_context
+        done = go_scale(@tenons + @receivers)
+        refresh
+        @dlg.execute_script("window.showMessage(#{("Đã gỡ Scale — ĐO LẠI BỀ DÀY: " + done.join(' · ') + ' (mm). Ctrl+Z để hoàn tác.').to_json}, false)") if @dlg
       end
     end
     dialog.add_action_callback('cancel') { |_c| dialog.close }

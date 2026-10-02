@@ -60,11 +60,13 @@ module MongXuongCho
 
   # ── Nhận dạng tấm ──────
 
-  # Tấm nguyên: hộp 6 mặt/12 cạnh song song trục local, không có gì khác bên trong.
+  # Tấm nguyên: THÂN tấm (cạnh/mặt rời, không tính group con) là hộp 6 mặt/12 cạnh song song trục
+  # local. Group con — dấu ABF khoét/khoan/rãnh, dấu âm của tấm khác — được phép (Khoa 02/10: mọc
+  # mộng chỉ thêm răng ra ngoài mép, không đụng dấu), build_tenon giữ nguyên chúng.
   def self.plain_box?(group)
     ents = group.entities
     edges = ents.grep(Sketchup::Edge)
-    ents.to_a.length == 18 && ents.grep(Sketchup::Face).length == 6 && edges.length == 12 &&
+    ents.grep(Sketchup::Face).length == 6 && edges.length == 12 &&
       edges.all? { |e|
         d = e.end.position - e.start.position
         [d.x, d.y, d.z].count { |v| v.abs > 0.001.mm } == 1
@@ -75,8 +77,7 @@ module MongXuongCho
   # (LUAT_NHA mục 9, 29/09): trước đây rơi vào câu "đã có mộng/khoét" — sai lý do, thợ không biết sửa.
   def self.xien_trong_group?(group)
     ents = group.entities
-    ents.to_a.length == 18 && ents.grep(Sketchup::Face).length == 6 && ents.grep(Sketchup::Edge).length == 12 &&
-      !plain_box?(group)
+    ents.grep(Sketchup::Face).length == 6 && ents.grep(Sketchup::Edge).length == 12 && !plain_box?(group)
   end
 
   # Không Scale, không xiên ở cấp group: thông số mm mới đúng với hình học.
@@ -171,10 +172,11 @@ module MongXuongCho
   def self.tenon_box(group)
     mem = memory(group)
     return mem[:box] if mem
-    return nil unless plain_box?(group)
-    # Chép ra hộp mới: hộp gốc phải giữ nguyên dù hình tấm đổi ngay sau đó.
-    b = group.definition.bounds
-    Geom::BoundingBox.new.add(b.min, b.max)
+    box = board_bounds(group)
+    return nil unless than_tam(group, box)
+    # Hộp theo cạnh THÂN tấm (hộp mới, không phải definition.bounds): dấu ABF con được phép nhô khỏi
+    # mép, tính vào sẽ phình hộp và mộng lệch.
+    box
   end
 
   # Lý do tấm không làm ngàm được, hoặc nil nếu được.
@@ -187,7 +189,7 @@ module MongXuongCho
     end
     box = tenon_box(group)
     return 'nằm XIÊN trong group (trục group không theo cạnh tấm — thường do Reset về Global hoặc vẽ xiên rồi mới gom group) — đặt trục group theo cạnh tấm rồi làm lại' if !box && xien_trong_group?(group)
-    return 'đã có mộng/khoét nhưng không phải do tool này làm (hoặc làm bằng bản cũ) — Undo về tấm nguyên rồi làm lại' unless box
+    return 'thân tấm có rãnh/hốc KHÔNG xuyên hết bề dày (hoặc hình hở) — tool chỉ mọc mộng trên tấm phẳng; khoét xuyên và dấu ABF dạng group thì không sao' unless box
     nil
   end
 
@@ -210,28 +212,22 @@ module MongXuongCho
   end
 
   def self.dau_phay_cua_tool?(entity)
-    dau_abf?(entity) && [TAG_PHAY_MONG, TAG_PHAY_VIEN].include?(entity.layer.name)
+    dau_abf?(entity) && ([TAG_PHAY_MONG, TAG_PHAY_VIEN].include?(entity.layer.name) ||
+                         entity.get_attribute('ABF', 'setting-name') == 'PHAYDAUMONG_KHOA')
   end
 
-  # Mọc mộng XÓA hết hình tấm ngàm rồi dựng lại. Thứ gì không dựng lại được thì phải chặn trước,
-  # không được mất im lặng (soát 02/10): dán cạnh trên mặt, dấu/rãnh của tấm khác, mặt cạnh nhiều
-  # vật liệu. Vật liệu hai mặt lớn + một vật liệu chung mặt cạnh thì build_tenon chép lại.
-  def self.rebuild_problem(group, box)
-    ents = group.entities
-    la = ents.reject { |e| e.is_a?(Sketchup::Edge) || e.is_a?(Sketchup::Face) || dau_phay_cua_tool?(e) }
-    unless la.empty?
-      return "đang chứa #{la.length} thứ khác (dấu âm/rãnh/khoan của tấm khác...) — mọc thêm mộng sẽ xóa mất. Mọc mộng tấm này TRƯỚC khi đóng dấu lên nó"
-    end
-    faces = ents.grep(Sketchup::Face)
-    if faces.any? { |f| f.get_attribute('ABF', 'edge-band-id') || f.attribute_dictionary('Hung_EdgeBanding') }
-      return 'đã dán cạnh — mọc mộng sẽ xóa dán cạnh. Gỡ dán cạnh, làm mộng xong rồi mới dán'
-    end
-    thin = [box.width, box.height, box.depth].each_with_index.min_by { |v, _i| v }[1]
-    sides = faces.reject { |f| f.normal.to_a[thin].abs > 0.999999 }
-    if sides.map { |f| [f.material, f.back_material] }.uniq.length > 1
-      return 'mặt cạnh tấm đang có nhiều vật liệu/màu khác nhau — mọc mộng sẽ mất. Làm mộng trước rồi mới tô'
-    end
-    nil
+  # Dấu ABF (group con) nằm phẳng trên MẶT ĐẦU sắp mọc mộng — khoan/khoét đầu tấm: răng mọc đè lên
+  # nên chặn. Dấu ở mặt lớn hay đầu khác không sao, build_tenon giữ nguyên (02/10).
+  def self.dau_o_dau_tam?(group, box, edge)
+    fd = frame_for(group, edge, box)
+    inv = fd[:frame].inverse
+    top = fd[:bounds].depth
+    group.entities.any? { |e|
+      next false unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+      next false if dau_phay_cua_tool?(e)
+      zs = (0..7).map { |i| (inv * e.bounds.corner(i)).z }
+      zs.min > top - 0.01.mm && zs.max < top + 0.01.mm
+    }
   end
 
   # ── Hình học một đầu ──────
@@ -521,7 +517,6 @@ module MongXuongCho
       next if tenon_problem(t)
       box = tenon_box(t)
       mem = memory(t)
-      block = rebuild_problem(t, box)
       (1..4).each do |edge|
         # Tấm nhận bị Scale: hệ tọa độ không đúng mm, không ghép (chip tấm đó đã báo đỏ).
         r = receivers.find { |g| rigid?(g) && contact_info(t, edge, g, box) }
@@ -535,7 +530,7 @@ module MongXuongCho
         # Khóa theo persistent_id, không theo thứ tự: bớt một tấm khỏi danh sách thì thông số
         # đã gõ không trượt sang đầu của tấm khác (soát 02/10).
         list << {key: "#{t.persistent_id}-#{edge}", tenon: t, ti: ti, edge: edge, receiver: r, ri: receivers.index(r),
-                 state: state, stored: stored, length: edge_length(fd, edge), block: state == 'moi' ? block : nil,
+                 state: state, stored: stored, length: edge_length(fd, edge), block: state == 'moi' && dau_o_dau_tam?(t, box, edge) ? 'có dấu ABF (khoan/khoét) ngay trên mặt đầu này — mộng sẽ mọc đè lên dấu' : nil,
                  thickness: fd[:thickness], edge_name: edge_name(edge, fd[:thin])}
       end
     end
@@ -549,59 +544,120 @@ module MongXuongCho
 
   # ── Dựng ──────
 
-  # Dựng lại biên tấm ngàm từ hộp gốc với mọi đầu trong `plans`, rồi dấu phay các đầu thu mặt.
-  def self.build_tenon(model, source, box, plans)
-    fd1 = frame_for(source, 1, box)
+  # THÂN tấm dạng lăng trụ: một mặt A (t = 0) + một mặt B (t = dày), mọi mặt khác vuông góc trục dày,
+  # mọi đỉnh nằm trên A hoặc B. Khe/lỗ KHOÉT XUYÊN (ngàm âm dương, lỗ đi dây) vẫn là lăng trụ → làm
+  # được; rãnh/hốc KHÔNG xuyên (đỉnh lưng chừng bề dày) → nil. Trả đường viền mặt A trong hệ cạnh đầu 1.
+  # (02/10: dựng từ hộp chữ nhật lấp mất khe khoét — giờ dựng từ đường viền thật.)
+  def self.than_tam(group, box)
+    fd1 = frame_for(group, 1, box)
     thin = fd1[:thin]
-    u_axis = fd1[:u]
-    # thin/u_axis là chỉ số HỆ CẠNH; so tọa độ thì đổi điểm local về hệ cạnh đầu 1 (to_f1).
-    thickness = [fd1[:bounds].width, fd1[:bounds].height, fd1[:bounds].depth][thin]
+    inv = fd1[:frame].inverse
+    t_max = [fd1[:bounds].width, fd1[:bounds].height, fd1[:bounds].depth][thin]
+    f1 = ->(pt) { (inv * pt).to_a }
+    faces = group.entities.grep(Sketchup::Face)
+    edges = group.entities.grep(Sketchup::Edge)
+    return nil if faces.empty?
+    on_ab = edges.flat_map(&:vertices).uniq.all? { |v|
+      t = f1.call(v.position)[thin]
+      t.abs < 0.001.mm || (t - t_max).abs < 0.001.mm
+    }
+    return nil unless on_ab
+    dir = fd1[:frame] * AXES[thin]
+    bigs = faces.select { |f| f.normal.parallel?(dir) }
+    return nil unless (faces - bigs).all? { |f| f.normal.perpendicular?(dir) }
+    a = bigs.select { |f| f1.call(f.vertices.first.position)[thin].abs < 0.001.mm }
+    return nil unless a.length == 1 && (bigs - a).length == 1
+    loop_pts = ->(lp) { lp.vertices.map { |v| f1.call(v.position) } }
+    {fd1: fd1, thin: thin, thickness: t_max, outer: loop_pts.call(a[0].outer_loop),
+     inner: a[0].loops.reject(&:outer?).map(&loop_pts)}
+  end
+
+  # Chèn răng của các đầu MỚI vào đường viền thật. Mỗi răng phải nằm trọn trên MỘT đoạn thẳng của
+  # viền trùng mép đầu đó; rơi vào chỗ khoét/khe thì raise trước khi đụng model.
+  def self.chen_rang(prof, plans, label)
+    fd1 = prof[:fd1]
+    pts = prof[:outer]
+    plans.each do |plan|
+      fd = plan[:fd]
+      to_e = fd[:frame].inverse * fd1[:frame]
+      from_e = fd1[:frame].inverse * fd[:frame]
+      top = fd[:bounds].depth
+      ue = fd[:u]
+      teeth = plan[:teeth].each_slice(30).to_a # mỗi răng 30 điểm, từ (trái, top) tới (phải, top)
+      raise "#{label}răng mộng sai cấu trúc." unless teeth.length == plan[:quantity] && teeth.all? { |t| t.length == 30 }
+      used = Array.new(teeth.length, false)
+      out = []
+      pts.each_with_index do |pt, i|
+        out << pt
+        pe = (to_e * Geom::Point3d.new(pt)).to_a
+        qe = (to_e * Geom::Point3d.new(pts[(i + 1) % pts.length])).to_a
+        next unless (pe[2] - top).abs < 0.001.mm && (qe[2] - top).abs < 0.001.mm
+        lo, hi = [pe[ue], qe[ue]].minmax
+        inside = teeth.each_index.select { |k|
+          !used[k] && teeth[k].first[0] >= lo - 0.001.mm && teeth[k].last[0] <= hi + 0.001.mm
+        }
+        next if inside.empty?
+        inside.each { |k| used[k] = true }
+        seq = inside.map { |k| teeth[k] }
+        seq = seq.reverse.map(&:reverse) if qe[ue] < pe[ue]
+        seq.flatten(1).each do |u, z|
+          e = [0.0, 0.0, z]
+          e[ue] = u
+          out << (from_e * Geom::Point3d.new(e)).to_a
+        end
+      end
+      miss = used.index(false)
+      if miss
+        raise "#{label}đầu #{edge_name(plan[:edge], fd[:thin])}: mộng #{miss + 1} rơi vào chỗ khoét/khe trên mép tấm — đổi lùi tâm hoặc số mộng."
+      end
+      pts = out
+    end
+    # Bỏ điểm trùng liền kề (răng bắt đầu đúng góc khe).
+    pts = pts.chunk_while { |a, b| Geom::Point3d.new(a).distance(Geom::Point3d.new(b)) < 0.0001.mm }.map(&:first)
+    pts.pop while pts.length > 1 && Geom::Point3d.new(pts.first).distance(Geom::Point3d.new(pts.last)) < 0.0001.mm
+    pts
+  end
+
+  # Dựng lại THÂN tấm ngàm từ đường viền thật đã chèn răng các đầu mới (`outer`, hệ cạnh đầu 1),
+  # giữ lỗ xuyên + mọi group con + dấu phay cũ; rồi thêm dấu phay cho các đầu mới thu mặt.
+  def self.build_tenon(model, source, box, plans, prof, outer)
+    fd1 = prof[:fd1]
+    thin = prof[:thin]
+    thickness = prof[:thickness]
+    to_local = ->(a) { fd1[:frame] * Geom::Point3d.new(a) }
     to_f1 = fd1[:frame].inverse
     thin_local = [box.width, box.height, box.depth].each_with_index.min_by { |v, _i| v }[1]
-    # Biên chung: đi vòng 4 cạnh theo chiều kim đồng hồ (cạnh 1 trái→phải, cạnh 2 trên→dưới…);
-    # đoạn u tăng dần của mỗi cạnh trong hệ cạnh trùng đúng chiều đi vòng này.
-    # Điểm (u, z) hệ cạnh nằm trên mặt A (trục dày = 0) rồi đổi về tọa độ local của tấm.
-    local = lambda do |fd, u, z|
-      p = [0.0, 0.0, z]
-      p[u_axis] = u
-      fd[:frame] * Geom::Point3d.new(p)
-    end
-    ring = []
-    seams = []
-    (1..4).each do |edge|
-      fd = frame_for(source, edge, box)
-      top = [fd[:bounds].width, fd[:bounds].height, fd[:bounds].depth][2]
-      plan = plans.find { |pl| pl[:edge] == edge }
-      ring << local.call(fd, 0.0, top)
-      next unless plan
-      plan[:teeth].each { |u, z| ring << local.call(fd, u, z) }
-      plan[:arc_seams].each { |u, z| seams << local.call(fd, u, z) }
-    end
-    ring = ring.chunk_while { |a, b| a == b }.map(&:first)
-    # Vật liệu mặt (ABF có thể xếp ván theo vật liệu): chép trước khi xóa, dán lại sau khi dựng.
-    dress = nho_vat_lieu(source.entities.grep(Sketchup::Face), thin_local)
-    # Giữ group, transformation, tên, tag và thuộc tính cấp group; chỉ thay hình bên trong.
-    source.entities.erase_entities(source.entities.to_a)
-    face = source.entities.add_face(ring)
+    # Vật liệu + dán cạnh + thuộc tính từng mặt: chép trước khi xóa, dán lại theo mặt phẳng.
+    dress = nho_mat(source.entities.grep(Sketchup::Face), thin_local)
+    # Chỉ thay THÂN tấm (cạnh/mặt rời). Group con — dấu ABF, dấu âm tấm khác, dấu phay đầu cũ —
+    # giữ nguyên; group, transformation, tên, tag, thuộc tính vỏ giữ.
+    source.entities.erase_entities(source.entities.select { |e| e.is_a?(Sketchup::Edge) || e.is_a?(Sketchup::Face) })
+    face = source.entities.add_face(outer.map(&to_local))
     raise 'Không dựng được mặt biên mộng.' unless face
+    prof[:inner].each do |lp|
+      hole = source.entities.add_face(lp.map(&to_local))
+      hole.erase! if hole && hole.valid? && hole != face
+    end
     face.reverse! if face.normal.dot(fd1[:frame] * AXES[thin]) < 0
     face.pushpull(thickness)
-    dan_vat_lieu(source.entities.grep(Sketchup::Face), thin_local, dress)
-    seams = seams.map { |s| to_f1 * s }
+    dropped = dan_mat(source.entities.grep(Sketchup::Face), dress)
+    # Làm mềm cạnh chia cung (răng cũ + mới, cung khoét có sẵn): cạnh dọc bề dày giữa hai mặt lệch
+    # nhau dưới 20° — cung 12 đoạn lệch 15°/đoạn, góc vuông khe/mép không bị đụng.
     softened = 0
+    cos20 = Math.cos(20.0 * Math::PI / 180.0)
     source.entities.grep(Sketchup::Edge).each do |e|
+      next unless e.faces.length == 2
       a = (to_f1 * e.start.position).to_a
       b = (to_f1 * e.end.position).to_a
       next unless (a[thin] - b[thin]).abs > 0.001.mm
-      next unless (a[u_axis] - b[u_axis]).abs < 0.001.mm && (a[2] - b[2]).abs < 0.001.mm
-      next unless seams.any? { |s| (a[u_axis] - s[u_axis]).abs < 0.001.mm && (a[2] - s.z).abs < 0.001.mm }
+      next unless e.faces[0].normal.dot(e.faces[1].normal) > cos20
       e.soft = true
       e.smooth = true
       softened += 1
     end
     # Mỗi mộng có hai cung, mỗi cung 12 đoạn nên có 11 cạnh chia bên trong.
     expected = plans.sum { |pl| pl[:quantity] * 2 * 11 }
-    raise "Làm mềm thiếu cạnh cung: #{softened}/#{expected}." unless softened == expected
+    raise "Làm mềm thiếu cạnh cung: #{softened}/#{expected}." if softened < expected
     raise 'Khối có cạnh hở hoặc cạnh nối hơn hai mặt.' unless source.entities.grep(Sketchup::Edge).all? { |e| e.faces.length == 2 }
     plans.each do |plan|
       marks = plan[:phay_rects].map { |r| [r, TAG_PHAY_MONG, 'phay mộng'] } +
@@ -625,20 +681,13 @@ module MongXuongCho
         mark.set_attribute('ABF', 'setting-name', 'PHAYDAUMONG_KHOA')
       end
     end
-    softened
+    dropped
   end
 
-  # Hai mặt lớn: vật liệu + vị trí vân (UV tại 3 điểm, cùng mặt phẳng nên dán lại khớp).
-  # Mặt cạnh: một vật liệu chung (rebuild_problem đã chặn trường hợp nhiều vật liệu).
-  def self.nho_vat_lieu(faces, thin)
-    big = {}
-    side = nil
-    faces.each do |f|
-      n = f.normal.to_a[thin]
-      unless n.abs > 0.999999
-        side ||= [f.material, f.back_material]
-        next
-      end
+  # Nhớ từng mặt thân tấm: mặt phẳng, vật liệu, vân (UV tại 3 điểm), mọi attribute dictionary
+  # (ABF edge-band-id, Hung_EdgeBanding...). side = vật liệu mặt cạnh hay gặp nhất, cho mặt răng mới.
+  def self.nho_mat(faces, thin)
+    olds = faces.map do |f|
       uv = nil
       if f.material && f.material.texture
         vs = f.outer_loop.vertices.map(&:position)
@@ -648,19 +697,30 @@ module MongXuongCho
         uvh = f.get_UVHelper(true, false)
         uv = [p0, p1, p2].flat_map { |p| q = uvh.get_front_UVQ(p); [p, Geom::Point3d.new(q.x / q.z, q.y / q.z, 1.0)] }
       end
-      big[n > 0] = [f.material, f.back_material, uv]
+      dicts = (f.attribute_dictionaries || []).map { |d| [d.name, d.keys.map { |k| [k, d[k]] }] }
+      {normal: f.normal, point: f.vertices.first.position, mat: f.material, back: f.back_material, uv: uv,
+       dicts: dicts, side: f.normal.to_a[thin].abs <= 0.999999}
     end
-    {big: big, side: side}
+    sides = olds.select { |o| o[:side] }.map { |o| [o[:mat], o[:back]] }
+    {olds: olds, side: sides.max_by { |m| sides.count(m) }}
   end
 
-  def self.dan_vat_lieu(faces, thin, dress)
-    faces.each do |f|
-      n = f.normal.to_a[thin]
-      mat, back, uv = n.abs > 0.999999 ? dress[:big][n > 0] : dress[:side]
-      next unless mat || back
-      if uv
+  # Dán lại: mặt mới trùng mặt phẳng mặt cũ nhận vật liệu/vân; attribute chỉ chép khi mặt phẳng đó còn
+  # ĐÚNG MỘT mặt (mặt lớn, đầu không mộng). Đầu mọc mộng bị răng chia nhiều mặt → bỏ dán cạnh ở đầu
+  # đó (đầu đã cắm vào tấm nhận). Mặt răng mới nhận vật liệu mặt cạnh chung. Trả số mặt bỏ dán cạnh.
+  def self.dan_mat(faces, dress)
+    olds = dress[:olds]
+    match = faces.map { |f|
+      p = f.vertices.first.position
+      olds.index { |o| f.normal.dot(o[:normal]) > 0.999999 && (p - o[:point]).dot(o[:normal]).abs < 0.001.mm }
+    }
+    dropped = []
+    faces.zip(match).each do |f, i|
+      o = i && olds[i]
+      mat, back = o ? [o[:mat], o[:back]] : (dress[:side] || [nil, nil])
+      if o && o[:uv]
         begin
-          f.position_material(mat, uv, true)
+          f.position_material(mat, o[:uv], true)
         rescue ArgumentError => ex
           puts "XUONG CHO vân: #{ex.message}"
           f.material = mat
@@ -669,7 +729,14 @@ module MongXuongCho
         f.material = mat
       end
       f.back_material = back
+      next unless o && !o[:dicts].empty?
+      if match.count(i) == 1
+        o[:dicts].each { |name, pairs| pairs.each { |k, v| f.set_attribute(name, k, v) } }
+      else
+        dropped << i
+      end
     end
+    dropped.uniq.length
   end
 
   # DẤU MỘNG ÂM = hốc khoét trên tấm NHẬN do mộng dương tấm NGÀM đâm vào; b-id trỏ tấm ngàm.
@@ -732,17 +799,19 @@ module MongXuongCho
       end
       # Có đầu mới thì dựng lại cả tấm: đầu cũ tính lại từ thông số đã ghi (không đóng dấu lại).
       rebuild = nil
+      prof = nil
+      outer = nil
       unless fresh.empty?
-        problem = rebuild_problem(tenon, box)
-        raise "#{name}: #{problem}." if problem
-        old = (mem ? mem[:edges] : {}).reject { |e, _| fresh.any? { |pl| pl[:edge] == e } }.map { |e, s|
-          pl = plan_edge(tenon, s, nil, box, "#{name}, đầu #{edge_name(e, frame_for(tenon, 1, box)[:thin])} (đã làm): ")
-          pl[:phay_b] = s['phay_b']
-          pl
-        }
-        rebuild = old + fresh
+        fresh.each do |pl|
+          raise "#{name}: đầu #{edge_name(pl[:edge], pl[:fd][:thin])} có dấu ABF ngay trên mặt đầu — mộng sẽ đè lên dấu." if dau_o_dau_tam?(tenon, box, pl[:edge])
+        end
+        # Đầu cũ giữ nguyên răng + dấu phay; chỉ chèn răng đầu mới vào đường viền thật hiện tại.
+        prof = than_tam(tenon, box)
+        raise "#{name}: thân tấm có rãnh/hốc KHÔNG xuyên hết bề dày — tool chỉ mọc mộng trên tấm phẳng (khoét xuyên thì được)." unless prof
+        outer = chen_rang(prof, fresh, "#{name}, ")
+        rebuild = fresh
       end
-      {tenon: tenon, box: box, edges: edges, marks: mark_plans, rebuild: rebuild}
+      {tenon: tenon, box: box, edges: edges, marks: mark_plans, rebuild: rebuild, prof: prof, outer: outer}
     end
     model.start_operation('Tao mong xuong cho', true)
     begin
@@ -754,9 +823,10 @@ module MongXuongCho
       touched.each { |g| dam_bao_la_van(g) }
       teeth = 0
       marks = 0
+      dropped = 0
       jobs.each do |job|
         if job[:rebuild]
-          build_tenon(model, job[:tenon], job[:box], job[:rebuild])
+          dropped += build_tenon(model, job[:tenon], job[:box], job[:rebuild], job[:prof], job[:outer])
           teeth += job[:rebuild].sum { |pl| pl[:quantity] }
         end
         job[:marks].each do |plan|
@@ -767,7 +837,7 @@ module MongXuongCho
       end
       model.commit_operation
       puts "XUONG CHO: #{jobs.length} tấm ngàm, #{jobs.count { |j| j[:rebuild] }} tấm dựng lại (#{teeth} mộng), #{marks} dấu âm."
-      "Đã làm #{todo.length} cặp: #{marks} dấu âm#{teeth > 0 ? ", dựng lại #{jobs.count { |j| j[:rebuild] }} tấm ngàm" : ''}. Ctrl+Z một lần để hoàn tác cả lượt."
+      "Đã làm #{todo.length} cặp: #{marks} dấu âm#{teeth > 0 ? ", dựng lại #{jobs.count { |j| j[:rebuild] }} tấm ngàm" : ''}#{dropped > 0 ? " (bỏ dán cạnh/thuộc tính ở #{dropped} mặt đầu mọc mộng)" : ''}. Ctrl+Z một lần để hoàn tác cả lượt."
     rescue => ex
       model.abort_operation
       puts "LOI: #{ex.class}: #{ex.message}"

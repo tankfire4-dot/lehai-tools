@@ -12,6 +12,21 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-10-03 — 1.9.86: Hộc Kéo theo luật sếp — thành 2/3 khoang, thùng dài đúng bằng ray
+
+**Vấn đề:** sếp Lê Hải dạy Khoa 2 luật khác hai giả định cũ: (1) chiều cao thành hộc là 2/3 (Khoa chốt mốc
+là KHOANG, không phải mặt hộc — hộc phủ mặt to hơn khoang sẽ sai); (2) chiều dài hộc bằng đúng ray, không
+dư 2cm (luật "+20" 29/09 là Khoa tự suy).
+**Quyết định:** thành hộc = ceil10(2/3 × cao lòng khoang − 15) (15 = đáy cách đáy khoang; làm tròn LÊN ở
+bước thành hộc — Khoa đổi từ làm tròn xuống cùng ngày). Bỏ luật "đỉnh hông thấp hơn nóc 50". Thùng = ray.
+Bỏ hẳn 2 ô "Hông thấp hơn mốc trên" + "Thùng dài hơn ray": bảng nhớ số theo máy (localStorage), để ô thì
+máy đã lưu số cũ vẫn ra số cũ.
+**Hệ quả:** mẫu 27/09 (khoang 265) thành 200 → 170; khoang sâu 600 tự chọn lại ray 550 (bản +20 chỉ 500).
+**Kiểm:** chạy lõi THẬT HocKeo.tinh bằng Ruby.wasm: khoang 100–400, lọt/phủ cùng khoang cùng thành, có đố
+mỗi khoang tính riêng, ray 350–550 thùng = ray, đuôi cách hậu ≥ 30. Bảng quy tắc: kien-thuc/noi-that/ket-cau.md.
+
+---
+
 ## 2026-10-02 — 1.9.85: Mộng Xương Chó dựng từ ĐƯỜNG VIỀN THẬT — tấm khoét/có dấu ABF làm được
 
 **Vấn đề:** Khoa cần mọc mộng trên tấm đã có dấu ABF (khoét/khoan dạng group) và tấm khoét thẳng vào

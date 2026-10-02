@@ -44,12 +44,10 @@ module TK
         [:van_day,      'Đáy hộc dày'],
         [:khe_ray,      'Khe ray mỗi bên'],
         [:cach_day,     'Đáy hộc cách mốc dưới'],
-        [:thap_hon_noc, 'Hông thấp hơn mốc trên'],
         [:ranh_day,     'Rãnh đáy ăn vào hông'],
         [:khe_mat,      'Khe mặt hộc'],
         [:khe_phu,      'Mặt phủ cách mép tủ'],
-        [:khe_sau,      'Khe sau tối thiểu (tới hậu)'],
-        [:gia_ray,      'Thùng dài hơn ray']
+        [:khe_sau,      'Khe sau tối thiểu (tới hậu)']
       ].freeze
 
       # ── Đo khoang bằng tia ─────────────────────────────────

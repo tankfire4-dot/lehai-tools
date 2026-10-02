@@ -262,8 +262,8 @@
   // Tấm liên quan từng ô (tên phần sau "Hộc N · ")
   var TAM_CUA_O = {
     van: ['hông trái'], khe_ray: ['hông trái'], van_day: ['đáy'], ranh_day: ['đáy', 'hông phải'],
-    cach_day: ['đáy'], thap_hon_noc: ['hông trái', 'hông phải'], khe_mat: ['mat'], khe_phu: ['mat'],
-    khe_sau: ['hông sau'], ray: ['hông trái', 'hông phải'], gia_ray: ['hông trái', 'hông phải']
+    cach_day: ['đáy'], khe_mat: ['mat'], khe_phu: ['mat'],
+    khe_sau: ['hông sau'], ray: ['hông trái', 'hông phải']
   };
 
   // Tấm của hộc đang xem (hộc có số nhỏ nhất còn gắn) + khoang của nó
@@ -289,11 +289,9 @@
       khe_ray: [[x0, T.y[0], T.z[1]], [T.x[0], T.y[0], T.z[1]], so(T.x[0] - x0)],
       van: [[T.x[0], T.y[0] + 60, T.z[1]], [T.x[1], T.y[0] + 60, T.z[1]], so(T.x[1] - T.x[0])],
       cach_day: [[xd, yt, kz[0]], [xd, yt, T.z[0]], so(T.z[0] - kz[0])],
-      thap_hon_noc: [[xd, yt, T.z[1]], [xd, yt, kz[1]], so(kz[1] - T.z[1])],
       khe_sau: [[T.x[0] + 30, T.y[1], T.z[1]], [T.x[0] + 30, khung.y_sau, T.z[1]], so(khung.y_sau - T.y[1]) + ' (cần ≥ ' + so(p.khe_sau) + ')'],
       ray: [[P.x[1] + 25, T.y[0], T.z[1]], [P.x[1] + 25, T.y[1], T.z[1]], 'thùng ' + so(T.y[1] - T.y[0]) + ' · ray ' + so(kq.ray)]
     };
-    d.gia_ray = d.ray;   // cùng đường dài thùng: chữ ghi cả thùng lẫn ray
     if (D) {
       d.van_day = [[P.x[0] - 30, D.y[0], D.z[0]], [P.x[0] - 30, D.y[0], D.z[1]], so(D.z[1] - D.z[0])];
       d.ranh_day = [[P.x[0], D.y[0], D.z[0] - 8], [D.x[1], D.y[0], D.z[0] - 8], so(D.x[1] - P.x[0])];

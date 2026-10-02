@@ -21,12 +21,11 @@ module TK
         van_day: 9.0,       # đáy hộc — xưởng gọi "hậu" vì dùng ván hậu (Khoa chốt 27/09)
         khe_ray: 13.0,      # hông hộc cách hông khoang, mỗi bên — chỗ ray bi (Khoa chốt 27/09)
         cach_day: 15.0,     # mặt dưới đáy hộc cách mốc dưới của khoang (Khoa chốt 27/09)
-        thap_hon_noc: 50.0, # đỉnh hông thấp hơn mốc trên của khoang — mốc là NÓC LÒNG, không phải mặt hộc (Khoa chốt 27/09)
         ranh_day: 10.0,     # đáy ăn rãnh vào mỗi hông trái/phải (KHỚP MẪU 27/09, chưa rõ vì sao)
         khe_mat: 2.0,       # mặt lọt cách mọi cạnh lòng; khe giữa hai mặt chồng nhau (Khoa chốt 27/09)
         khe_phu: 2.0,       # mặt phủ cách mép trước khung — dung sai không cạ cạnh tủ (Khoa chốt 27/09)
         khe_sau: 30.0,      # đuôi thùng hộc cách hậu ÍT NHẤT bấy nhiêu khi chọn ray (Khoa chốt 27/09)
-        gia_ray: 20.0,      # thùng hộc dài hơn ray, mọi cỡ ray: ray 400 → hông dài 420 (Khoa chốt 29/09, cho chỉnh)
+        gia_ray: 0.0,       # thùng hộc dài ĐÚNG bằng ray (sếp dạy Khoa 02/10: không dư 2cm) — bỏ luật +20 của 29/09; không còn ô nhập
         kieu_mat: 'lot',    # 'lot' | 'phu'
         so_hoc: 1,          # chỉ dùng khi khung KHÔNG có đố; có đố thì số hộc = số đố + 1
         ray: nil,           # nil = tự chọn ray dài nhất còn lọt khoang
@@ -37,6 +36,17 @@ module TK
       RAY_CO = [200, 250, 300, 350, 400, 450, 500, 550, 600].map(&:to_f).freeze
       # Hông thùng (mặt dưới đáy → đỉnh hông) thấp nhất — ray bi 3 tầng cao ~45 (Khoa chốt 27/09)
       HONG_MIN = 50.0
+      # Chiều cao thành hộc (sếp dạy Khoa, chốt 02/10): tính từ ĐÁY LÒNG KHOANG, 15 cách đáy + thành hộc
+      # = 2/3 chiều cao khoang (mốc là khoang, không phải mặt hộc — hộc phủ mặt to hơn khoang sẽ sai).
+      # Thành hộc (= 2/3 khoang − 15) làm tròn LÊN số đuôi 0 (Khoa đổi từ làm tròn xuống, 02/10).
+      # Bỏ luật cũ "đỉnh hông thấp hơn nóc lòng 50" (27/09).
+      TY_LE_THANH = 2.0 / 3.0
+      LAM_TRON_THANH = 10.0
+
+      # Cao thành hộc (mặt dưới đáy → đỉnh thành) cho khoang cao `cao_khoang`, đáy cách `cach_day`.
+      def self.cao_thanh(cao_khoang, cach_day)
+        ((cao_khoang * TY_LE_THANH - cach_day) / LAM_TRON_THANH - 1e-6).ceil * LAM_TRON_THANH
+      end
 
       def self.hop(ten, x0, x1, y0, y1, z0, z1)
         { ten: ten, x: [x0, x1], y: [y0, y1], z: [z0, z1] }
@@ -126,7 +136,7 @@ module TK
         gia = p[:gia_ray]
         ray = p[:ray] || chon_ray(y_dau, y_het, gia)
         raise "Lòng khung sâu #{(khung[:y_sau] - khung[:y_truoc]).round(1)}mm — không ray nào (ngắn nhất #{RAY_CO.min.round}, thùng #{(RAY_CO.min + gia).round}) lọt mà còn chừa #{p[:khe_sau].round}mm sau." unless ray
-        # Thùng hộc dài = ray + gia (ray thật dài đúng số ghi, thùng phải dài hơn — Khoa 29/09)
+        # Thùng hộc dài = ray (sếp 02/10; gia = 0, giữ biến để lõi còn nhận nếu sau này cần)
         dai = ray + gia
         raise "Thùng dài #{dai.round(1)}mm (ray #{ray.round} + #{gia.round(1)}) ngắn quá." if dai <= 2 * t + 50
         raise "Ray #{ray.round}mm dài quá: thùng #{dai.round(1)}mm, đuôi thùng chỉ còn cách hậu #{(khung[:y_sau] - y_dau - dai).round(1)}mm (cần ≥ #{p[:khe_sau].round})." if y_dau + dai > y_het + 1e-6
@@ -149,9 +159,9 @@ module TK
           khoang << { so: i + 1, z: h[:khoang], cao: (h[:khoang][1] - h[:khoang][0]).round(1), gan: !bo.include?(i + 1) }
           next if bo.include?(i + 1)
           zb = h[:khoang][0] + p[:cach_day]       # mặt dưới đáy hộc
-          zt = h[:khoang][1] - p[:thap_hon_noc]   # đỉnh hông
+          zt = zb + cao_thanh(h[:khoang][1] - h[:khoang][0], p[:cach_day])   # đỉnh thành: 2/3 khoang
           if zt - zb < HONG_MIN
-            raise "#{ten}: hông thùng chỉ còn #{(zt - zb).round(1)}mm (cần ≥ #{HONG_MIN.round}) — khoang quá thấp hoặc chia nhiều hộc quá."
+            raise "#{ten}: thành hộc chỉ còn #{(zt - zb).round(1)}mm (2/3 khoang − #{p[:cach_day].round}, cần ≥ #{HONG_MIN.round}) — khoang quá thấp hoặc chia nhiều hộc quá."
           end
           y1 = y_dau + dai
 

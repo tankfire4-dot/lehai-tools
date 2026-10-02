@@ -12,6 +12,19 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-10-03 — 1.9.87: Mộng Xương Chó — viền phay 2mm → 3mm
+
+**Vấn đề:** Khoa muốn ô viền `LEHAI_PHAYVIENMONG` (khi thu một mặt) tràn 3mm thay 2mm, nhưng file sản xuất
+`CNCCandy_All_check` đã làm quá nhiều để dựng lại.
+**Quyết định:** `VIEN_PHAY = 3.mm`. File đã làm sửa bằng script lab `scratch/mong-xuong-cho/sua_vien_3mm.rb`:
+đo 4 khoảng tràn của viền so với ô phay bên trong, đúng 1 cạnh ≈0 = chân (giữ), 3 cạnh ≈2mm nới thêm 1mm,
+DỜI 4 ĐỈNH (không xoá/vẽ lại); chỉ đụng dấu đang tràn đúng 2mm; definition dùng chung phải cùng kết quả mọi bản.
+Kết quả: CNCCandy_All_check 36/36 dấu 3D → nesting lại ABF → 72 dấu (3D 36 + nesting 36) đều 3mm.
+**Bài học:** `Length` so `<`/`>` tự áp dung sai 0,001" — ngưỡng 0,02mm thành ngưỡng giả, làm script hủy oan
+2 lượt (shared-notes/sketchup-api.md). Bộ tự kiểm + một lượt Ctrl+Z giữ file sản xuất nguyên suốt các lần hỏng.
+
+---
+
 ## 2026-10-03 — 1.9.86: Hộc Kéo theo luật sếp — thành 2/3 khoang, thùng dài đúng bằng ray
 
 **Vấn đề:** sếp Lê Hải dạy Khoa 2 luật khác hai giả định cũ: (1) chiều cao thành hộc là 2/3 (Khoa chốt mốc

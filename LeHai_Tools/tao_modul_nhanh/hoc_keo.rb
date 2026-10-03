@@ -61,8 +61,9 @@ module TK
       # Có ≥ 2 mộng: chia đều, mỗi mộng nằm giữa đoạn của nó (lùi tâm = L / 2n).
       NHIP_MONG = 160.0
       CO_MONG = [35.0, 50.0].freeze
-      # Bộ số chung với plugin Mộng Xương Chó (Khoa 03/10: cao 11 · dư dày 0,2 · dư dài 0,2 — bỏ bộ chép hộc làm tay 10/0,1/0,5)
-      HINH_MONG = { 'height' => 11, 'neck' => 6, 'bevel' => 1, 'slackT' => 0.2, 'slackL' => 0.2, 'cutter' => 6 }.freeze
+      # Bộ số RIÊNG của hộc kéo (Khoa 03/10: "bên hộc kéo thông số đặc biệt hơn") — cao 11 · dư dày 0,1 ·
+      # dư dài 0,5 · không thu. KHÁC plugin Mộng Xương Chó (dư 0,2 / 0,2) — đừng gộp làm một.
+      HINH_MONG = { 'height' => 11, 'neck' => 6, 'bevel' => 1, 'slackT' => 0.1, 'slackL' => 0.5, 'cutter' => 6 }.freeze
       # Nhãn phay rãnh đáy: chép đúng 20/20 hộc Khoa làm tay (quét file 03/10) — rộng = dày đáy, dài = hông
       # + RANH_LOI mỗi đầu, tag/setting/intersect-x như dưới. intersect-x 3,0 chép nguyên (chưa rõ nghĩa).
       RANH_LOI = 3.0

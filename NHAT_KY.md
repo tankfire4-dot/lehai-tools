@@ -12,6 +12,23 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-10-03 — 1.9.89: Mộng Xương Chó — GỠ mộng, bảng gọn 2 cột, mặc định mới
+
+**Vấn đề:** Khoa dùng sản xuất: "mọc mộng rồi không gỡ được, phải vẽ lại cả tấm" — điểm chết người. Người dùng
+phản hồi bảng nhiều thông tin, chỉ cần preview + chọn không thu / phay một mặt; chỉnh xong phải cuộn mới thấy preview.
+**Quyết định:** GỠ mộng = bỏ khỏi đường viền thật mọi điểm ngoài mép đầu (răng + cung cổ), bỏ điểm thẳng hàng,
+dựng lại thân bằng ĐÚNG đường dựng khi mọc (tách `dung_than` dùng chung); dấu phay/viền + dấu âm tìm theo VỊ TRÍ
+(không theo pid — file copy đổi pid); make_unique trước khi xoá; gỡ hết → xoá ghi nhớ; soát sau gỡ (khớp hộp
+gốc / ghi nhớ) sai thì hủy. Nút Gỡ từng cặp + "Gỡ mộng tấm đã chọn" (hỏi xác nhận). Bảng: Kiểu mộng + rộng/cao/
+dư dày/dư dài (+ Dày sau thu khi phay) luôn hiện; số mộng/lùi tâm/dày từng cặp/cổ/vát/dao gập "Tùy chỉnh (phụ)";
+2 cột, preview đứng yên. Mặc định cao 11 · dư 0,2/0,2 · dày sau thu 15 (khoá nhớ mới để số cũ không đè);
+Tạo Hộc Kéo dùng chung bộ số này.
+**Kiểm:** gỡ mộng chạy lõi thật Ruby.wasm (chen_rang rồi gỡ → viền trùng khít từng điểm: tấm đứng, tấm ngang
+4 đầu gỡ 1, tấm có khe âm dương); giao diện Chromium.
+**Chưa kiểm:** gỡ mộng trong SketchUp thật (Khoa phát trước khi thử) — dán cạnh mặt đầu đã mất lúc mọc không tự có lại.
+
+---
+
 ## 2026-10-03 — 1.9.88: Hộc Kéo tự mọc mộng xương chó + nhãn rãnh đáy, đếm ray, bảng gọn
 
 **Vấn đề:** Khoa làm tay mộng xương chó (không thu) + nhãn rãnh đáy cho từng hộc kéo; cần đếm số bộ ray; bảng

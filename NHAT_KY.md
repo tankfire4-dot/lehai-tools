@@ -12,6 +12,13 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-10-03 — 1.9.90: Hộc Kéo giữ bộ số mộng RIÊNG
+
+1.9.89 lỡ cho Tạo Hộc Kéo dùng chung dư 0,2 / 0,2 của plugin Mộng. Khoa: "bên hộc kéo thông số đặc biệt hơn" →
+hộc kéo cao 11 · dư dày 0,1 · dư dài 0,5 · không thu (HINH_MONG trong hoc_keo.rb). Plugin Mộng giữ 11 · 0,2 / 0,2.
+
+---
+
 ## 2026-10-03 — 1.9.89: Mộng Xương Chó — GỠ mộng, bảng gọn 2 cột, mặc định mới
 
 **Vấn đề:** Khoa dùng sản xuất: "mọc mộng rồi không gỡ được, phải vẽ lại cả tấm" — điểm chết người. Người dùng

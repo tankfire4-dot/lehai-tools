@@ -12,6 +12,12 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-10-03 — 1.9.91: Hộc Kéo chốt bộ số mộng 11 · 0,2 / 0,3
+
+Khoa cân nhắc lại sau 1.9.90 (0,1 / 0,5): hộc kéo cao 11 · dư dày 0,2 · dư dài 0,3 · luôn không thu.
+
+---
+
 ## 2026-10-03 — 1.9.90: Hộc Kéo giữ bộ số mộng RIÊNG
 
 1.9.89 lỡ cho Tạo Hộc Kéo dùng chung dư 0,2 / 0,2 của plugin Mộng. Khoa: "bên hộc kéo thông số đặc biệt hơn" →

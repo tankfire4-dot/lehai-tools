@@ -766,7 +766,9 @@ module MongXuongCho
   # data = {'shape' => {head, height, neck, bevel, slackT, slackL, cutter},
   #         'rows' => [{'key' => "ti-edge", 'count', 'inset', 'side', 'fit'}, ...]}
   # Chỉ các cặp moi/chi_dau có trong rows mới được làm. Tất cả trong MỘT thao tác Ctrl+Z.
-  def self.apply_pairs(data, tenons, receivers)
+  # rieng_thao_tac = false: người gọi (vd Tạo Hộc Kéo) đã mở thao tác — không start/commit/abort ở đây,
+  # lỗi thì raise để người gọi hủy cả lượt (hộc + mộng + rãnh là một lần Ctrl+Z).
+  def self.apply_pairs(data, tenons, receivers, rieng_thao_tac = true)
     model = Sketchup.active_model
     shape = data.fetch('shape')
     rows = data.fetch('rows').map { |r| [r.fetch('key'), r] }.to_h
@@ -813,7 +815,7 @@ module MongXuongCho
       end
       {tenon: tenon, box: box, edges: edges, marks: mark_plans, rebuild: rebuild, prof: prof, outer: outer}
     end
-    model.start_operation('Tao mong xuong cho', true)
+    model.start_operation('Tao mong xuong cho', true) if rieng_thao_tac
     begin
       # Group copy có thể dùng chung definition. Tách trước khi sửa để không đổi các bản khác.
       touched = (jobs.map { |j| j[:tenon] } + jobs.flat_map { |j| j[:marks].map { |pl| pl[:receiver] } }).uniq
@@ -835,14 +837,25 @@ module MongXuongCho
         end
         write_memory(job[:tenon], job[:box], job[:edges])
       end
-      model.commit_operation
+      model.commit_operation if rieng_thao_tac
       puts "XUONG CHO: #{jobs.length} tấm ngàm, #{jobs.count { |j| j[:rebuild] }} tấm dựng lại (#{teeth} mộng), #{marks} dấu âm."
       "Đã làm #{todo.length} cặp: #{marks} dấu âm#{teeth > 0 ? ", dựng lại #{jobs.count { |j| j[:rebuild] }} tấm ngàm" : ''}#{dropped > 0 ? " (bỏ dán cạnh/thuộc tính ở #{dropped} mặt đầu mọc mộng)" : ''}. Ctrl+Z một lần để hoàn tác cả lượt."
     rescue => ex
-      model.abort_operation
+      model.abort_operation if rieng_thao_tac
       puts "LOI: #{ex.class}: #{ex.message}"
       raise
     end
+  end
+
+  # Mọc mộng KHÔNG THU cho mọi cặp mới giữa `tenons` ↔ `receivers` (cùng entities cha), dùng cho tool khác
+  # (Tạo Hộc Kéo 03/10). shape = hình mộng chung; theo_dau.(pair) → {'count'=>, 'inset'=>} cho từng đầu.
+  # Không mở thao tác riêng. Trả số cặp đã làm.
+  def self.tu_dong(tenons, receivers, shape, theo_dau)
+    list = pairs(tenons, receivers).select { |p| p[:state] == 'moi' }
+    return 0 if list.empty?
+    rows = list.map { |p| d = theo_dau.call(p); {'key' => p[:key], 'count' => d['count'], 'inset' => d['inset'], 'side' => 'none', 'fit' => 0} }
+    apply_pairs({'shape' => shape, 'rows' => rows}, tenons, receivers, false)
+    list.length
   end
 
   # Đóng dấu "đây là tấm ván" mà ABF dùng để nhận + gán nhãn (is-board ở vỏ tấm).

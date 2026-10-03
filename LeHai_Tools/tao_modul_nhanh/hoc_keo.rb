@@ -29,7 +29,12 @@ module TK
         kieu_mat: 'lot',    # 'lot' | 'phu'
         so_hoc: 1,          # chỉ dùng khi khung KHÔNG có đố; có đố thì số hộc = số đố + 1
         ray: nil,           # nil = tự chọn ray dài nhất còn lọt khoang
-        bo: []              # số thứ tự hộc (1 = trên cùng) KHÔNG gắn — người dùng bỏ tick khoang
+        bo: [],             # số thứ tự hộc (1 = trên cùng) KHÔNG gắn — người dùng bỏ tick khoang
+        mong: true,         # mọc mộng xương chó (không thu) hông trước/sau → hông trái/phải (Khoa 03/10)
+        ranh: true,         # gắn nhãn phay rãnh đáy lên hông trái/phải (Khoa 03/10)
+        so_mong: nil,       # nil = Tự động; số = người dùng chọn tay, áp mọi hộc
+        co_mong: nil,       # nil = Tự động; số (mm) = rộng đầu mộng chọn tay
+        cao_thanh: nil      # nil = Tự động 2/3 khoang; số (mm) = thành hộc người dùng gõ (Khoa 03/10: có thiết kế muốn cao hơn)
       }.freeze
 
       # Ray bi bán theo bậc 50 (Khoa 27/09) — mm. 200: Khoa 27/09 "hình như có loại ray 200"
@@ -46,6 +51,52 @@ module TK
       # Cao thành hộc (mặt dưới đáy → đỉnh thành) cho khoang cao `cao_khoang`, đáy cách `cach_day`.
       def self.cao_thanh(cao_khoang, cach_day)
         ((cao_khoang * TY_LE_THANH - cach_day) / LAM_TRON_THANH - 1e-6).ceil * LAM_TRON_THANH
+      end
+
+      # ── Mộng xương chó cho hộc (Khoa 03/10) ──────────────────
+      # Khớp 20/20 hộc Khoa làm tay (bàn trang điểm L 68,5 → 1×35; tủ áo/bàn học L 100–148 → 1×50).
+      # L = chiều dài đầu mộng = chiều cao hông trước/sau.
+      #   số mộng = ceil(L / NHIP_MONG)  — mỗi mộng "giữ" tối đa NHIP_MONG mm
+      #   cỡ mộng = (L / số mộng) / 2, làm tròn xuống bậc 5, kẹp trong CO_MONG
+      # Có ≥ 2 mộng: chia đều, mỗi mộng nằm giữa đoạn của nó (lùi tâm = L / 2n).
+      NHIP_MONG = 160.0
+      CO_MONG = [35.0, 50.0].freeze
+      HINH_MONG = { 'height' => 10, 'neck' => 6, 'bevel' => 1, 'slackT' => 0.1, 'slackL' => 0.5, 'cutter' => 6 }.freeze
+      # Nhãn phay rãnh đáy: chép đúng 20/20 hộc Khoa làm tay (quét file 03/10) — rộng = dày đáy, dài = hông
+      # + RANH_LOI mỗi đầu, tag/setting/intersect-x như dưới. intersect-x 3,0 chép nguyên (chưa rõ nghĩa).
+      RANH_LOI = 3.0
+      RANH_TAG = 'ABF_PHAYRANHHAU10LY'.freeze
+      RANH_SETTING = 'PHÂY RÃNH HẬU 10LY'.freeze
+      RANH_X = 3.0
+
+      def self.mong_cho(l, p)
+        n = p[:so_mong] ? p[:so_mong].to_i : (l / NHIP_MONG - 1e-9).ceil
+        n = [n, 1].max
+        co = p[:co_mong] ? p[:co_mong].to_f : ((l / n / 2.0) / 5.0).floor * 5.0
+        co = [[co, CO_MONG[0]].max, CO_MONG[1]].min unless p[:co_mong]
+        { 'count' => n, 'head' => co, 'inset' => (l / (2.0 * n)).round(3), 'tu_dong' => !p[:so_mong] && !p[:co_mong] }
+      end
+
+      # Tâm từng mộng dọc đầu dài l (từ mép dưới hông trước), y như lõi Mộng Xương Chó tính.
+      def self.tam_mong(l, mg)
+        n = mg['count']
+        n == 1 ? [l / 2.0] : Array.new(n) { |i| mg['inset'] + i * (l - 2 * mg['inset']) / (n - 1) }
+      end
+
+      # Số/cỡ chọn tay có vừa đầu không — cùng luật lõi Mộng (chừa ≥ 1mm; dấu âm hai mộng cạnh nhau
+      # cách ≥ rộng + dư dài + Ø dao + 1). Sai thì báo NGAY trong bảng, khỏi đợi bấm Tạo mới lỗi.
+      def self.kiem_mong(ten, l, mg)
+        n = mg['count']
+        co = mg['head']
+        if n == 1
+          raise "#{ten}: mộng rộng #{co.round} không vừa hông trước cao #{l.round(1)} — chọn cỡ nhỏ hơn." if l - co < 2
+        else
+          nhip = (l - 2 * mg['inset']) / (n - 1)
+          can = co + HINH_MONG['slackL'] + HINH_MONG['cutter'] + 1
+          if mg['inset'] - co / 2.0 < 1 || nhip < can
+            raise "#{ten}: #{n} mộng rộng #{co.round} không vừa hông trước cao #{l.round(1)} — giảm số mộng hoặc cỡ mộng."
+          end
+        end
       end
 
       def self.hop(ten, x0, x1, y0, y1, z0, z1)
@@ -154,13 +205,22 @@ module TK
         bo = Array(p[:bo]).map(&:to_i)
         tam = []
         khoang = []
+        mong = []
+        rang = []
         ds.reverse.each_with_index do |h, i|   # đặt tên từ TRÊN xuống: Hộc 1 = trên cùng
           ten = "Hộc #{i + 1}"
           khoang << { so: i + 1, z: h[:khoang], cao: (h[:khoang][1] - h[:khoang][0]).round(1), gan: !bo.include?(i + 1) }
           next if bo.include?(i + 1)
           zb = h[:khoang][0] + p[:cach_day]       # mặt dưới đáy hộc
-          zt = zb + cao_thanh(h[:khoang][1] - h[:khoang][0], p[:cach_day])   # đỉnh thành: 2/3 khoang
+          zt = zb + (p[:cao_thanh] ? p[:cao_thanh].to_f : cao_thanh(h[:khoang][1] - h[:khoang][0], p[:cach_day]))   # đỉnh thành: 2/3 khoang, hoặc số người gõ
+          if p[:cao_thanh]
+            tran = h[:khoang][1] - p[:khe_mat]   # đỉnh thành không vượt nóc lòng khoang (chừa khe mặt)
+            raise "#{ten}: thành cao #{p[:cao_thanh].round(1)} vượt khoang — tối đa #{(tran - zb).floor}mm." if zt > tran + 1e-6
+          end
           if zt - zb < HONG_MIN
+            if p[:cao_thanh]
+              raise "#{ten}: thành hộc #{(zt - zb).round(1)}mm thấp quá — cần ≥ #{HONG_MIN.round} (ray bi)."
+            end
             raise "#{ten}: thành hộc chỉ còn #{(zt - zb).round(1)}mm (2/3 khoang − #{p[:cach_day].round}, cần ≥ #{HONG_MIN.round}) — khoang quá thấp hoặc chia nhiều hộc quá."
           end
           y1 = y_dau + dai
@@ -174,10 +234,26 @@ module TK
           # Hông trước/sau lọt giữa hai hông, ngồi trên đáy (KHỚP MẪU)
           tam << hop("#{ten} · hông trước", hx0 + t, hx1 - t, y_dau, y_dau + t, zb + td, zt)
           tam << hop("#{ten} · hông sau", hx0 + t, hx1 - t, y1 - t, y1, zb + td, zt)
+          if p[:mong]
+            l = zt - (zb + td)
+            mg = mong_cho(l, p)
+            kiem_mong(ten, l, mg)
+            mong << mg.merge('hoc' => ten, 'L' => l.round(1))
+            # Răng để XEM TRƯỚC 3D (không dựng): hộp rộng × cao mộng × dày ván, đâm vào hông trái/phải
+            hm = HINH_MONG['height']
+            [[y_dau, y_dau + t], [y1 - t, y1]].each do |ya, yb|
+              tam_mong(l, mg).each do |c|
+                za = zb + td + c - mg['head'] / 2.0
+                zc = zb + td + c + mg['head'] / 2.0
+                rang << hop("#{ten} · mộng", hx0 + t - hm, hx0 + t, ya, yb, za, zc)
+                rang << hop("#{ten} · mộng", hx1 - t, hx1 - t + hm, ya, yb, za, zc)
+              end
+            end
+          end
         end
 
         tam.each { |s| s[:kich_thuoc] = [s[:x], s[:y], s[:z]].map { |a, b| (b - a).round(1) }.sort }
-        { ray: ray, so_hoc: ds.size, khoang: khoang, tham_so: p, tam: tam }
+        { ray: ray, so_hoc: ds.size, khoang: khoang, tham_so: p, tam: tam, mong: mong, rang: rang }
       end
     end
   end

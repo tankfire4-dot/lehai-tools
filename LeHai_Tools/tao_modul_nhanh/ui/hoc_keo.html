@@ -18,6 +18,13 @@
   .the.tat { margin-bottom: 8px; background: var(--lh-chip); }
   .the.tat .lh-btn { width: 100%; margin-top: 8px; }
   .nhom-nut { display: flex; align-items: center; justify-content: space-between; }
+  .goi-y { margin: -4px 0 8px; font-size: 11px; line-height: 1.35; opacity: .55; }
+  #nangcao { margin-top: 14px; border-top: 1px solid rgba(0,0,0,.08); padding-top: 10px; }
+  #nangcao > summary { cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; opacity: .75; }
+  #nangcao[open] > summary { opacity: 1; }
+  #dachinh { text-transform: none; letter-spacing: 0; font-weight: 600; color: #b45309; }
+  .chk { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 4px 0; cursor: pointer; }
+  .chk input { width: 16px; height: 16px; flex: none; margin: 0; }
   .nhom-nut .lh-btn { padding: 3px 10px; font-size: 11px; letter-spacing: 0; text-transform: none; width: auto; }
   .o.dang { background: var(--lh-chip); border-radius: var(--lh-radius-sm); }
   .o { display: grid; grid-template-columns: 1fr 76px; align-items: center; gap: 8px; padding: 3px 0; }
@@ -54,7 +61,7 @@
 </style></head>
 <body class="lh"><div class="khung">
   <div class="trai">
-    <a class="ve-menu" href="#" onclick="if (window.sketchup) sketchup.mo_menu(); return false;">‹ Tạo Modul Nhanh</a>
+    <a class="ve-menu" href="#" onclick="veManDau(); return false;" title="Về màn chọn việc: Tạo hộc kéo / Soát ray">‹ Hộc kéo</a>
     <div class="lh-title">Hộc kéo</div>
     <div id="cuon">
       <div class="nhom">Khoang</div>
@@ -75,10 +82,25 @@
         <input class="lh-input" id="so_hoc" type="number" min="1" max="8" step="1" value="1"></div>
       <div class="khoang" id="khoang"></div>
       <div class="o rong"><label for="ray">Ray</label><select class="lh-input" id="ray"></select></div>
+      <div class="o rong"><label for="cao_thanh" title="Để trống = tự động 2/3 chiều cao khoang. Gõ số (mm) khi thiết kế cần thành cao hơn.">Cao thành hộc</label>
+        <input class="lh-input" id="cao_thanh" type="number" min="50" step="5" placeholder="Tự động" style="text-align:left" title="Để trống = tự động 2/3 khoang"></div>
+      <p class="goi-y">Tự động = 2/3 chiều cao khoang (chuẩn xưởng). Gõ số khi thiết kế cần thành cao hơn.</p>
 
-      <div class="nhom nhom-nut">Thông số (mm)
-        <button class="lh-btn lh-btn--ghost" id="macdinh" title="Trả mọi ô số, ray, số hộc về mặc định xưởng">Về mặc định</button></div>
-      <div id="form"></div>
+      <div class="nhom">Mộng xương chó · rãnh đáy</div>
+      <label class="chk"><input type="checkbox" id="mong" checked> Mọc mộng xương chó (không thu)</label>
+      <label class="chk"><input type="checkbox" id="ranh" checked> Gắn nhãn phay rãnh đáy</label>
+      <div class="o rong"><label for="so_mong">Số mộng mỗi đầu</label>
+        <select class="lh-input" id="so_mong"><option value="tu">Tự động</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></div>
+      <div class="o rong"><label for="co_mong">Cỡ mộng (rộng đầu)</label>
+        <select class="lh-input" id="co_mong"><option value="tu">Tự động</option><option value="35">35</option><option value="40">40</option><option value="45">45</option><option value="50">50</option><option value="60">60</option><option value="70">70</option></select></div>
+
+      <details id="nangcao">
+        <summary>Thông số xưởng (nâng cao) <span id="dachinh" class="mo"></span></summary>
+        <p class="mo" style="margin:6px 0">Đã đặt sẵn theo chuẩn xưởng — chỉ chỉnh khi thật cần.</p>
+        <div class="nhom nhom-nut">Thông số (mm)
+          <button class="lh-btn lh-btn--ghost" id="macdinh" title="Trả mọi ô số, ray, số hộc, cao thành, mộng về mặc định xưởng">Về mặc định</button></div>
+        <div id="form"></div>
+      </details>
     </div>
     <div class="day">
       <div id="nhac" class="lh-status"></div>
@@ -97,6 +119,31 @@
   </div>
 </div>
 
+<div id="batdau">
+  <div class="bd-hop">
+    <a class="ve-menu" id="bd_menu" href="#">‹ Tạo Modul Nhanh</a>
+    <h1>Hộc kéo</h1>
+    <div id="bd_chon">
+      <button class="lh-btn lh-btn--primary bd-nut" id="bd_tao">Tạo hộc kéo<span>Rê chuột vào khoang tủ, chỉnh thông số, dựng hộc + mộng + rãnh</span></button>
+      <button class="lh-btn lh-btn--ghost bd-nut" id="bd_ray">Soát số lượng ray<span>Đếm số bộ ray của các hộc do tool này tạo, theo từng cỡ ray</span></button>
+    </div>
+    <div id="bd_ray_kq" hidden></div>
+  </div>
+</div>
+<style>
+  #batdau { position: fixed; inset: 0; background: var(--lh-bg, #f6f1ea); z-index: 50; display: flex; align-items: flex-start; justify-content: center; overflow: auto; }
+  #batdau[hidden] { display: none; }
+  .bd-hop { width: min(560px, 92vw); padding: 28px 0; }
+  .bd-hop h1 { margin: 4px 0 18px; }
+  #bd_chon { display: grid; gap: 12px; }
+  #bd_chon[hidden], #bd_ray_kq[hidden] { display: none; }
+  .bd-nut { width: 100%; text-align: left; padding: 16px 18px; font-size: 16px; text-transform: none; letter-spacing: 0; }
+  .bd-nut span { display: block; font-size: 12px; font-weight: 400; opacity: .8; margin-top: 4px; }
+  #bd_ray_kq table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14px; }
+  #bd_ray_kq td, #bd_ray_kq th { padding: 6px 8px; border-bottom: 1px solid rgba(0,0,0,.08); text-align: left; }
+  #bd_ray_kq .canh { background: #fff7e6; border: 1px solid #f0c36d; color: #7a4b00; border-radius: 8px; padding: 9px 12px; font-size: 13px; margin-bottom: 10px; }
+  #bd_ray_kq .chi { font-size: 12px; max-height: 260px; overflow: auto; opacity: .85; }
+</style>
 <script src="ve3d.js"></script>
 <script>
   var $ = function (id) { return document.getElementById(id); };
@@ -131,6 +178,12 @@
     $('ray').innerHTML = r;
     if (nho.kieu_mat) datKieu(nho.kieu_mat, true);
     if (nho.so_hoc) $('so_hoc').value = nho.so_hoc;
+    if (nho.mong != null) $('mong').checked = !!nho.mong;
+    if (nho.ranh != null) $('ranh').checked = !!nho.ranh;
+    if (nho.so_mong) $('so_mong').value = nho.so_mong;
+    if (nho.co_mong) $('co_mong').value = nho.co_mong;
+    if (nho.cao_thanh) $('cao_thanh').value = nho.cao_thanh;
+    datMong();
     datKhoang(null);
     guiTinh();
   };
@@ -166,8 +219,39 @@
   $('kieu').addEventListener('click', function (e) { if (e.target.dataset.k) datKieu(e.target.dataset.k); });
   $('so_hoc').addEventListener('input', function () { bo = []; guiTinh(); });
   $('ray').addEventListener('change', guiTinh);
+  // Mộng tắt thì hai ô số mộng / cỡ mộng mờ đi (không dùng tới)
+  function datMong() { $('so_mong').disabled = $('co_mong').disabled = !$('mong').checked; }
+  ['mong', 'ranh', 'so_mong', 'co_mong'].forEach(function (id) { $(id).addEventListener('change', function () { datMong(); guiTinh(); }); });
+  ['so_mong', 'co_mong'].forEach(function (id) {
+    $(id).addEventListener('focus', function () { chonO(id); });
+    $(id).addEventListener('change', function () { chonO(id); });
+  });
+
   // Ruby báo tool chọn khoang tắt/bật (tắt = người dùng bấm tool khác mà bảng còn mở)
   window.toolTat = function (tat) { $('tat').hidden = !tat; };
+  // ── Màn đầu: chọn việc (Khoa 03/10: mở lên là bật tool ngay thì loạn) ──
+  function veManDau() { $('batdau').hidden = false; $('bd_chon').hidden = false; $('bd_ray_kq').hidden = true; if (window.sketchup) sketchup.ve_man_dau(); }
+  $('bd_tao').addEventListener('click', function () { $('batdau').hidden = true; if (window.sketchup) sketchup.bat_dau_tao(); });
+  $('bd_ray').addEventListener('click', function () {
+    $('bd_chon').hidden = true; $('bd_ray_kq').hidden = false; $('bd_ray_kq').innerHTML = '<p>Đang đếm…</p>';
+    if (window.sketchup) sketchup.dem_ray();
+  });
+  $('bd_menu').addEventListener('click', function (e) { e.preventDefault(); if (window.sketchup) sketchup.mo_menu(); });
+  window.ketQuaRay = function (d) {
+    var h;
+    if (d.loi) h = '<p style="color:#b91c1c">Lỗi: ' + d.loi + '</p>';
+    else if (!d.tong) h = '<p>Không thấy hộc kéo nào do Tạo Hộc Kéo dựng trong file.<br><span class="mo">Hộc vẽ tay không được đếm.</span></p>';
+    else {
+      h = '<p><b>' + d.file + '</b> · <b>' + d.tong + ' bộ ray</b> (1 hộc = 1 bộ)</p><table><tr><th>Cỡ ray</th><th>Số bộ</th></tr>' +
+        d.bang.map(function (b) { return '<tr><td>Ray ' + (b.ray || '?') + '</td><td><b>' + b.so + '</b></td></tr>'; }).join('') + '</table>' +
+        '<div class="chi">' + d.chi.map(function (c) { return 'ray ' + (c.ray || '?') + ' · ' + c.noi; }).join('<br>') + '</div>' +
+        '<p class="mo">Cỡ ray = đúng số đã chọn lúc tạo hộc.</p>';
+    }
+    // Cảnh báo đứng ĐẦU kết quả (Khoa 03/10): người dùng phải biết số này không gồm hộc vẽ tay
+    var canh = '<div class="canh">⚠ Chỉ đếm hộc kéo do <b>Tạo Hộc Kéo</b> dựng. Hộc vẽ tay <b>không được tính</b>.</div>';
+    $('bd_ray_kq').innerHTML = canh + h + '<button class="lh-btn lh-btn--ghost" id="bd_lai">‹ Quay lại</button>';
+    $('bd_lai').addEventListener('click', veManDau);
+  };
   $('chontiep').addEventListener('click', function () { if (window.sketchup) sketchup.chon_tiep(); });
   $('khung').addEventListener('click', function (e) { if (e.target.id === 'lat' && window.sketchup) sketchup.lat_mat(); });
   // Bảng nhớ số lần trước → gõ nhầm một lần là nhớ mãi (Khoa 27/09: khe ray 50). Nút này trả về
@@ -175,16 +259,27 @@
   $('macdinh').addEventListener('click', function () {
     hoi.forEach(function (t) { $('o_' + t.khoa).value = t.mac_dinh; });
     $('ray').value = 'tu'; $('so_hoc').value = 1; bo = [];
+    $('mong').checked = true; $('ranh').checked = true; $('so_mong').value = 'tu'; $('co_mong').value = 'tu'; datMong();
+    $('cao_thanh').value = '';
     guiTinh();
   });
 
   function giaTri() {
-    var v = { kieu_mat: kieu, so_hoc: $('so_hoc').value, ray: $('ray').value, bo: bo };
+    var v = { kieu_mat: kieu, so_hoc: $('so_hoc').value, ray: $('ray').value, bo: bo,
+              mong: $('mong').checked, ranh: $('ranh').checked, so_mong: $('so_mong').value, co_mong: $('co_mong').value,
+              cao_thanh: $('cao_thanh').value };
     hoi.forEach(function (t) { v[t.khoa] = $('o_' + t.khoa).value; });
     return v;
   }
 
+  // Dòng gập "Thông số xưởng": đếm ô khác mặc định — chỉnh rồi gập lại vẫn thấy, không bị giấu
+  function demChinh() {
+    var n = hoi.filter(function (t) { return +$('o_' + t.khoa).value !== +t.mac_dinh; }).length;
+    $('dachinh').textContent = n ? '· đã chỉnh ' + n + ' ô' : '';
+  }
+  $('cao_thanh').addEventListener('input', guiTinh);
   function guiTinh() {
+    demChinh();
     clearTimeout(hen);
     hen = setTimeout(function () {
       var v = giaTri();
@@ -212,9 +307,16 @@
       t.push(h + ': hông <b>' + so(s.z[1] - s.z[0]) + '</b> × dài <b>' + so(s.y[1] - s.y[0]) + '</b>');
     });
     var tr = hk['Hộc 1'] || hk[Object.keys(hk)[0]];
+    var ks = Object.keys(hk);
+    $('cao_thanh').placeholder = ks.length === 1 ? 'Tự động · ' + so(hk[ks[0]].z[1] - hk[ks[0]].z[0]) : 'Tự động';
     $('tom').innerHTML = 'Ray <b>' + so(d.ray) + '</b>' +
       (tr ? ' · thùng rộng <b>' + so(khung.x[1] - khung.x[0] - 2 * d.tham_so.khe_ray) + '</b>' : '') +
       (t.length ? '<br>' + t.join(' · ') : '') +
+      // mộng từng hộc — số Ruby tính (Tự động theo cao hông trước, hoặc số người chọn)
+      ((d.mong || []).length ? '<br>Mộng: ' + d.mong.map(function (m) {
+        return m.hoc + ' <b>' + m.count + ' × ' + so(m.head) + '</b>' + (m.tu_dong ? ' <span class="mo">(tự động, hông trước ' + so(m.L) + ')</span>' : '');
+      }).join(' · ') : (d.tham_so.mong ? '' : '<br><span class="mo">Không mọc mộng</span>')) +
+      (d.tham_so.ranh ? '' : '<br><span class="mo">Không gắn nhãn rãnh đáy</span>') +
       (d.canh_bao ? '<br><b style="color:#b45309">⚠ ' + d.canh_bao + '</b>' : '') +
       (khung.tam_roi && d.tham_so.kieu_mat === 'phu' ?
         '<br><span style="color:#a08060">Khung là các tấm rời (chưa gom một group): mặt phủ không nhận ra đố/vách kề, phủ tới mép ngoài tấm.</span>' : '');
@@ -263,7 +365,8 @@
   var TAM_CUA_O = {
     van: ['hông trái'], khe_ray: ['hông trái'], van_day: ['đáy'], ranh_day: ['đáy', 'hông phải'],
     cach_day: ['đáy'], khe_mat: ['mat'], khe_phu: ['mat'],
-    khe_sau: ['hông sau'], ray: ['hông trái', 'hông phải']
+    khe_sau: ['hông sau'], ray: ['hông trái', 'hông phải'],
+    so_mong: ['mộng'], co_mong: ['mộng']   // răng mộng: chỉ vẽ khi bấm hai ô này (răng lọt trong hông nên bình thường bị che)
   };
 
   // Tấm của hộc đang xem (hộc có số nhỏ nhất còn gắn) + khoang của nó
@@ -303,7 +406,7 @@
 
   function chonO(k) {
     Array.prototype.forEach.call(document.querySelectorAll('.o'), function (o) { o.classList.remove('dang'); });
-    var el = k && $(k === 'ray' || k === 'so_hoc' ? k : 'o_' + k);
+    var el = k && $(['ray', 'so_hoc', 'so_mong', 'co_mong'].indexOf(k) >= 0 ? k : 'o_' + k);
     if (el && el.closest) el.closest('.o').classList.add('dang');
     khoa3d = k;
     if (k && TAM_CUA_O[k] && rutDich) { rutDich = 0; rut = 0; $('rut').textContent = 'Rút hộc ra'; }
@@ -333,6 +436,8 @@
       var laNoi = !!noi && h && p[0] === h.so && noi.indexOf(phan) >= 0;
       ds.push({ s: s, loai: 'tam', dy: -dich, noi: laNoi, mo: !!noi && !laNoi });
     });
+    if (kq && kq.rang && (khoa3d === 'so_mong' || khoa3d === 'co_mong'))
+      kq.rang.forEach(function (s) { ds.push({ s: s, loai: 'tam', dy: -dich, noi: true }); });
 
     // Mọi khe chính kẻ mờ ở vị trí thật; ô đang sửa sáng. Đang rút hộc thì thôi kẻ (thùng đã dời chỗ).
     var K = [];

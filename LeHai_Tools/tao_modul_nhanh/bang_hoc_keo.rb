@@ -20,7 +20,7 @@ module TK
     module BangHocKeo
       DIR       = File.dirname(__FILE__)
       DICT      = 'TaoModulNhanh'
-      PHIEN_BAN = '2026-09-29'   # đổi khi quy tắc trong lõi đổi — hộc cũ biết mình dựng theo bản nào
+      PHIEN_BAN = '2026-10-03'   # đổi khi quy tắc trong lõi đổi — hộc cũ biết mình dựng theo bản nào
       MM        = 25.4            # inch → mm
       TOI_DA    = 5000.0 / MM     # inch — tia xa hơn 5m coi như không chạm
       NHICH     = 0.2 / MM        # inch — nhích qua mặt vừa chạm rồi bắn tiếp
@@ -323,9 +323,14 @@ module TK
           # Tool bị tắt (bấm tool khác của SketchUp…) mà bảng còn mở → nút trong bảng bật lại
           @dlg.add_action_callback('chon_tiep') { |_ctx| bat_tool }
           @dlg.add_action_callback('lat_mat') { |_ctx| lat_mat }
+          @dlg.add_action_callback('dem_ray') { |_ctx| bao_ray }
+          # Màn đầu (Khoa 03/10): chọn "Tạo hộc kéo" mới bật tool chọn khoang; "Soát ray" thì không
+          @dlg.add_action_callback('bat_dau_tao') { |_ctx| bat_tool }
+          @dlg.add_action_callback('ve_man_dau') { |_ctx| Sketchup.active_model.select_tool(nil) if @tool && @tool.dang_mo }
           @dlg.show
+          return
         end
-        bat_tool
+        @dlg.bring_to_front
       end
 
       def self.lat?
@@ -376,6 +381,23 @@ module TK
         ts[:so_hoc] = [vao['so_hoc'].to_i, 1].max
         ts[:ray] = vao['ray'].to_s == 'tu' ? nil : vao['ray'].to_f
         ts[:bo] = Array(vao['bo']).map(&:to_i)
+        ts[:mong] = vao.key?('mong') ? vao['mong'] == true : true
+        ts[:ranh] = vao.key?('ranh') ? vao['ranh'] == true : true
+        ts[:so_mong] = vao['so_mong'].to_s =~ /\A[1-9]\z/ ? vao['so_mong'].to_i : nil
+        ct = vao['cao_thanh'].to_s.strip.tr(',', '.')
+        if ct.empty?
+          ts[:cao_thanh] = nil
+        else
+          raise "Cao thành hộc: '#{vao['cao_thanh']}' không phải số." unless ct =~ /\A\d+(\.\d+)?\z/
+          ts[:cao_thanh] = ct.to_f
+        end
+        co = vao['co_mong'].to_s.strip.tr(',', '.')
+        if co.empty? || co == 'tu'
+          ts[:co_mong] = nil
+        else
+          raise "Cỡ mộng: '#{vao['co_mong']}' không phải số." unless co =~ /\A\d+(\.\d+)?\z/ && co.to_f >= 10
+          ts[:co_mong] = co.to_f
+        end
         ts
       end
 
@@ -428,7 +450,15 @@ module TK
           vo = model.entities.add_group
           k = @tool.khoang
           vo.name = "Hộc kéo #{(k[:x][1] - k[:x][0]).round}×#{(k[:z][1] - k[:z][0]).round}"
-          kq[:tam].each { |s| TaoModulNhanh.dung_tam(vo, s) }   # dùng chung với khung bao (main.rb)
+          dung = kq[:tam].map { |s| [s[:ten], [TaoModulNhanh.dung_tam(vo, s), s]] }.to_h   # dùng chung với khung bao (main.rb)
+          gan_mong_ranh(dung, kq)
+          # Dấu đếm ray đặt trên TỪNG tấm đáy, không chỉ group bọc: Khoa hay phá group "Hộc kéo" sau khi tạo
+          # (03/10) — tấm bên trong vẫn là group riêng nên dấu còn. 1 tấm đáy = 1 hộc = 1 bộ ray.
+          dung.each do |ten, (g, _s)|
+            next unless ten.end_with?('· đáy')
+            g.set_attribute(DICT, 'loai', 'day_hoc_keo')
+            g.set_attribute(DICT, 'ray', kq[:ray])
+          end
           # Tấm dựng thẳng trong hệ khung rồi xoay CẢ group vào chỗ → trục từng tấm theo tấm (tủ xiên
           # thì ABF / KT Độ Dày vẫn đọc đúng kích thước). Tủ thẳng trục mặt về xanh lá âm: phép đồng nhất.
           vo.transform!(k[:he])
@@ -447,6 +477,99 @@ module TK
       rescue StandardError => e
         bao('baoLoiDung', "Lỗi: #{e.message}")
         puts "[Hộc kéo] #{e.message}\n#{e.backtrace.first(3).join("\n")}"
+      end
+
+      # ── Mộng xương chó + nhãn rãnh đáy (Khoa 03/10) — trong CÙNG thao tác Tạo (một lần Ctrl+Z) ──
+      # dung = { tên tấm => [group, hộp tấm mm] }. Mộng gọi lõi Mộng Xương Chó (không viết lại), không thu:
+      # tấm ngàm = hông trước + sau, tấm nhận = hông trái + phải. Rãnh: chép đúng kiểu nhãn 20 hộc Khoa
+      # làm tay — mặt trong mỗi hông, rộng = dày đáy, dài = hông + RANH_LOI mỗi đầu, b-id → tấm đáy.
+      def self.gan_mong_ranh(dung, kq)
+        p = kq[:tham_so]
+        model = Sketchup.active_model
+        lay = ->(ten) { dung[ten] || raise("Thiếu tấm #{ten}") }
+        if p[:mong] && !kq[:mong].empty?
+          unless defined?(TK::MongXuongCho) && TK::MongXuongCho.respond_to?(:tu_dong)
+            raise 'Cần plugin Mộng Xương Chó (TK::MongXuongCho) để mọc mộng — tắt ô "Mộng xương chó" hoặc cài lại LeHai Tools.'
+          end
+          kq[:mong].each do |mg|
+            h = mg['hoc']
+            ngam = ["#{h} · hông trước", "#{h} · hông sau"].map { |t| lay.(t)[0] }
+            nhan = ["#{h} · hông trái", "#{h} · hông phải"].map { |t| lay.(t)[0] }
+            shape = HocKeo::HINH_MONG.merge('head' => mg['head'])
+            so = TK::MongXuongCho.tu_dong(ngam, nhan, shape, ->(_pair) { { 'count' => mg['count'], 'inset' => mg['inset'] } })
+            raise "#{h}: lõi Mộng chỉ ghép được #{so}/4 đầu (hông trước/sau phải chạm hông trái/phải)." unless so == 4
+          end
+        end
+        return unless p[:ranh]
+        tag = model.layers.to_a.find { |l| l.name == HocKeo::RANH_TAG } || model.layers.add(HocKeo::RANH_TAG)
+        kq[:khoang].select { |x| x[:gan] }.each do |x|
+          h = "Hộc #{x[:so]}"
+          day_g, day_s = lay.("#{h} · đáy")
+          %w[trái phải].each do |ben|
+            g, s = lay.("#{h} · hông #{ben}")
+            # mặt trong của hông (mặt nhìn vào đáy), toạ độ RIÊNG của tấm (gốc = góc nhỏ nhất của tấm)
+            xi = ben == 'trái' ? s[:x][1] - s[:x][0] : 0.0
+            y0 = -HocKeo::RANH_LOI
+            y1 = s[:y][1] - s[:y][0] + HocKeo::RANH_LOI
+            z0 = day_s[:z][0] - s[:z][0]
+            z1 = day_s[:z][1] - s[:z][0]
+            mk = g.entities.add_group
+            mk.name = '_ABF_Intersect'
+            mk.layer = tag
+            f = mk.entities.add_face([[xi, y0, z0], [xi, y1, z0], [xi, y1, z1], [xi, y0, z1]].map { |a| Geom::Point3d.new(*a.map(&:mm)) })
+            raise "#{h}: không vẽ được nhãn rãnh hông #{ben}" unless f
+            f.layer = tag
+            mk.entities.grep(Sketchup::Edge).each { |e| e.layer = tag }
+            mk.set_attribute('ABF', 'is-intersect', true)
+            mk.set_attribute('ABF', 'intersect-offset', 0.0)
+            mk.set_attribute('ABF', 'intersect-x', HocKeo::RANH_X)
+            mk.set_attribute('ABF', 'setting-name', HocKeo::RANH_SETTING)
+            mk.set_attribute('ABF', 'intersect-group-b-id', day_g.persistent_id)
+          end
+        end
+      end
+
+      # ── Đếm ray hộc kéo trong file (Khoa 03/10) — CHỈ ĐỌC ──
+      # CHỈ đếm hộc do Tạo Hộc Kéo dựng (Khoa chốt 03/10: đoán hộc vẽ tay qua nhãn rãnh dễ nhầm hậu tủ 9mm).
+      # Dấu nằm trên TỪNG tấm đáy (DICT loai = 'day_hoc_keo' + ray) → phá group "Hộc kéo" vẫn đếm được.
+      # Hộc dựng bằng bản cũ (dấu chỉ ở group bọc, loai = 'hoc_keo') thì đếm qua tấm "· đáy" trong group bọc
+      # — phá group bọc của hộc bản cũ thì không đếm được nữa. 1 tấm đáy = 1 hộc = 1 bộ ray; bản copy đếm riêng.
+      def self.dem_ray(model)
+        ds = []
+        walk = lambda do |ents, path, ray_cu|
+          ents.each do |e|
+            next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+            next if e.name.include?('__ABF_Nesting')
+            loai = e.get_attribute(DICT, 'loai')
+            if loai == 'day_hoc_keo'
+              ds << { ray: e.get_attribute(DICT, 'ray'), noi: (path + [e.name.sub(/ · đáy\z/, '')]).join(' › ') }
+              next
+            end
+            if ray_cu && e.name.end_with?('· đáy')   # đáy hộc bản cũ: chưa có dấu riêng
+              ds << { ray: ray_cu, noi: (path + [e.name.sub(/ · đáy\z/, '')]).join(' › ') }
+              next
+            end
+            cu = nil
+            if loai == 'hoc_keo'
+              ts = (JSON.parse(e.get_attribute(DICT, 'tham_so').to_s) rescue {})
+              cu = ts['ray']
+            end
+            walk.call(e.definition.entities, path + [e.name], cu)
+          end
+        end
+        walk.call(model.entities, [], nil)
+        ds
+      end
+
+      # Kết quả soát ray hiện NGAY trong bảng (màn đầu), không hộp thoại rời.
+      def self.bao_ray
+        ds = dem_ray(Sketchup.active_model)
+        bang = ds.group_by { |x| x[:ray] }.sort_by { |r, _| r.to_f }.map { |r, l| { ray: r ? r.round : nil, so: l.length } }
+        chi = ds.sort_by { |x| x[:noi] }.map { |x| { ray: x[:ray] ? x[:ray].round : nil, noi: x[:noi] } }
+        puts "[Hộc kéo] Soát ray: #{ds.length} bộ · " + bang.map { |b| "ray #{b[:ray] || '?'}: #{b[:so]}" }.join(' · ')
+        bao('ketQuaRay', { tong: ds.length, bang: bang, chi: chi, file: Sketchup.active_model.title })
+      rescue StandardError => e
+        bao('ketQuaRay', { loi: e.message })
       end
 
       # ── Tool chuột: rê = xem trước · click = chọn khoang · Esc = bỏ chọn / thoát ──

@@ -12,6 +12,23 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-10-03 — 1.9.88: Hộc Kéo tự mọc mộng xương chó + nhãn rãnh đáy, đếm ray, bảng gọn
+
+**Vấn đề:** Khoa làm tay mộng xương chó (không thu) + nhãn rãnh đáy cho từng hộc kéo; cần đếm số bộ ray; bảng
+Hộc kéo nhiều thông số làm người mới rối; người dùng mới cần chỉnh cao thành hộc.
+**Quyết định:** quét 20 hộc làm tay trong file để rút luật (không đoán): mộng 1 giữa, cỡ 50 (hộc thấp 35) →
+luật tỉ lệ số = ceil(L/160), cỡ = nửa đoạn mỗi mộng giữ kẹp 35–50, cho chọn tay. Gọi lõi Mộng Xương Chó qua
+`TK::MongXuongCho.tu_dong` (apply_pairs nhận cờ không mở thao tác riêng → hộc + mộng + rãnh = 1 Ctrl+Z).
+Nhãn rãnh chép nguyên kiểu 20 hộc làm tay. Đếm ray CHỈ hộc do tool tạo (đoán hộc tay qua nhãn rãnh dễ nhầm hậu
+tủ 9mm): dấu đặt trên TỪNG tấm đáy vì Khoa hay phá group "Hộc kéo" sau khi tạo. Màn đầu 2 nút Tạo / Soát ray;
+preview vẽ răng khi bấm ô số/cỡ mộng; số/cỡ không vừa báo ngay; thông số xưởng gập "nâng cao" + đếm ô đã chỉnh;
+ô Cao thành hộc (trống = 2/3 khoang).
+**Kiểm:** lõi HocKeo.tinh chạy Ruby.wasm (luật khớp 20/20 hộc thật, chọn tay quá chỗ báo lỗi, cao thành tay giới
+hạn khoang); giao diện Chromium; Khoa thử SketchUp 03/10.
+**Chưa:** hộc tạo bản cũ đã phá group thì không đếm được; intersect-x 3,0 của rãnh chưa rõ nghĩa ABF.
+
+---
+
 ## 2026-10-03 — 1.9.87: Mộng Xương Chó — viền phay 2mm → 3mm
 
 **Vấn đề:** Khoa muốn ô viền `LEHAI_PHAYVIENMONG` (khi thu một mặt) tràn 3mm thay 2mm, nhưng file sản xuất

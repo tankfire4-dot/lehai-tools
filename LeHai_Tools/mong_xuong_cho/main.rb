@@ -621,6 +621,18 @@ module MongXuongCho
   # Dựng lại THÂN tấm ngàm từ đường viền thật đã chèn răng các đầu mới (`outer`, hệ cạnh đầu 1),
   # giữ lỗ xuyên + mọi group con + dấu phay cũ; rồi thêm dấu phay cho các đầu mới thu mặt.
   def self.build_tenon(model, source, box, plans, prof, outer)
+    dropped, softened = dung_than(source, box, prof, outer)
+    # Mỗi mộng có hai cung, mỗi cung 12 đoạn nên có 11 cạnh chia bên trong.
+    expected = plans.sum { |pl| pl[:quantity] * 2 * 11 }
+    raise "Làm mềm thiếu cạnh cung: #{softened}/#{expected}." if softened < expected
+    them_dau_phay(model, source, plans)
+    dropped
+  end
+
+  # Dựng lại THÂN tấm từ đường viền `outer` (hệ cạnh đầu 1) — dùng chung cho mọc mộng và GỠ mộng.
+  # Giữ lỗ xuyên + mọi group con; chép lại vật liệu/vân/dán cạnh theo mặt phẳng. Trả [số mặt bỏ dán cạnh,
+  # số cạnh cung đã làm mềm].
+  def self.dung_than(source, box, prof, outer)
     fd1 = prof[:fd1]
     thin = prof[:thin]
     thickness = prof[:thickness]
@@ -655,10 +667,12 @@ module MongXuongCho
       e.smooth = true
       softened += 1
     end
-    # Mỗi mộng có hai cung, mỗi cung 12 đoạn nên có 11 cạnh chia bên trong.
-    expected = plans.sum { |pl| pl[:quantity] * 2 * 11 }
-    raise "Làm mềm thiếu cạnh cung: #{softened}/#{expected}." if softened < expected
     raise 'Khối có cạnh hở hoặc cạnh nối hơn hai mặt.' unless source.entities.grep(Sketchup::Edge).all? { |e| e.faces.length == 2 }
+    [dropped, softened]
+  end
+
+  # Dấu phay mộng + viền cho các đầu thu một mặt trong `plans`.
+  def self.them_dau_phay(model, source, plans)
     plans.each do |plan|
       marks = plan[:phay_rects].map { |r| [r, TAG_PHAY_MONG, 'phay mộng'] } +
               (plan[:vien_rects] || []).map { |r| [r, TAG_PHAY_VIEN, 'phay viền mộng'] }
@@ -681,8 +695,126 @@ module MongXuongCho
         mark.set_attribute('ABF', 'setting-name', 'PHAYDAUMONG_KHOA')
       end
     end
-    dropped
   end
+
+  # ── GỠ MỘNG (Khoa 03/10: "mọc rồi không gỡ được, phải vẽ lại cả tấm" = điểm chết người) ──
+  # Đường viền thật bỏ mọi điểm nằm NGOÀI mép đầu (z > mép — răng + cung cổ), bỏ điểm thẳng hàng, dựng lại
+  # thân bằng ĐÚNG đường dựng khi mọc (dung_than). Dấu phay/viền của đầu đó (trên tấm ngàm) và dấu âm (trên
+  # tấm nhận) tìm theo VỊ TRÍ, không theo pid (file copy/import đổi pid — vụ CCandy 03/10). Gỡ hết đầu →
+  # xoá ghi nhớ, tấm thành tấm thường (làm mộng lại được). Mặt đầu từng bị bỏ dán cạnh lúc mọc thì không
+  # tự có lại dán cạnh — báo người dùng dán lại.
+  def self.tag_dau(mk)
+    f = mk.entities.grep(Sketchup::Face).first
+    [mk.layer.name, f && f.layer.name]
+  end
+
+  def self.diem_mat(mk, tr)
+    mk.entities.grep(Sketchup::Face).flat_map { |f| f.vertices.map { |v| tr * v.position } }
+  end
+
+  def self.bo_thang_hang(pts)
+    loop do
+      n = pts.length
+      bo = (0...n).find do |i|
+        a = pts[(i - 1) % n]; b = pts[i]; c = pts[(i + 1) % n]
+        ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]
+        bc = [c[0] - b[0], c[1] - b[1], c[2] - b[2]]
+        cr = [ab[1] * bc[2] - ab[2] * bc[1], ab[2] * bc[0] - ab[0] * bc[2], ab[0] * bc[1] - ab[1] * bc[0]]
+        la = Math.sqrt(ab.sum { |v| v * v }); lb = Math.sqrt(bc.sum { |v| v * v })
+        la < 1e-9 || lb < 1e-9 || (Math.sqrt(cr.sum { |v| v * v }) / (la * lb) < 1e-7 && ab.zip(bc).sum { |x, y| x * y } > 0)
+      end
+      break pts unless bo && n > 3
+      pts = pts.each_with_index.reject { |_p, i| i == bo }.map(&:first)
+    end
+  end
+
+  # TÍNH (chưa đụng model): đường viền mới + các dấu phải xoá. Raise nếu không gỡ an toàn được.
+  def self.tinh_go(tenon, edges)
+    mem = memory(tenon)
+    raise 'tấm không có mộng do tool này làm.' unless mem
+    edges = edges.map(&:to_i) & mem[:edges].keys
+    raise 'đầu này không có mộng để gỡ.' if edges.empty?
+    raise 'đã bị sửa hình/kích thước sau khi làm mộng — không gỡ tự động được.' unless khop_ghi_nho?(tenon, mem)
+    box = mem[:box]
+    prof = than_tam(tenon, box)
+    raise 'thân tấm có rãnh/hốc không xuyên — không gỡ tự động được.' unless prof
+    fd1 = prof[:fd1]
+    outer = prof[:outer]
+    xoa = []
+    nhan = []
+    edges.each do |e|
+      fd = frame_for(tenon, e, box)
+      top = fd[:bounds].depth.to_f
+      dims = [fd[:bounds].width, fd[:bounds].height, fd[:bounds].depth].map(&:to_f)
+      len = dims[fd[:u]]
+      tk = dims[fd[:thin]]
+      to_e = fd[:frame].inverse * fd1[:frame]
+      outer = outer.reject { |pt| (to_e * Geom::Point3d.new(pt)).z.to_f > top + 0.001.mm }
+      h = (mem[:edges][e]['height'] || 10).to_f.mm
+      # dấu phay + viền của đầu này: nằm giữa mép và đỉnh răng (+ viền), trên tấm ngàm
+      inv = fd[:frame].inverse
+      tenon.entities.each do |c|
+        next unless dau_phay_cua_tool?(c)
+        zs = diem_mat(c, inv * c.transformation).map { |q| q.z.to_f }
+        xoa << c if !zs.empty? && zs.min > top - 0.01.mm && zs.max < top + h + VIEN_PHAY + 0.5.mm
+      end
+      # dấu âm trên tấm nhận: mặt dấu nằm ĐÚNG mặt phẳng mép đầu, trong phạm vi đầu
+      wt = (tenon.transformation * fd[:frame]).inverse
+      tenon.parent.entities.each do |b|
+        next unless (b.is_a?(Sketchup::Group) || b.is_a?(Sketchup::ComponentInstance)) && b != tenon
+        b.definition.entities.each do |mk|
+          next unless dau_abf?(mk) && tag_dau(mk).include?(TAG_MONG_AM)
+          pts = diem_mat(mk, wt * b.transformation * mk.transformation)
+          next if pts.empty?
+          next unless pts.all? { |q| (q.z.to_f - top).abs < 0.05.mm }
+          next unless pts.all? { |q| a = q.to_a.map(&:to_f); a[fd[:u]] > -1.mm && a[fd[:u]] < len + 1.mm && a[fd[:thin]] > -1.mm && a[fd[:thin]] < tk + 1.mm }
+          xoa << mk
+          nhan << b
+        end
+      end
+    end
+    {tenon: tenon, edges: edges, box: box, prof: prof, outer: bo_thang_hang(outer), xoa: xoa.uniq, nhan: nhan.uniq, mem: mem}
+  end
+
+  # GỠ mộng: list = [[tấm ngàm, [đầu...]], ...]. Một thao tác Ctrl+Z. Trả câu báo.
+  def self.go_mong(list)
+    model = Sketchup.active_model
+    list.each { |t, es| tinh_go(t, es) } # sai thì raise TRƯỚC khi đụng model
+    model.start_operation('Go mong xuong cho', true)
+    begin
+      # Tách bản dùng chung TRƯỚC (tấm ngàm + tấm nhận có dấu sắp xoá), rồi tính lại trên entity mới:
+      # xoá dấu trong definition dùng chung là xoá lây sang tấm copy.
+      list.each { |t, es| ([t] + tinh_go(t, es)[:nhan]).each(&:make_unique) }
+      kqs = list.map { |t, es| tinh_go(t, es) }
+
+      so_dau = 0
+      kqs.each do |k|
+        t = k[:tenon]
+        so_dau += k[:xoa].count { |mk| tag_dau(mk).include?(TAG_MONG_AM) }
+        k[:xoa].each { |mk| mk.erase! if mk.valid? }
+        dung_than(t, k[:box], k[:prof], k[:outer])
+        con = k[:mem][:edges].reject { |e, _| k[:edges].include?(e) }
+        if con.empty?
+          t.attribute_dictionaries.delete(MEM)
+          bb = board_bounds(t)
+          ok = (bb.min.to_a + bb.max.to_a).zip(k[:box].min.to_a + k[:box].max.to_a).all? { |a, b| (a.to_f - b.to_f).abs < 0.01.mm }
+          raise "#{t.name}: gỡ xong mà tấm không về đúng kích thước gốc — hủy." unless ok
+        else
+          write_memory(t, k[:box], con)
+          raise "#{t.name}: gỡ xong mà hình không khớp ghi nhớ — hủy." unless khop_ghi_nho?(t, memory(t))
+        end
+      end
+      model.commit_operation
+      dau = kqs.sum { |k| k[:edges].length }
+      "Đã gỡ #{dau} đầu mộng trên #{kqs.length} tấm ngàm, xoá #{so_dau} dấu âm trên tấm nhận." \
+        ' Mặt đầu vừa gỡ không tự có lại dán cạnh (mất lúc mọc mộng) — dán lại nếu cần. Ctrl+Z để hoàn tác.'
+    rescue StandardError
+      model.abort_operation
+      raise
+    end
+  end
+
+
 
   # Nhớ từng mặt thân tấm: mặt phẳng, vật liệu, vân (UV tại 3 điểm), mọi attribute dictionary
   # (ABF edge-band-id, Hung_EdgeBanding...). side = vật liệu mặt cạnh hay gặp nhất, cho mặt răng mới.
@@ -1100,6 +1232,36 @@ module MongXuongCho
         done = go_scale(@tenons + @receivers)
         refresh
         @dlg.execute_script("window.showMessage(#{("Đã gỡ Scale — ĐO LẠI BỀ DÀY: " + done.join(' · ') + ' (mm). Ctrl+Z để hoàn tác.').to_json}, false)") if @dlg
+      end
+    end
+    # GỠ mộng (03/10): một đầu (nút Gỡ trên dòng cặp đã làm) hoặc mọi đầu của các tấm ngàm đang chọn
+    dialog.add_action_callback('go') do |_c, key|
+      begin
+        check_context
+        p = (@pairs || []).find { |x| x[:key] == key }
+        raise 'Không thấy cặp này nữa — bấm Làm mới.' unless p
+        message = go_mong([[p[:tenon], [p[:edge]]]])
+        refresh
+        dialog.execute_script("window.applyFinished(true, #{message.to_json})")
+      rescue => ex
+        puts "XUONG CHO gỡ: #{ex.class}: #{ex.message}"
+        dialog.execute_script("window.applyFinished(false, #{("Lỗi gỡ mộng: " + ex.message).to_json})")
+      end
+    end
+    dialog.add_action_callback('go_tam') do |_c|
+      begin
+        check_context
+        list = @tenons.map { |t| m = memory(t); m && [t, m[:edges].keys] }.compact
+        raise 'Các tấm ngàm đang chọn không có mộng nào do tool làm.' if list.empty?
+        ten = list.map { |t, es| "• #{t.name.empty? ? '(không tên)' : t.name}: #{es.length} đầu" }.first(12).join("\n")
+        if UI.messagebox("Gỡ HẾT mộng của #{list.length} tấm ngàm?\n\n#{ten}\n\nCắt răng, xoá dấu phay + dấu âm trên tấm nhận. Ctrl+Z để hoàn tác.", MB_YESNO) == IDYES
+          message = go_mong(list)
+          refresh
+          dialog.execute_script("window.applyFinished(true, #{message.to_json})")
+        end
+      rescue => ex
+        puts "XUONG CHO gỡ: #{ex.class}: #{ex.message}"
+        dialog.execute_script("window.applyFinished(false, #{("Lỗi gỡ mộng: " + ex.message).to_json})")
       end
     end
     dialog.add_action_callback('cancel') { |_c| dialog.close }

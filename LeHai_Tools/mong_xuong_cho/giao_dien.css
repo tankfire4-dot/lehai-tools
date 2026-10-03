@@ -44,6 +44,22 @@ button.link:hover{color:var(--c)}
 .problems ul{flex:1;margin:0;padding:0;list-style:none;font-size:12px;color:var(--error);display:grid;gap:3px;min-width:0}
 .problems b{font-weight:600}
 .problems[hidden]{display:none}
+.mong{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;display:grid;gap:10px}
+.kieu{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.kieu .lbl{font-size:12px;font-weight:600;color:var(--muted);margin-right:4px}
+.kieu button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.mong-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 18px}
+.mong-grid label{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted)}
+.mong-grid label span{color:var(--ink);font-size:12px}
+#bang:not(.nc) .c-nc{display:none}
+#bang:not(.nc) td [data-k=count],#bang:not(.nc) td [data-k=side]{display:none}
+#bang.nc .txt{display:none}
+.txt{font-variant-numeric:tabular-nums;white-space:nowrap}
+.c-go{width:56px;text-align:right}
+.c-go button{padding:3px 10px;font-size:12px}
+#dachinh{color:var(--accent);font-weight:600}
+#fitBox[hidden]{display:none}
+#fitBox{color:var(--accent)}
 .pairs,.shape,.preview{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
 .section-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
 .section-head p{margin:0;font-size:12px;color:var(--muted)}
@@ -80,9 +96,20 @@ footer>div{flex:1;min-width:0}
 #status{margin:3px 0 0;font-size:12px;color:var(--muted)}
 #status.error{color:var(--error)}
 #status.success{color:var(--ok)}
-@media(max-width:760px){.roles,.preview-grid{grid-template-columns:1fr}th:nth-child(3),td:nth-child(3){display:none}}
+@media(max-width:760px){.mong-grid{grid-template-columns:1fr 1fr}.roles,.preview-grid{grid-template-columns:1fr}th:nth-child(3),td:nth-child(3){display:none}}
 .preview-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:18px}
 .preview h3{font-size:12px;font-weight:600;color:var(--muted);margin:6px 0 4px}
 .preview canvas{display:block;width:100%;background:#fcfbf9;border:1px solid var(--line);border-radius:8px}
 #faceAll{height:120px}#faceZoom{height:210px}#section{height:96px}#mortise{height:110px}
 .cap{font-size:12px;color:var(--muted);margin:6px 0 0}
+/* 2 cột (Khoa 03/10: chỉnh số xong phải cuộn xuống mới thấy preview — phiền). Preview cột phải ĐỨNG YÊN
+   (sticky trong vùng cuộn main), các ô chọn cột trái cuộn bình thường. Cửa sổ hẹp thì xếp chồng như cũ. */
+@media(min-width:900px){
+ main{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
+ main>*{grid-column:1}
+ main>.preview{grid-column:2;grid-row:1 / span 50;position:sticky;top:0;max-height:calc(100vh - 140px);overflow:auto}
+ .preview .preview-grid{grid-template-columns:1fr}
+ .mong-grid{grid-template-columns:1fr 1fr}
+ #faceAll{max-height:180px}#faceZoom{height:135px}#section{height:80px}#mortise{height:90px}
+ .preview h3{margin:4px 0 3px}
+}

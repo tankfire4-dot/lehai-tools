@@ -4,7 +4,12 @@
 const $=id=>document.getElementById(id);
 const shapeKeys=['head','height','neck','bevel','slackT','slackL','cutter'];
 const state={live:false,mode:'ngam',busy:false,focus:null,rows:{},model:{tenons:[],receivers:[],pairs:[]}};
-const SH={head:35,height:10,neck:6,bevel:1,slackT:.1,slackL:.5,cutter:6};
+const SH={head:35,height:11,neck:6,bevel:1,slackT:.2,slackL:.2,cutter:6};
+const FIT=15; // dày sau thu mặc định (Khoa 03/10)
+const KIEU={none:'Không thu',A:'Giữ mặt A',B:'Giữ mặt B'};
+// Kiểu mộng chung (Khoa 03/10: người dùng chỉ quan tâm preview + không thu / phay một mặt) — nhớ theo máy
+function docKieu(){try{const k=localStorage.getItem('mxc.kieu');return KIEU[k]?k:'none';}catch(e){return 'none';}}
+state.kieu=docKieu();
 const DEMO={mode:'ngam',tenons:[{label:'Ngàm 1 · bạ trên',faceW:600,faceH:50,thickness:17.5,mirror:false,done:[]},{label:'Ngàm 2 · bạ dưới',faceW:600,faceH:120,thickness:17.5,mirror:false,done:[{edge:2,count:2,inset:30,side:'none',fit:14,...SH}]},{label:'Ngàm 3 · hông',problem:'đã có mộng/khoét nhưng không phải do tool này làm'}],receivers:[{label:'Nhận 1 · hông trái'},{label:'Nhận 2 · hông phải'}],pairs:[
  {key:'0-4',ti:0,tenon:'Ngàm 1 · bạ trên',edge:4,edgeName:'trái',receiver:'Nhận 1 · hông trái',state:'moi',length:50,thickness:17.5},
  {key:'0-2',ti:0,tenon:'Ngàm 1 · bạ trên',edge:2,edgeName:'phải',receiver:'Nhận 2 · hông phải',state:'moi',length:50,thickness:17.5},
@@ -16,8 +21,8 @@ function bridge(name,value){if(window.sketchup&&typeof window.sketchup[name]==='
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
 function shape(){const s={};shapeKeys.forEach(k=>s[k]=num($(k).value));return s;}
 // Nhớ hình mộng dùng chung giữa các lần mở bảng (theo máy). Không có bộ nhớ thì dùng mặc định.
-function saveShape(){try{localStorage.setItem('mxc.shape',JSON.stringify(shape()));}catch(e){}}
-function loadShape(){try{const s=JSON.parse(localStorage.getItem('mxc.shape')||'null');if(s)shapeKeys.forEach(k=>{if(Number.isFinite(s[k]))$(k).value=s[k];});}catch(e){}}
+function saveShape(){try{localStorage.setItem('mxc.shape.v2',JSON.stringify(shape()));}catch(e){}}
+function loadShape(){try{const s=JSON.parse(localStorage.getItem('mxc.shape.v2')||'null');if(s)shapeKeys.forEach(k=>{if(Number.isFinite(s[k]))$(k).value=s[k];});}catch(e){}}
 
 // Lỗi của một cặp MỚI, hoặc ''. Cùng luật với plan_edge bên Ruby.
 function check(r,p,s){
@@ -75,7 +80,7 @@ function buildRows(){
  const tb=$('rows');tb.replaceChildren();
  document.querySelectorAll('[data-all]').forEach(i=>i.value='');   // danh sách đổi → dòng Tất cả về trống, khỏi tưởng dòng mới đã nhận số cũ
  for(const p of state.model.pairs){
-  if(p.state==='moi'&&!state.rows[p.key]){const base={on:true,inset:50,side:'none',fit:Math.min(14,p.thickness)};state.rows[p.key]={...base,count:suggest(p,base)};}
+  if(p.state==='moi'&&!state.rows[p.key]){const base={on:true,inset:50,side:state.kieu,fit:Math.min(fitChung(),p.thickness)};state.rows[p.key]={...base,count:suggest(p,base)};}
   if(p.state==='chi_dau'&&!state.rows[p.key])state.rows[p.key]={on:true};
   const r=p.state==='moi'?state.rows[p.key]:{...p.stored,on:p.state==='chi_dau'&&state.rows[p.key].on};
   const tr=el('tr');tr.dataset.key=p.key;
@@ -85,11 +90,13 @@ function buildRows(){
   if(p.state!=='moi')l1.append(el('span',`tag ${p.state}`,p.state==='da_lam'?'đã làm':'chỉ đóng dấu'));
   who.append(l1);if(a.name||b.name)who.append(el('div','names',`${a.name||'—'} → ${b.name||'—'}`));
   who.title=`${p.tenon}, đầu ${p.edgeName} → ${p.receiver}`;
-  const cell=(k,attrs)=>{const td=el('td','num'),i=el('input');i.type='number';i.dataset.k=k;Object.assign(i,attrs);i.value=Number.isFinite(r[k])?r[k]:'';td.append(i);return td;};
-  const sideTd=el('td'),sel=el('select');sel.dataset.k='side';[['none','Không thu'],['A','Giữ mặt A'],['B','Giữ mặt B']].forEach(([v,t])=>{const o=el('option',null,t);o.value=v;sel.append(o);});sel.value=r.side||'none';sideTd.append(sel);
-  tr.append(on,who,el('td','num',fmt(p.length)),cell('count',{min:1,step:1}),cell('inset',{min:1,step:1}),sideTd,cell('fit',{min:1,step:.1}));
+  const cell=(k,attrs,cls)=>{const td=el('td','num'+(cls?' '+cls:'')),i=el('input');i.type='number';i.dataset.k=k;Object.assign(i,attrs);i.value=Number.isFinite(r[k])?r[k]:'';td.append(i);if(k==='count')td.append(el('span','txt'));return td;};
+  const sideTd=el('td'),sel=el('select');sideTd.append(el('span','txt'));sel.dataset.k='side';[['none','Không thu'],['A','Giữ mặt A'],['B','Giữ mặt B']].forEach(([v,t])=>{const o=el('option',null,t);o.value=v;sel.append(o);});sel.value=r.side||'none';sideTd.append(sel);
+  const goTd=el('td','c-go');if(p.state!=='moi'){const g=el('button','ghost','Gỡ');g.dataset.go=p.key;g.title='Gỡ mộng đầu này: cắt răng, xoá dấu phay + dấu âm của đầu đó';goTd.append(g);}
+  tr.append(on,who,el('td','num',fmt(p.length)),cell('count',{min:1,step:1}),cell('inset',{min:1,step:1},'c-nc'),sideTd,cell('fit',{min:1,step:.1},'c-nc'),goTd);
+  ghiTxt(tr,r);
   if(p.state!=='moi'){tr.querySelectorAll('input[type=number],select').forEach(i=>i.disabled=true);blankUnused(tr,r);}
-  const err=el('tr','err');err.hidden=true;const etd=el('td');etd.colSpan=7;err.append(etd);
+  const err=el('tr','err');err.hidden=true;const etd=el('td');etd.colSpan=8;err.append(etd);
   tb.append(tr,err);
  }
  const m=state.model;
@@ -103,6 +110,21 @@ function blankUnused(tr,r){
  [['inset',r.count===1,'giữa'],['fit',(r.side||'none')==='none','—']].forEach(([k,unused,ph])=>{const i=tr.querySelector(`[data-k=${k}]`);if(!i)return;
   if(unused){i.value='';i.placeholder=ph;}else if(i.value===''&&Number.isFinite(r[k]))i.value=r[k];});
 }
+// Bảng gọn: số mộng + kiểu hiện dạng CHỮ; mở "Tùy chỉnh (phụ)" mới hiện ô nhập
+function ghiTxt(tr,r){const t=tr.querySelectorAll('.txt');if(t[0])t[0].textContent=Number.isFinite(r.count)?r.count:'—';if(t[1])t[1].textContent=KIEU[r.side||'none'];}
+// Dày sau thu chung: ô hiện ngay cạnh 4 thông số khi chọn Phay một mặt (trước nằm khuất trong Tùy chỉnh)
+function fitChung(){const v=num($('fitAll').value);return Number.isFinite(v)?v:FIT;}
+function datFit(){const v=fitChung();try{localStorage.setItem('mxc.fit',String(v));}catch(e){}
+ for(const p of state.model.pairs){const r=state.rows[p.key];if(p.state!=='moi'||!r||!r.on)continue;r.fit=Math.min(v,p.thickness);
+  const f=document.querySelector(`#rows tr[data-key="${p.key}"] [data-k=fit]`);if(f)f.value=r.fit;}
+ validate();}
+function datKieu(k){state.kieu=k;try{localStorage.setItem('mxc.kieu',k);}catch(e){}
+ document.querySelectorAll('#kieuBox [data-kieu]').forEach(b=>b.classList.toggle('on',b.dataset.kieu===k));
+ $('fitBox').hidden=k==='none';
+ for(const p of state.model.pairs){const r=state.rows[p.key];if(p.state!=='moi'||!r||!r.on)continue;r.side=k;if(k!=='none')r.fit=Math.min(fitChung(),p.thickness);
+  const tr=document.querySelector(`#rows tr[data-key="${p.key}"]`);if(tr){const sel=tr.querySelector('[data-k=side]');if(sel)sel.value=k;const f=tr.querySelector('[data-k=fit]');if(f&&Number.isFinite(r.fit))f.value=r.fit;}}
+ validate();}
+function demChinh(){const n=['neck','bevel','cutter'].filter(k=>num($(k).value)!==SH[k]).length;$('dachinh').textContent=n?'· đã chỉnh '+n+' ô':'';}
 function markFocus(){document.querySelectorAll('#rows tr[data-key]').forEach(tr=>tr.classList.toggle('focus',tr.dataset.key===state.focus));}
 
 // Kiểm lại mọi cặp, bật/tắt ô nhập, cập nhật tóm tắt. Không dựng lại bảng để giữ con trỏ nhập.
@@ -111,13 +133,13 @@ function validate(){
  for(const p of state.model.pairs){
   const tr=document.querySelector(`#rows tr[data-key="${p.key}"]`);if(!tr)continue;
   const err=tr.nextElementSibling;
-  if(p.state==='da_lam'){tr.classList.add('off');continue;}
+  if(p.state==='da_lam'){tr.classList.add('off');ghiTxt(tr,{...p.stored});continue;}
   const r=state.rows[p.key],on=!!r.on;tr.classList.toggle('off',!on);
   let e='';
   if(p.state==='moi'){
    tr.querySelectorAll('input[type=number],select').forEach(i=>i.disabled=!on);
    if(on){tr.querySelector('[data-k=inset]').disabled=r.count===1;tr.querySelector('[data-k=fit]').disabled=r.side==='none';e=check(r,p,s);}
-   blankUnused(tr,r);
+   blankUnused(tr,r);ghiTxt(tr,r);
    tr.querySelector('[data-k=count]').classList.toggle('bad',!!e);
   }
   err.hidden=!e;err.firstChild.textContent=e;tr.classList.toggle('row-error',!!e);
@@ -125,7 +147,6 @@ function validate(){
   if(e&&!first)first=`${short(p.tenon).tag}, đầu ${p.edgeName}: ${e}`;
  }
  $('summary').textContent=count?`${count} cặp sẽ làm · ${marks} dấu âm${newTeeth?` · ${newTeeth} mộng mới`:''}`:'Chưa có cặp nào để làm';
- $('shapeSummary').textContent=`rộng ${fmt(s.head)} · cao ${fmt(s.height)} · cổ Ø${fmt(s.neck)} · dao Ø${fmt(s.cutter)} mm`;
  $('apply').disabled=!count||!!first||state.busy;
  const bad=state.model.tenons.find(t=>t.problem)||state.model.receivers.find(t=>t.problem);
  drawPreview();
@@ -238,8 +259,13 @@ $('rows').addEventListener('input',ev=>{const k=ev.target.dataset.k,tr=ev.target
 $('allRow').addEventListener('input',ev=>{const k=ev.target.dataset.all;if(!k)return;const v=k==='side'?ev.target.value:num(ev.target.value);if(k==='side'?!v:!Number.isFinite(v))return;
  for(const p of state.model.pairs){const r=state.rows[p.key];if(p.state!=='moi'||!r||!r.on)continue;r[k]=v;const i=document.querySelector(`#rows tr[data-key="${p.key}"] [data-k=${k}]`);if(i)i.value=v;}
  validate();});
-$('rows').addEventListener('click',ev=>{const tr=ev.target.closest('tr[data-key]');if(!tr||ev.target.closest('input,select'))return;state.focus=tr.dataset.key;markFocus();drawPreview();bridge('focus',state.focus);});
-shapeKeys.forEach(k=>$(k).addEventListener('input',()=>{saveShape();validate();}));
+$('rows').addEventListener('click',ev=>{const g=ev.target.closest('[data-go]');if(g){ev.stopPropagation();state.live?bridge('go',g.dataset.go):showMessage('Bản xem giao diện.');return;}
+ const tr=ev.target.closest('tr[data-key]');if(!tr||ev.target.closest('input,select'))return;state.focus=tr.dataset.key;markFocus();drawPreview();bridge('focus',state.focus);});
+shapeKeys.forEach(k=>$(k).addEventListener('input',()=>{saveShape();demChinh();validate();}));
+document.querySelectorAll('#kieuBox [data-kieu]').forEach(b=>b.addEventListener('click',()=>datKieu(b.dataset.kieu)));
+$('shapeBox').addEventListener('toggle',()=>$('bang').classList.toggle('nc',$('shapeBox').open));
+$('fitAll').addEventListener('input',datFit);
+$('goTam').onclick=()=>state.live?bridge('go_tam',''):showMessage('Bản xem giao diện.');
 // Bấm vào khung nào = đang chọn tấm cho nhóm đó (thay nút "Bấm tấm trên model").
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=ev=>{if(ev.target.closest('button'))return;state.mode=b.dataset.mode;bridge('mode',state.mode);renderLists();});
 document.querySelectorAll('[data-take]').forEach(b=>b.onclick=()=>state.live?bridge('take',b.dataset.take):showMessage('Bản xem giao diện: chọn tấm trong SketchUp.',true));
@@ -253,5 +279,8 @@ $('apply').onclick=()=>{validate();if($('apply').disabled)return;
  if(!state.live){window.lastPayload=payload;showMessage('Bản xem giao diện: chưa thay đổi model.');return;}
  state.busy=true;$('apply').disabled=true;showMessage('Đang tạo mộng và dấu âm…');bridge('apply',payload);};
 window.addEventListener('resize',drawPreview);
-loadShape();
+loadShape();demChinh();
+try{const f=Number(localStorage.getItem('mxc.fit'));if(f>0)$('fitAll').value=f;}catch(e){}
+$('fitBox').hidden=state.kieu==='none';
+document.querySelectorAll('#kieuBox [data-kieu]').forEach(b=>b.classList.toggle('on',b.dataset.kieu===state.kieu));
 if(window.sketchup){bridge('ready','');}else{receiveModel({...DEMO,live:false});}

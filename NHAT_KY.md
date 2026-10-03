@@ -12,6 +12,15 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-10-03 — 1.9.92: Gỡ mộng không sót dấu âm của mộng sát mép
+
+**Vấn đề:** soát cuối phiên thấy Gỡ mộng chỉ nhận dấu âm khi MỌI điểm dấu nằm trong đầu tấm ±1mm. Cung dao + dư
+dài làm dấu nhô quá đầu răng ~3mm → mộng đặt sát mép (lùi tâm nhỏ) thì dấu lòi ra ngoài đầu tấm, gỡ xong răng
+mất mà dấu âm vẫn nằm trên tấm nhận (CNC khoét hốc thừa). **Quyết định:** theo chiều dài xét TÂM dấu nằm trong
+đầu tấm; theo bề dày + mặt phẳng mép vẫn xét mọi điểm. Mặc định (lùi tâm 50, hộc kéo chia đều) chưa dính lỗi này.
+
+---
+
 ## 2026-10-03 — 1.9.91: Hộc Kéo chốt bộ số mộng 11 · 0,2 / 0,3
 
 Khoa cân nhắc lại sau 1.9.90 (0,1 / 0,5): hộc kéo cao 11 · dư dày 0,2 · dư dài 0,3 · luôn không thu.

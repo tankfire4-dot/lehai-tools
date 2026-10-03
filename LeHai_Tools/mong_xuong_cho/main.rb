@@ -767,7 +767,11 @@ module MongXuongCho
           pts = diem_mat(mk, wt * b.transformation * mk.transformation)
           next if pts.empty?
           next unless pts.all? { |q| (q.z.to_f - top).abs < 0.05.mm }
-          next unless pts.all? { |q| a = q.to_a.map(&:to_f); a[fd[:u]] > -1.mm && a[fd[:u]] < len + 1.mm && a[fd[:thin]] > -1.mm && a[fd[:thin]] < tk + 1.mm }
+          next unless pts.all? { |q| a = q.to_a.map(&:to_f); a[fd[:thin]] > -1.mm && a[fd[:thin]] < tk + 1.mm }
+          # Theo chiều dài xét TÂM dấu, không xét mọi điểm: cung dao + dư dài làm dấu nhô quá đầu răng ~3mm,
+          # mộng sát mép (lùi tâm nhỏ) thì dấu lòi khỏi đầu tấm mà vẫn là của đầu này (soát 03/10).
+          tam_u = pts.sum { |q| q.to_a[fd[:u]].to_f } / pts.length
+          next unless tam_u > 0 && tam_u < len
           xoa << mk
           nhan << b
         end

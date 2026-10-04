@@ -41,6 +41,14 @@ thêm dấu âm) không bị chặn. Tên cũ vẫn được NHẬN khi gỡ m�
 **Phải làm trước khi dùng 1.9.95:** Aspire thêm dao mẫu cho 4 tên layer mới; giữ dao mẫu tên cũ cho file đã làm.
 **Còn hở:** dao mẫu Aspire cài theo ĐỘ SÂU ăn → ván không phải 17,5 (vd 18) phay còn 15 sẽ ra 15,5 — plugin chưa chặn.
 
+**Sự cố: 1.9.95 phát TRƯỚC khi sửa layer.** Lệnh phát được đưa ngay sau commit 3 nút; Khoa chạy luôn, rồi mới nhớ
+ra chuyện layer → 1.9.95 ra máy thợ với nút "Phay còn 13" ghi tên layer của còn 15. Vá bằng 1.9.96 (`12316bf`).
+File `CNCCandy_All_check` đã có 6 mộng phay còn 13 (2 tấm hậu hộc kéo 124 + 150, 3 mộng/tấm) mang tên cũ → sửa bằng
+script lab `scratch/soat-lehai/doi_ten_layer_phay.rb`: xếp TỪNG dấu theo độ sâu nó khai (ABF › intersect-x: 2,5 →
+_15, 4,5 → _13), chặn cả file nếu dấu lạ / không khai / dùng chung definition; đếm lại 2 đường rồi mới commit.
+Kết quả 04/10: 270 hình, 36 dấu → _15, 12 dấu → _13. **Bài học:** đưa lệnh phát khi việc còn đang bàn = mời phát
+bản dở; chỉ dán lệnh phát khi đợt đã CHỐT xong, và ghi rõ đợt gồm commit nào.
+
 ## 2026-10-04 — Check Mộng Xương Chó + ô Số mộng ở khung chính (chưa phát)
 
 **Vấn đề.** Khoa hỏi: răng mộng găm vào tấm nhận mà ai đó lỡ xóa dấu mộng âm thì check sản xuất có bắt

@@ -35,6 +35,14 @@ lấy phía thân tấm theo trọng tâm đỉnh — răng dồn ~60 đỉnh �
 **Rủi ro còn.** Chưa chạy SketchUp thật (đường gom tấm mới thử trên cây group giả). Đang mở group thì check
 không quét (báo vàng) để khỏi lệch hệ toạ độ. KT Liên Kết vẫn hiện mối mộng là "rãnh hậu đã làm" — không sửa.
 
+Cùng ngày: **Kiểm Tra Độ Dày chuyển sang soi nổi** — tool cuối cùng trong dashboard còn kiểu cũ (bản 1.9.81
+chuyển 10 tool, sót tool này vì nó là bảng biểu đồ, không có màn xem từng tấm). Kiểu cũ bấm cột là ẨN mọi
+tấm khác thật trong model (hidden + thuộc tính `TK_ThickCheck`, một bậc Ctrl+Z): quên "Hiện lại" rồi lưu là
+lưu luôn nửa tủ đang ẩn, và không thấy tấm lỗi nằm đâu trong tủ. Nay bấm cột / "Xem tấm sai" → soi nổi từng
+tấm (← →), chỉ vẽ, không sửa model. File còn tấm bị bản cũ ẩn → bảng hiện nút "Hiện lại N tấm" cho người
+dùng tự bấm (không tự sửa model khi mở bảng). Đã thử: nạp main.rb trong Ruby wasm + bảng HTML thật trên
+Chromium 11/11; màn soi trong SketchUp CHƯA chạy.
+
 Cùng ngày: ô **Số mộng / đầu** lên khung thông số chính tool Mộng (trước khuất trong Tùy chỉnh phụ), ô số
 từng dòng gõ được luôn (4f44d2c).
 

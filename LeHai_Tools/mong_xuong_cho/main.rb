@@ -646,12 +646,18 @@ module MongXuongCho
     source.entities.erase_entities(source.entities.select { |e| e.is_a?(Sketchup::Edge) || e.is_a?(Sketchup::Face) })
     face = source.entities.add_face(outer.map(&to_local))
     raise 'Không dựng được mặt biên mộng.' unless face
+    # SOÁT 04/10 P2: lỗ dựng hỏng (add_face nil) trước đây bị bỏ qua im lặng → tấm mất lỗ. Nay báo lỗi để
+    # thao tác ngoài abort, và đếm lại lỗ trên hai mặt đáy/nắp sau khi đùn.
     prof[:inner].each do |lp|
       hole = source.entities.add_face(lp.map(&to_local))
-      hole.erase! if hole && hole.valid? && hole != face
+      raise 'Không dựng lại được lỗ xuyên của tấm — chưa đổi gì.' unless hole
+      hole.erase! if hole.valid? && hole != face
     end
-    face.reverse! if face.normal.dot(fd1[:frame] * AXES[thin]) < 0
+    truc = fd1[:frame] * AXES[thin]
+    face.reverse! if face.normal.dot(truc) < 0
     face.pushpull(thickness)
+    lo = source.entities.grep(Sketchup::Face).select { |f| f.normal.dot(truc).abs > 0.999999 }.sum { |f| f.loops.length - 1 }
+    raise "Dựng lại mất lỗ xuyên (#{lo}/#{2 * prof[:inner].length} vòng lỗ trên đáy+nắp) — chưa đổi gì." unless lo == 2 * prof[:inner].length
     dropped = dan_mat(source.entities.grep(Sketchup::Face), dress)
     # Làm mềm cạnh chia cung (răng cũ + mới, cung khoét có sẵn): cạnh dọc bề dày giữa hai mặt lệch
     # nhau dưới 20° — cung 12 đoạn lệch 15°/đoạn, góc vuông khe/mép không bị đụng.
@@ -835,26 +841,75 @@ module MongXuongCho
       end
       dicts = (f.attribute_dictionaries || []).map { |d| [d.name, d.keys.map { |k| [k, d[k]] }] }
       {normal: f.normal, point: f.vertices.first.position, mat: f.material, back: f.back_material, uv: uv,
-       dicts: dicts, side: f.normal.to_a[thin].abs <= 0.999999}
+       dicts: dicts, side: f.normal.to_a[thin].abs <= 0.999999, layer: f.layer,
+       loops: vong_mat(f), trong: diem_trong(f)}
     end
     sides = olds.select { |o| o[:side] }.map { |o| [o[:mat], o[:back]] }
     {olds: olds, side: sides.max_by { |m| sides.count(m) }}
   end
 
-  # Dán lại: mặt mới trùng mặt phẳng mặt cũ nhận vật liệu/vân; attribute chỉ chép khi mặt phẳng đó còn
-  # ĐÚNG MỘT mặt (mặt lớn, đầu không mộng). Đầu mọc mộng bị răng chia nhiều mặt → bỏ dán cạnh ở đầu
-  # đó (đầu đã cắm vào tấm nhận). Mặt răng mới nhận vật liệu mặt cạnh chung. Trả số mặt bỏ dán cạnh.
+  # Vòng biên của mặt (vòng ngoài + lỗ), toạ độ local của tấm.
+  def self.vong_mat(f)
+    f.loops.map { |lp| lp.vertices.map(&:position) }
+  end
+
+  # Một điểm CHẮC nằm trong mặt: trọng tâm tam giác đầu của lưới (mesh đã tam giác hoá — dim_nhanh:392).
+  def self.diem_trong(f)
+    m = f.mesh
+    poly = m.polygons.find { |pl| pl.size >= 3 }
+    return f.vertices.first.position unless poly
+    a, b, c = poly.first(3).map { |i| m.point_at(i.abs) }
+    Geom::Point3d.new((a.x + b.x + c.x) / 3.0, (a.y + b.y + c.y) / 3.0, (a.z + b.z + c.z) / 3.0)
+  end
+
+  # p (cùng mặt phẳng) nằm trong mặt có các vòng `loops`? Chiếu bỏ trục pháp tuyến lớn nhất, mỗi vòng thử
+  # tia ngang (cắt lẻ lần = vòng bao p); số vòng bao p LẺ = trong vòng ngoài và ngoài mọi lỗ.
+  def self.trong_vong?(p, loops, normal)
+    n = normal.to_a.map(&:abs)
+    bo = n.index(n.max)
+    hai = ->(q) { a = q.to_a; a.delete_at(bo); a }
+    x, y = hai.call(p)
+    loops.count { |lp|
+      pts = lp.map(&hai)
+      bao = false
+      pts.each_with_index do |(x1, y1), i|
+        x2, y2 = pts[i - 1]
+        bao = !bao if (y1 > y) != (y2 > y) && x < (x2 - x1) * (y - y1) / (y2 - y1) + x1
+      end
+      bao
+    }.odd?
+  end
+
+  # Mặt cũ ứng với mặt mới f → [chỉ số, mơ hồ?]. Cùng mặt phẳng, CẢ HAI hướng (mặt cũ lật vẫn nhận).
+  # Mặt phẳng chỉ một mặt cũ → nó (y hệt trước). Nhiều mặt cũ đồng phẳng (khe chữ U: hai đoạn mép khác
+  # chỉ — SOÁT 04/10 P1) → ghép theo MIỀN: f chứa điểm trong của đúng một mặt cũ → mặt đó; không chứa
+  # cái nào → mặt cũ chứa điểm trong của f (f là mảnh của nó); chứa ≥2 → f gộp nhiều mặt cũ = mơ hồ.
+  def self.ghep_mat(f, olds)
+    p = f.vertices.first.position
+    cung = olds.each_index.select { |i|
+      f.normal.dot(olds[i][:normal]).abs > 0.999999 && (p - olds[i][:point]).dot(olds[i][:normal]).abs < 0.001.mm
+    }
+    return [cung.first, false] if cung.size <= 1
+    vong = vong_mat(f)
+    chua = cung.select { |i| trong_vong?(olds[i][:trong], vong, f.normal) }
+    return [chua.first, chua.size > 1] unless chua.empty?
+    q = diem_trong(f)
+    [cung.find { |i| trong_vong?(q, olds[i][:loops], f.normal) }, false]
+  end
+
+  # Dán lại: mặt mới nhận vật liệu/vân/tag của mặt cũ ghép được (ghep_mat); attribute (dán cạnh ABF) chỉ chép
+  # khi mặt cũ đó ứng ĐÚNG MỘT mặt mới và không mơ hồ. Đầu mọc mộng bị răng chia nhiều mặt → bỏ dán cạnh ở
+  # đầu đó (đầu đã cắm vào tấm nhận). Mặt răng mới nhận vật liệu mặt cạnh chung. Trả số mặt cũ bỏ dán cạnh.
   def self.dan_mat(faces, dress)
     olds = dress[:olds]
-    match = faces.map { |f|
-      p = f.vertices.first.position
-      olds.index { |o| f.normal.dot(o[:normal]) > 0.999999 && (p - o[:point]).dot(o[:normal]).abs < 0.001.mm }
-    }
+    match = faces.map { |f| ghep_mat(f, olds) }
+    idx = match.map(&:first)
     dropped = []
-    faces.zip(match).each do |f, i|
+    faces.zip(match).each do |f, (i, mo)|
       o = i && olds[i]
-      mat, back = o ? [o[:mat], o[:back]] : (dress[:side] || [nil, nil])
-      if o && o[:uv]
+      lat = o && f.normal.dot(o[:normal]) < 0 # mặt cũ ngược hướng mặt dựng lại → đổi vật liệu trước/sau
+      mat, back = o ? (lat ? [o[:back], o[:mat]] : [o[:mat], o[:back]]) : (dress[:side] || [nil, nil])
+      if o && o[:uv] && !lat
         begin
           f.position_material(mat, o[:uv], true)
         rescue ArgumentError => ex
@@ -865,8 +920,9 @@ module MongXuongCho
         f.material = mat
       end
       f.back_material = back
+      f.layer = o[:layer] if o && o[:layer]
       next unless o && !o[:dicts].empty?
-      if match.count(i) == 1
+      if idx.count(i) == 1 && !mo
         o[:dicts].each { |name, pairs| pairs.each { |k, v| f.set_attribute(name, k, v) } }
       else
         dropped << i

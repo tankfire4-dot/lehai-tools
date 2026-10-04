@@ -13,6 +13,20 @@ Số mục trong ngoặc (3a, 5…) trỏ về [SKETCHUP_NEN_TANG.md](SKETCHUP_N
 
 ---
 
+# SOÁT CHÉO 04/10/2026 (Codex) — Tô tay Dán Cạnh + Mộng/Hộc kéo 1.9.84–1.9.92
+
+Report: lab `handoff/report-soat-to-tay-dan-canh.md`, `handoff/report-soat-lehai-1992.md`. Test: `tests/soat_0110` 33/33,
+`tests/mong_xuong_cho` 8/8 (bản 1.9.92 đỏ 6 ca). Chưa chạy SketchUp thật.
+
+| Mục | Kết quả |
+|---|---|
+| Tô tay: tấm copy dùng chung / đang mở sửa trong tấm (2 P1) | **ĐÃ SỬA** `a4c9da3` — Codex soát ĐẠT |
+| Mộng dựng lại tấm: mép đồng phẳng (khe U) mất chỉ + đổi vật liệu, mặt lật mất chỉ (P1) | **ĐÃ SỬA** — ghép theo miền mặt; gộp mơ hồ thì bỏ chỉ, không gán bừa |
+| Mộng dựng lỗ hỏng bỏ qua im lặng (P2) | **ĐÃ SỬA** — báo lỗi + đếm vòng lỗ đáy/nắp, thao tác abort |
+| Mộng chỉ nhớ UV mặt TRƯỚC, mặt sau xoay vân mất mapping (P2) | **CÒN NỢ** — cần `get_back_UVQ` chưa có tiền lệ; kiểm tay: tấm vân 2 mặt, mọc mộng, xem vân mặt sau |
+
+---
+
 # SOÁT LẠI 01/10/2026 (Claude Opus 5.5) — kết quả + đã sửa
 
 Sổ chi tiết: lab `scratch/soat-lehai/loi.md`. Test: `node tests/soat_0110.test.mjs` (18 ca; chạy trên bản cũ đỏ đúng

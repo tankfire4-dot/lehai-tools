@@ -80,7 +80,7 @@ function buildRows(){
  const tb=$('rows');tb.replaceChildren();
  document.querySelectorAll('[data-all]').forEach(i=>i.value='');   // danh sách đổi → dòng Tất cả về trống, khỏi tưởng dòng mới đã nhận số cũ
  for(const p of state.model.pairs){
-  if(p.state==='moi'&&!state.rows[p.key]){const base={on:true,inset:50,side:state.kieu,fit:Math.min(fitChung(),p.thickness)};state.rows[p.key]={...base,count:suggest(p,base)};}
+  if(p.state==='moi'&&!state.rows[p.key]){const base={on:true,inset:50,side:state.kieu,fit:Math.min(fitChung(),p.thickness)};state.rows[p.key]={...base,count:soMongChung()!==null?soMongChung():suggest(p,base)};}
   if(p.state==='chi_dau'&&!state.rows[p.key])state.rows[p.key]={on:true};
   const r=p.state==='moi'?state.rows[p.key]:{...p.stored,on:p.state==='chi_dau'&&state.rows[p.key].on};
   const tr=el('tr');tr.dataset.key=p.key;
@@ -90,7 +90,7 @@ function buildRows(){
   if(p.state!=='moi')l1.append(el('span',`tag ${p.state}`,p.state==='da_lam'?'đã làm':'chỉ đóng dấu'));
   who.append(l1);if(a.name||b.name)who.append(el('div','names',`${a.name||'—'} → ${b.name||'—'}`));
   who.title=`${p.tenon}, đầu ${p.edgeName} → ${p.receiver}`;
-  const cell=(k,attrs,cls)=>{const td=el('td','num'+(cls?' '+cls:'')),i=el('input');i.type='number';i.dataset.k=k;Object.assign(i,attrs);i.value=Number.isFinite(r[k])?r[k]:'';td.append(i);if(k==='count')td.append(el('span','txt'));return td;};
+  const cell=(k,attrs,cls)=>{const td=el('td','num'+(cls?' '+cls:'')),i=el('input');i.type='number';i.dataset.k=k;Object.assign(i,attrs);i.value=Number.isFinite(r[k])?r[k]:'';td.append(i);return td;};
   const sideTd=el('td'),sel=el('select');sideTd.append(el('span','txt'));sel.dataset.k='side';[['none','Không thu'],['A','Giữ mặt A'],['B','Giữ mặt B']].forEach(([v,t])=>{const o=el('option',null,t);o.value=v;sel.append(o);});sel.value=r.side||'none';sideTd.append(sel);
   const goTd=el('td','c-go');if(p.state!=='moi'){const g=el('button','ghost','Gỡ');g.dataset.go=p.key;g.title='Gỡ mộng đầu này: cắt răng, xoá dấu phay + dấu âm của đầu đó';goTd.append(g);}
   tr.append(on,who,el('td','num',fmt(p.length)),cell('count',{min:1,step:1}),cell('inset',{min:1,step:1},'c-nc'),sideTd,cell('fit',{min:1,step:.1},'c-nc'),goTd);
@@ -110,9 +110,16 @@ function blankUnused(tr,r){
  [['inset',r.count===1,'giữa'],['fit',(r.side||'none')==='none','—']].forEach(([k,unused,ph])=>{const i=tr.querySelector(`[data-k=${k}]`);if(!i)return;
   if(unused){i.value='';i.placeholder=ph;}else if(i.value===''&&Number.isFinite(r[k]))i.value=r[k];});
 }
-// Bảng gọn: số mộng + kiểu hiện dạng CHỮ; mở "Tùy chỉnh (phụ)" mới hiện ô nhập
-function ghiTxt(tr,r){const t=tr.querySelectorAll('.txt');if(t[0])t[0].textContent=Number.isFinite(r.count)?r.count:'—';if(t[1])t[1].textContent=KIEU[r.side||'none'];}
+// Bảng gọn: kiểu hiện dạng CHỮ; mở "Tùy chỉnh (phụ)" mới hiện ô chọn. Số mộng luôn là ô nhập.
+function ghiTxt(tr,r){const t=tr.querySelector('.txt');if(t)t.textContent=KIEU[r.side||'none'];}
 // Dày sau thu chung: ô hiện ngay cạnh 4 thông số khi chọn Phay một mặt (trước nằm khuất trong Tùy chỉnh)
+// Số mộng chung ở khung chính (Khoa 04/10: trước nằm khuất trong Tùy chỉnh). Trống = tự tính theo chiều dài
+// từng đầu (suggest); có số = mọi cặp MỚI đang tick lấy số đó, kể cả cặp thêm sau. Cặp đã làm giữ số cũ.
+function soMongChung(){const v=num($('countAll').value);return Number.isFinite(v)?v:null;}
+function datSoMong(){const v=soMongChung();
+ for(const p of state.model.pairs){const r=state.rows[p.key];if(p.state!=='moi'||!r||!r.on)continue;r.count=v!==null?v:suggest(p,r);
+  const i=document.querySelector(`#rows tr[data-key="${p.key}"] [data-k=count]`);if(i)i.value=Number.isFinite(r.count)?r.count:'';}
+ validate();}
 function fitChung(){const v=num($('fitAll').value);return Number.isFinite(v)?v:FIT;}
 function datFit(){const v=fitChung();try{localStorage.setItem('mxc.fit',String(v));}catch(e){}
  for(const p of state.model.pairs){const r=state.rows[p.key];if(p.state!=='moi'||!r||!r.on)continue;r.fit=Math.min(v,p.thickness);
@@ -265,6 +272,7 @@ shapeKeys.forEach(k=>$(k).addEventListener('input',()=>{saveShape();demChinh();v
 document.querySelectorAll('#kieuBox [data-kieu]').forEach(b=>b.addEventListener('click',()=>datKieu(b.dataset.kieu)));
 $('shapeBox').addEventListener('toggle',()=>$('bang').classList.toggle('nc',$('shapeBox').open));
 $('fitAll').addEventListener('input',datFit);
+$('countAll').addEventListener('input',datSoMong);
 $('goTam').onclick=()=>state.live?bridge('go_tam',''):showMessage('Bản xem giao diện.');
 // Bấm vào khung nào = đang chọn tấm cho nhóm đó (thay nút "Bấm tấm trên model").
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=ev=>{if(ev.target.closest('button'))return;state.mode=b.dataset.mode;bridge('mode',state.mode);renderLists();});

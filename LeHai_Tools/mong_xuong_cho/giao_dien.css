@@ -52,13 +52,15 @@ button.link:hover{color:var(--c)}
 .mong-grid label{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted)}
 .mong-grid label span{color:var(--ink);font-size:12px}
 #bang:not(.nc) .c-nc{display:none}
-#bang:not(.nc) td [data-k=count],#bang:not(.nc) td [data-k=side]{display:none}
+#bang:not(.nc) td [data-k=side]{display:none}
 #bang.nc .txt{display:none}
 .txt{font-variant-numeric:tabular-nums;white-space:nowrap}
 .c-go{width:56px;text-align:right}
 .c-go button{padding:3px 10px;font-size:12px}
 #dachinh{color:var(--accent);font-weight:600}
 #fitBox[hidden]{display:none}
+#countAll{width:72px}
+#countAll:placeholder-shown{border-style:dashed}
 #fitBox{color:var(--accent)}
 .pairs,.shape,.preview{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
 .section-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}

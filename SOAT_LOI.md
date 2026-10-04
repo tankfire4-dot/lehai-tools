@@ -16,12 +16,12 @@ Số mục trong ngoặc (3a, 5…) trỏ về [SKETCHUP_NEN_TANG.md](SKETCHUP_N
 # SOÁT CHÉO 04/10/2026 (Codex) — Tô tay Dán Cạnh + Mộng/Hộc kéo 1.9.84–1.9.92
 
 Report: lab `handoff/report-soat-to-tay-dan-canh.md`, `handoff/report-soat-lehai-1992.md`. Test: `tests/soat_0110` 33/33,
-`tests/mong_xuong_cho` 8/8 (bản 1.9.92 đỏ 6 ca). Chưa chạy SketchUp thật.
+`tests/mong_xuong_cho` 5/5 (1.9.92 đỏ 2 ca lỗ; bản ghép miền f607bca đỏ ca chốt chặn). Chưa chạy SketchUp thật.
 
 | Mục | Kết quả |
 |---|---|
 | Tô tay: tấm copy dùng chung / đang mở sửa trong tấm (2 P1) | **ĐÃ SỬA** `a4c9da3` — Codex soát ĐẠT |
-| Mộng dựng lại tấm: mép đồng phẳng (khe U) mất chỉ + đổi vật liệu, mặt lật mất chỉ (P1) | **ĐÃ SỬA** — ghép theo miền mặt; gộp mơ hồ thì bỏ chỉ, không gán bừa |
+| Mộng dựng lại tấm: mép đồng phẳng (khe U) mất chỉ + đổi vật liệu, mặt lật mất chỉ (P1) | **GIỚI HẠN ĐÃ BIẾT** — Khoa 04/10: dán chỉ là công đoạn sau cùng, chấp nhận; bảng Mộng có dòng nhắc "dán chỉ SAU mộng". Bản ghép theo miền (f607bca) bị trả lại: Codex lượt 2 bắt hồi quy (vách lỗ đồng phẳng ngược hướng sườn mộng mất chỉ) — test giữ ca chốt chặn |
 | Mộng dựng lỗ hỏng bỏ qua im lặng (P2) | **ĐÃ SỬA** — báo lỗi + đếm vòng lỗ đáy/nắp, thao tác abort |
 | Mộng chỉ nhớ UV mặt TRƯỚC, mặt sau xoay vân mất mapping (P2) | **CÒN NỢ** — cần `get_back_UVQ` chưa có tiền lệ; kiểm tay: tấm vân 2 mặt, mọc mộng, xem vân mặt sau |
 

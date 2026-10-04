@@ -19,13 +19,15 @@
 <div class="problems" id="problems" hidden><ul id="problemList"></ul><button id="unscale" hidden title="Đưa Scale của vỏ group vào hình bên trong; tấm đứng yên, kích thước giữ như đang thấy">Gỡ Scale</button></div>
 <section class="mong" id="mongBox">
  <div class="kieu" id="kieuBox"><span class="lbl">Kiểu mộng</span>
-  <button data-kieu="none" class="on">Không thu</button><button data-kieu="A">Phay một mặt · giữ A</button><button data-kieu="B">Phay một mặt · giữ B</button></div>
+  <button data-preset="0" title="Không phay mặt · dư dày 0,2 · dư dài 0,3 (như mộng Hộc Kéo)">Không thu</button><button data-preset="1" title="Phay một mặt còn 15 mm · dư dày 0,2 · dư dài 0,2">Thu còn 15</button><button data-preset="2" title="Phay một mặt còn 13 mm · dư dày 0,2 · dư dài 0,2 — mỏng nhất mà dao Ø6 còn phay được dấu âm">Thu còn 13</button>
+  <span class="mat" id="matBox" hidden><span class="lbl">Giữ mặt</span><button data-mat="A">A</button><button data-mat="B">B</button></span>
+  <span class="tuychinh" id="tuyChinh" hidden title="Thông số đang khác cả 3 kiểu có sẵn — vẫn làm bình thường">Tùy chỉnh</span></div>
  <div class="mong-grid">
   <label title="Số mộng trên mỗi đầu tấm ngàm. Để trống = tự tính theo chiều dài đầu (dưới 150 mm: 1 mộng; dài hơn: khoảng 1 mộng / 300 mm). Gõ số = áp cho mọi cặp mới đang tick; vẫn sửa riêng được từng dòng trong bảng.">Số mộng <span><input id="countAll" type="number" min="1" step="1" placeholder="tự động"> / đầu</span></label>
   <label>Rộng mộng <span><input id="head" type="number" value="35" min="1" step=".5"> mm</span></label>
   <label>Cao mộng <span><input id="height" type="number" value="11" min="1" step=".5"> mm</span></label>
   <label>Dư dày <span><input id="slackT" type="number" value="0.2" min="0" step=".05"> mm</span></label>
-  <label>Dư dài <span><input id="slackL" type="number" value="0.2" min="0" step=".05"> mm</span></label>
+  <label>Dư dài <span><input id="slackL" type="number" value="0.3" min="0" step=".05"> mm</span></label>
   <label id="fitBox" hidden title="Bề dày mộng còn lại sau khi phay một mặt — áp cho mọi cặp mới">Dày sau thu <span><input id="fitAll" type="number" value="15" min="1" step=".1"> mm</span></label>
  </div>
 </section>

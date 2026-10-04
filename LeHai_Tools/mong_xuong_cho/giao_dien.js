@@ -10,6 +10,14 @@ const KIEU={none:'Không thu',A:'Giữ mặt A',B:'Giữ mặt B'};
 // Kiểu mộng chung (Khoa 03/10: người dùng chỉ quan tâm preview + không thu / phay một mặt) — nhớ theo máy
 function docKieu(){try{const k=localStorage.getItem('mxc.kieu');return KIEU[k]?k:'none';}catch(e){return 'none';}}
 state.kieu=docKieu();
+// 3 kiểu Khoa hay dùng (chốt 04/10): bấm = điền sẵn dư dày / dư dài / dày sau thu + bật tắt thu. Không khóa ô
+// nào: sửa tay thì nút tắt sáng, hiện "Tùy chỉnh". Thu còn 13 = mỏng nhất dao Ø6 còn phay được dấu âm
+// (dấu rộng 13 + 0,2 ≥ hai tai 6 + 6 + 1 mm đoạn thẳng — xem check() "Dấu quá hẹp cho dao này").
+// Không thu lấy dư 0,2 / 0,3 như mộng Hộc Kéo (tao_modul_nhanh/hoc_keo.rb HINH_MONG).
+const PRESET=[{thu:false,slackT:.2,slackL:.3},{thu:true,fit:15,slackT:.2,slackL:.2},{thu:true,fit:13,slackT:.2,slackL:.2}];
+// Mặt giữ khi thu (A/B) chọn riêng, nhớ theo máy; đổi kiểu mộng không đổi mặt giữ.
+function docMat(){try{return localStorage.getItem('mxc.mat')==='B'?'B':'A';}catch(e){return 'A';}}
+state.mat=state.kieu==='none'?docMat():state.kieu;
 const DEMO={mode:'ngam',tenons:[{label:'Ngàm 1 · bạ trên',faceW:600,faceH:50,thickness:17.5,mirror:false,done:[]},{label:'Ngàm 2 · bạ dưới',faceW:600,faceH:120,thickness:17.5,mirror:false,done:[{edge:2,count:2,inset:30,side:'none',fit:14,...SH}]},{label:'Ngàm 3 · hông',problem:'đã có mộng/khoét nhưng không phải do tool này làm'}],receivers:[{label:'Nhận 1 · hông trái'},{label:'Nhận 2 · hông phải'}],pairs:[
  {key:'0-4',ti:0,tenon:'Ngàm 1 · bạ trên',edge:4,edgeName:'trái',receiver:'Nhận 1 · hông trái',state:'moi',length:50,thickness:17.5},
  {key:'0-2',ti:0,tenon:'Ngàm 1 · bạ trên',edge:2,edgeName:'phải',receiver:'Nhận 2 · hông phải',state:'moi',length:50,thickness:17.5},
@@ -126,16 +134,26 @@ function datFit(){const v=fitChung();try{localStorage.setItem('mxc.fit',String(v
   const f=document.querySelector(`#rows tr[data-key="${p.key}"] [data-k=fit]`);if(f)f.value=r.fit;}
  validate();}
 function datKieu(k){state.kieu=k;try{localStorage.setItem('mxc.kieu',k);}catch(e){}
- document.querySelectorAll('#kieuBox [data-kieu]').forEach(b=>b.classList.toggle('on',b.dataset.kieu===k));
+ if(k!=='none'){state.mat=k;try{localStorage.setItem('mxc.mat',k);}catch(e){}}
  $('fitBox').hidden=k==='none';
  for(const p of state.model.pairs){const r=state.rows[p.key];if(p.state!=='moi'||!r||!r.on)continue;r.side=k;if(k!=='none')r.fit=Math.min(fitChung(),p.thickness);
   const tr=document.querySelector(`#rows tr[data-key="${p.key}"]`);if(tr){const sel=tr.querySelector('[data-k=side]');if(sel)sel.value=k;const f=tr.querySelector('[data-k=fit]');if(f&&Number.isFinite(r.fit))f.value=r.fit;}}
  validate();}
+function apKieu(i){const p=PRESET[i];$('slackT').value=p.slackT;$('slackL').value=p.slackL;saveShape();demChinh();
+ if(p.thu){$('fitAll').value=p.fit;datKieu(state.mat);datFit();}else datKieu('none');}
+function datMat(m){state.mat=m;try{localStorage.setItem('mxc.mat',m);}catch(e){}if(state.kieu!=='none')datKieu(m);else toKieu();}
+// Tô nút kiểu đang khớp; không khớp kiểu nào thì hiện "Tùy chỉnh". Công tắc A/B chỉ hiện khi đang thu.
+function toKieu(){const s=shape(),thu=state.kieu!=='none',f=fitChung(),eq=(a,b)=>Math.abs(a-b)<1e-9;
+ const i=PRESET.findIndex(p=>p.thu===thu&&eq(p.slackT,s.slackT)&&eq(p.slackL,s.slackL)&&(!p.thu||eq(p.fit,f)));
+ document.querySelectorAll('#kieuBox [data-preset]').forEach(b=>b.classList.toggle('on',+b.dataset.preset===i));
+ $('tuyChinh').hidden=i>=0;$('matBox').hidden=!thu;
+ document.querySelectorAll('#matBox [data-mat]').forEach(b=>b.classList.toggle('on',b.dataset.mat===state.mat));}
 function demChinh(){const n=['neck','bevel','cutter'].filter(k=>num($(k).value)!==SH[k]).length;$('dachinh').textContent=n?'· đã chỉnh '+n+' ô':'';}
 function markFocus(){document.querySelectorAll('#rows tr[data-key]').forEach(tr=>tr.classList.toggle('focus',tr.dataset.key===state.focus));}
 
 // Kiểm lại mọi cặp, bật/tắt ô nhập, cập nhật tóm tắt. Không dựng lại bảng để giữ con trỏ nhập.
 function validate(){
+ toKieu();
  const s=shape();let first='',count=0,marks=0,newTeeth=0;
  for(const p of state.model.pairs){
   const tr=document.querySelector(`#rows tr[data-key="${p.key}"]`);if(!tr)continue;
@@ -269,7 +287,8 @@ $('allRow').addEventListener('input',ev=>{const k=ev.target.dataset.all;if(!k)re
 $('rows').addEventListener('click',ev=>{const g=ev.target.closest('[data-go]');if(g){ev.stopPropagation();state.live?bridge('go',g.dataset.go):showMessage('Bản xem giao diện.');return;}
  const tr=ev.target.closest('tr[data-key]');if(!tr||ev.target.closest('input,select'))return;state.focus=tr.dataset.key;markFocus();drawPreview();bridge('focus',state.focus);});
 shapeKeys.forEach(k=>$(k).addEventListener('input',()=>{saveShape();demChinh();validate();}));
-document.querySelectorAll('#kieuBox [data-kieu]').forEach(b=>b.addEventListener('click',()=>datKieu(b.dataset.kieu)));
+document.querySelectorAll('#kieuBox [data-preset]').forEach(b=>b.addEventListener('click',()=>apKieu(+b.dataset.preset)));
+document.querySelectorAll('#matBox [data-mat]').forEach(b=>b.addEventListener('click',()=>datMat(b.dataset.mat)));
 $('shapeBox').addEventListener('toggle',()=>$('bang').classList.toggle('nc',$('shapeBox').open));
 $('fitAll').addEventListener('input',datFit);
 $('countAll').addEventListener('input',datSoMong);
@@ -290,5 +309,5 @@ window.addEventListener('resize',drawPreview);
 loadShape();demChinh();
 try{const f=Number(localStorage.getItem('mxc.fit'));if(f>0)$('fitAll').value=f;}catch(e){}
 $('fitBox').hidden=state.kieu==='none';
-document.querySelectorAll('#kieuBox [data-kieu]').forEach(b=>b.classList.toggle('on',b.dataset.kieu===state.kieu));
+toKieu();
 if(window.sketchup){bridge('ready','');}else{receiveModel({...DEMO,live:false});}

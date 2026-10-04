@@ -12,6 +12,18 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-10-04 — Mộng: 3 nút kiểu Khoa hay dùng (chưa phát)
+
+**Khoa chốt 04/10:** kiểu mộng = 3 nút **Không thu** (dư dày 0,2 · dư dài 0,3, như mộng Hộc Kéo) · **Thu còn 15**
+· **Thu còn 13** (dư 0,2 / 0,2); giữ mặt A/B là công tắc riêng do người dùng chọn; rộng/cao mộng để ô riêng.
+Nút chỉ ĐIỀN SẴN, không khóa ô: sửa tay thì nút tắt sáng, hiện "Tùy chỉnh".
+
+**Vì sao 13 chứ không 11 (Khoa định dùng 11).** Dao góc dấu âm máy công ty Ø6. Dấu âm có 2 tai thoát dao
+cạnh nhau ở mỗi đầu (dao tròn không phay ra góc lõm vuông — răng góc vuông sẽ kẹt ~1,1 mm theo đường chéo).
+Hai tai cần 6 + 6 + 1 mm = 13 ≤ dày sau thu + 0,2 → mỏng nhất 12,8; Khoa chọn 13 cho chẵn. Đã cho Khoa xem
+mô phỏng dao ăn gỗ thật (artifact "Mô Phỏng Dao Ø6") + so tai chéo 45° (làm được 11) — Khoa chọn giữ dáng dấu
+cũ, dùng 13. Mặc định ô dư dài đổi 0,2 → 0,3 để mở lần đầu khớp "Không thu".
+
 ## 2026-10-04 — Check Mộng Xương Chó + ô Số mộng ở khung chính (chưa phát)
 
 **Vấn đề.** Khoa hỏi: răng mộng găm vào tấm nhận mà ai đó lỡ xóa dấu mộng âm thì check sản xuất có bắt

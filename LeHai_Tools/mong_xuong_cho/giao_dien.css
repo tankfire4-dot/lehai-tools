@@ -48,6 +48,10 @@ button.link:hover{color:var(--c)}
 .kieu{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .kieu .lbl{font-size:12px;font-weight:600;color:var(--muted);margin-right:4px}
 .kieu button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.kieu .mat{display:inline-flex;align-items:center;gap:4px;margin-left:10px;padding-left:12px;border-left:1px solid var(--line)}
+.kieu .mat[hidden],.kieu .tuychinh[hidden]{display:none}
+.kieu .mat button{min-width:34px;padding:7px 10px}
+.kieu .tuychinh{font-size:12px;font-weight:600;color:var(--accent);border:1px dashed var(--accent);border-radius:999px;padding:3px 10px;margin-left:6px}
 .mong-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 18px}
 .mong-grid label{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted)}
 .mong-grid label span{color:var(--ink);font-size:12px}

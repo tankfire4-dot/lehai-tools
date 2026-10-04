@@ -204,7 +204,7 @@ module MyStudio
               if entity.edges.any? { |e| e.length <= MyStudio::AutoEdgeBand::MAX_EDGE_FACE_IN }
                 @highlight_face = entity
                 @highlight_pts  = entity.vertices.map { |v| v.position.transform(xform) }
-                @highlight_inst = tam_chua(path)
+                @highlight_inst = tam_chua(path, view.model)
                 return
               end
 
@@ -217,7 +217,7 @@ module MyStudio
               if thin
                 @highlight_face = thin
                 @highlight_pts  = thin.vertices.map { |v| v.position.transform(xform) }
-                @highlight_inst = tam_chua(path)
+                @highlight_inst = tam_chua(path, view.model)
                 return
               end
             end
@@ -228,8 +228,10 @@ module MyStudio
       end
 
       # Tấm (group/component) trực tiếp chứa mặt vừa pick = container cuối trong đường pick.
-      def tam_chua(path)
-        path[0..-2].reverse.find { |c| c.is_a?(Sketchup::Group) || c.is_a?(Sketchup::ComponentInstance) }
+      # Soát 02/10 (P1-2): đường pick bắt đầu từ ngữ cảnh ĐANG MỞ — thợ đang mở sửa trong tấm thì path chỉ là
+      # [mặt] → không ra tấm → chọn chỉ B mà ghi id 0 (ABF đọc ra loại A). Ghép active_path phía trước để luôn ra tấm.
+      def tam_chua(path, model)
+        ((model.active_path || []) + path[0..-2]).reverse.find { |c| c.is_a?(Sketchup::Group) || c.is_a?(Sketchup::ComponentInstance) }
       end
 
       def paint_highlighted(model)
@@ -244,6 +246,10 @@ module MyStudio
         begin
           # Soát 01/10: trước đây mặt luôn id 0 mà KHÔNG ghi loại chỉ vào tấm → ABF đọc ra loại đang ở vị trí 0 của
           # tấm (có khi là loại khác hẳn). Nay ghi/gộp loại vào tấm, mặt nhận đúng id.
+          if inst && inst.valid?
+            inst, face = MyStudio::AutoEdgeBand.tach_rieng(inst, face)
+            raise 'Không tìm lại được mặt cạnh sau khi tách tấm dùng chung — chưa dán gì.' unless face
+          end
           bid = inst && inst.valid? ? MyStudio::AutoEdgeBand.ensure_band_type(inst, @band_type) : 0
           MyStudio::AutoEdgeBand.apply_band(face, bid, @mat)
           model.commit_operation
@@ -531,6 +537,25 @@ module MyStudio
       id = bo.empty? ? 0 : bo.map { |b| b[0].to_i }.max + 1
       inst.set_attribute('ABF', 'edge-band-types', bo.flatten(1) + [id, band_type[1], band_type[2], band_type[3], band_type[4]])
       id
+    end
+
+    # Soát 02/10 (P1-1): hai tấm copy dùng CHUNG definition → mặt cạnh nằm ở definition chung, loại chỉ lại ghi
+    # vào MỘT instance → tấm kia có mặt mang id không có trong bảng của nó. Tách như nhánh Auto (process_board)
+    # rồi trả MẶT TƯƠNG ỨNG trong definition mới. Tài liệu Trimble: tấm vốn riêng thì make_unique "nothing happens".
+    def self.tach_rieng(inst, face)
+      return [inst, face] unless inst.respond_to?(:make_unique) && inst.respond_to?(:definition)
+      cu = inst.definition
+      rieng = inst.make_unique
+      inst = rieng if rieng.is_a?(Sketchup::Group) || rieng.is_a?(Sketchup::ComponentInstance)
+      return [inst, face] if inst.definition == cu
+      [inst, mat_tuong_ung(inst.definition.entities, face)]
+    end
+
+    # Mặt cùng toạ độ đỉnh (bản chép definition giữ nguyên toạ độ local). Không thấy → nil, bên gọi báo lỗi.
+    def self.mat_tuong_ung(entities, face)
+      khoa = ->(f) { f.vertices.map { |v| v.position.to_a.map { |c| c.round(6) } }.sort }
+      k = khoa.call(face)
+      entities.grep(Sketchup::Face).find { |f| f.vertices.size == face.vertices.size && khoa.call(f) == k }
     end
 
     def self.raw_entities(inst)

@@ -122,6 +122,53 @@ ca(out, 'Dán Cạnh: danh sách loại quét ĐỦ cả bộ thứ 2 (Vát45) �
   [seen.keys.sort == ['Vat45', 'don 221 T'], seen.keys.inspect]
 end
 
+# ── Tô tay Dán Cạnh — 2 P1 Codex SOÁT 02/10 (handoff/report-soat-lehai-0110.md), sửa 04/10 ──────────
+module UI; def self.messagebox(m); raise "messagebox: #{m}"; end; end unless defined?(UI.messagebox)
+class MoHinhGia
+  attr_accessor :active_path
+  def initialize(path = nil); @active_path = path; end
+  def start_operation(*); end
+  def commit_operation; end
+  def abort_operation; end
+end
+def to_tay(tool, face, inst, model)
+  tool.instance_variable_set(:@highlight_face, face)
+  tool.instance_variable_set(:@highlight_inst, inst)
+  tool.send(:paint_highlighted, model)
+end
+tra = ->(tam, id) { (tam.get_attribute('ABF', 'edge-band-types') || []).each_slice(5).find { |b| b[0] == id }&.at(1) }
+ca(out, 'Tô tay: 2 component DÙNG CHUNG definition, tô chỉ B lên cái 1 → tách riêng; cái 2 không đổi, cái 1 tra ra B') do
+  m1 = Sketchup.hop([0, 0, 0], [600, 18, 300])[2]
+  a = Sketchup::ComponentInstance.new([m1]); b = Sketchup::ComponentInstance.new([])
+  b.definition = a.definition
+  [a, b].each { |x| x.set_attribute('ABF', 'edge-band-types', A.dup) }
+  to_tay(AE::PainterTool.new(B, nil), m1, a, MoHinhGia.new)
+  ma = a.definition.entities.first; mb = b.definition.entities.first
+  ok = !a.definition.equal?(b.definition) && tra.(a, ma.get_attribute('ABF', 'edge-band-id')) == B[1] &&
+       mb.get_attribute('ABF', 'edge-band-id').nil? && b.get_attribute('ABF', 'edge-band-types') == A
+  [ok, { tach: !a.definition.equal?(b.definition), a: tra.(a, ma.get_attribute('ABF', 'edge-band-id')), b_mat: mb.get_attribute('ABF', 'edge-band-id') }.inspect]
+end
+ca(out, 'Tô tay: tấm RIÊNG (không dùng chung) → không tách, đúng mặt đó nhận id tra ra B (y hệt cũ)') do
+  m1 = Sketchup.hop([0, 0, 0], [600, 18, 300])[2]
+  t = Sketchup::Group.new([m1]); t.set_attribute('ABF', 'edge-band-types', A.dup); def0 = t.definition
+  to_tay(AE::PainterTool.new(B, nil), m1, t, MoHinhGia.new)
+  [t.definition.equal?(def0) && tra.(t, m1.get_attribute('ABF', 'edge-band-id')) == B[1], m1.get_attribute('ABF', 'edge-band-id')]
+end
+ca(out, 'Tô tay ĐANG MỞ SỬA trong tấm (đường pick chỉ [mặt]) → vẫn ra tấm qua active_path; chọn B tra ra B (trước: id 0 = A)') do
+  m1 = Sketchup.hop([0, 0, 0], [600, 18, 300])[2]
+  t = Sketchup::Group.new([m1]); t.set_attribute('ABF', 'edge-band-types', A.dup)
+  mo = MoHinhGia.new([t]); tool = AE::PainterTool.new(B, nil)
+  tam = tool.send(:tam_chua, [m1], mo)
+  to_tay(tool, m1, tam, mo)
+  [tam.equal?(t) && tra.(t, m1.get_attribute('ABF', 'edge-band-id')) == B[1], { tam: tam ? 'tấm' : nil, ra: tra.(t, m1.get_attribute('ABF', 'edge-band-id')) }.inspect]
+end
+ca(out, 'Tô tay đứng NGOÀI (active_path nil) → tấm = container cuối của đường pick (y hệt cũ)') do
+  m1 = Sketchup.hop([0, 0, 0], [600, 18, 300])[2]
+  tu = Sketchup::Group.new([]); t = Sketchup::Group.new([m1])
+  tam = AE::PainterTool.new(B, nil).send(:tam_chua, [tu, t, m1], MoHinhGia.new)
+  [tam.equal?(t), tam.equal?(t) ? 'tấm' : 'sai']
+end
+
 # ── Lượt 2 (soát kỹ tối 01/10) ───────────────────────────────
 # Sai số máy khi tấm xoay: hệ số scale 0.9999999999999999 phải ép về đúng 1 → số y hệt tấm không xoay.
 GAN1 = Geom::Transformation.new([[0.9999999999999999, 0, 0], [0, 1.0000000000000002, 0], [0, 0, 0.9999999999999999]])

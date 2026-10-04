@@ -103,4 +103,37 @@ module Sketchup
     def locked?; false; end
   end
   class ComponentInstance < Group; end
+
+  # ── Thêm 04/10 cho Tô tay Dán Cạnh: đỉnh mặt, definition DÙNG CHUNG, make_unique ─────────────
+  # make_unique theo tài liệu Trimble: đang dùng chung → definition riêng (chép ruột); vốn riêng → không làm gì.
+  class Vertex
+    attr_reader :position
+    def initialize(p); @position = p; end
+  end
+  class Face
+    attr_accessor :material
+    def vertices
+      lo = @bb.min.to_a; hi = @bb.max.to_a
+      [lo[0], hi[0]].product([lo[1], hi[1]], [lo[2], hi[2]]).uniq.map { |p| Vertex.new(Geom::Point3d.new(*p)) }
+    end
+    def attribute_dictionary(d); (@attr || {}).keys.any? { |k| k[0] == d } ? d : nil; end
+    def delete_attribute(d); (@attr || {}).delete_if { |k, _| k[0] == d }; end
+    def ban_chep
+      f = Face.new(@bb.min.to_a, @bb.max.to_a)
+      f.instance_variable_set(:@attr, (@attr || {}).dup); f.material = material; f
+    end
+  end
+  class Definition
+    def instances; @instances ||= []; end
+  end
+  class Group
+    alias_method :khoi_tao_cu, :initialize
+    def initialize(*a); khoi_tao_cu(*a); @definition.instances << self; end
+    def definition=(d); @definition.instances.delete(self); @definition = d; d.instances << self; end
+    def make_unique
+      return self if @definition.instances.size <= 1
+      self.definition = Definition.new(@definition.name, @definition.entities.map { |e| e.respond_to?(:ban_chep) ? e.ban_chep : e })
+      self
+    end
+  end
 end

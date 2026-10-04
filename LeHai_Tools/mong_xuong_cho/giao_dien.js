@@ -6,6 +6,9 @@ const shapeKeys=['head','height','neck','bevel','slackT','slackL','cutter'];
 const state={live:false,mode:'ngam',busy:false,focus:null,rows:{},model:{tenons:[],receivers:[],pairs:[]}};
 const SH={head:35,height:11,neck:6,bevel:1,slackT:.2,slackL:.2,cutter:6};
 const FIT=15; // dày sau phay mặc định (Khoa 03/10)
+// Dày sau phay có layer Aspire (dao mẫu theo TÊN layer — Khoa 04/10). Trùng TAG_PHAY trong main.rb: thêm độ dày
+// mới phải thêm cả hai chỗ + dao mẫu trong Aspire. Số khác → báo đỏ, không cho Áp dụng.
+const PHAY_MM=[15,13];
 // Bên trong lưu MẶT GIỮ (A/B — Ruby + tấm đã làm dùng giá trị này); chữ hiện ra nói MẶT PHAY = mặt còn lại
 // (Khoa 04/10: "giữ mặt" bắt người dùng lật thêm một lớp trong đầu).
 const KIEU={none:'Không phay',A:'Phay mặt B',B:'Phay mặt A'};
@@ -47,6 +50,7 @@ function check(r,p,s){
  if(r.count===1&&L-s.head<2)return `Đầu dài ${fmt(L)} mm quá ngắn cho mộng rộng ${fmt(s.head)} mm.`;
  if(r.count>1&&(r.inset-s.head/2<1||r.inset>=L/2))return `Lùi tâm cần từ ${fmt(s.head/2+1)} đến dưới ${fmt(L/2)} mm (đầu dài ${fmt(L)} mm).`;
  if(fit<1||fit>T)return `Dày sau phay cần từ 1 đến ${fmt(T)} mm.`;
+ if(r.side!=='none'&&T-fit>0.001&&!PHAY_MM.some(m=>Math.abs(fit-m)<0.01))return `Chưa có layer Aspire cho dày sau phay ${fmt(fit)} mm — chỉ làm ${PHAY_MM.join(' hoặc ')} mm.`;
  const markT=fit+s.slackT,markL=s.head+s.slackL+s.cutter;
  if(s.slackT<0||s.slackL<0||s.cutter<=0||markT-2*s.cutter<1)return 'Dấu quá hẹp cho dao này: cần rộng ít nhất 2 × Ø dao + 1 mm.';
  if(r.count>1){const max=Math.floor((L-2*r.inset)/(Math.max(s.head,markL)+1)+1e-9)+1;if(r.count>max)return `Không đủ chỗ: tối đa ${max} mộng trên đầu dài ${fmt(L)} mm.`;}

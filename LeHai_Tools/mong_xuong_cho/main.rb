@@ -7,6 +7,7 @@
 # Toolbar do LeHai_Tools/main.rb quản lý — file này chỉ expose create_cmd.
 # Dấu âm ra layer DXF LEHAI_MONGAM: Khoa nghiệm thu 27/09/2026 (file sạch → nest → xuất ABF).
 # Dấu phay mộng + viền (2mm, từ 03/10 là 3mm) ra LEHAI_PHAYMONG / LEHAI_PHAYVIENMONG: nghiệm thu 27/09 (Desktop/ketqua).
+# Từ 04/10 tên layer thêm số mm dày sau phay: LEHAI_PHAYMONG_15 / _13 (xem TAG_PHAY).
 
 require 'sketchup.rb'
 require 'json'
@@ -24,8 +25,15 @@ module MongXuongCho
   TAG_MONG_AM = 'LEHAI_MONGAM'.freeze
   # Thu một mặt tấm ngàm sinh 2 dấu phay trên mặt bị thu (Khoa chốt 27/09): ô đúng đầu mộng và ô
   # viền tràn VIEN_PHAY ra hai hông + phía đầu mộng (chân giữ nguyên, không lẹm thân tấm) để dao ăn sạch mép.
-  TAG_PHAY_MONG = 'LEHAI_PHAYMONG'.freeze
-  TAG_PHAY_VIEN = 'LEHAI_PHAYVIENMONG'.freeze
+  # Tên layer mang SỐ MM của dày sau phay (Khoa 04/10): Aspire gán dao mẫu + độ sâu THEO TÊN LAYER, nên mỗi
+  # độ dày một cặp layer. Dày sau phay không có trong bảng → plan_edge CHẶN (Aspire không có dao mẫu → phay
+  # sai sâu mà không ai báo). Thêm độ dày mới = thêm 1 dòng ở đây + PHAY_MM trong giao_dien.js + dao mẫu Aspire.
+  TAG_PHAY = {
+    15.0 => %w[LEHAI_PHAYMONG_15 LEHAI_PHAYVIENMONG_15],
+    13.0 => %w[LEHAI_PHAYMONG_13 LEHAI_PHAYVIENMONG_13]
+  }.freeze
+  # Tên cũ (≤ 1.9.94, luôn là còn 15) — chỉ để NHẬN dấu phay của file đã làm (gỡ mộng, chặn khoan đầu tấm).
+  TAG_PHAY_CU = %w[LEHAI_PHAYMONG LEHAI_PHAYVIENMONG].freeze
   VIEN_PHAY = 3.mm # Khoa đổi 2 → 3mm 03/10/2026 (file đã làm sửa bằng scratch/mong-xuong-cho/sua_vien_3mm.rb)
   # ── Tên layer DXF lấy từ TAG CỦA MẶT ──────
   # Exporter DXF của ABF đặt layer cho _ABF_Intersect theo tag của MẶT bên trong nhóm; tag của
@@ -212,7 +220,7 @@ module MongXuongCho
   end
 
   def self.dau_phay_cua_tool?(entity)
-    dau_abf?(entity) && ([TAG_PHAY_MONG, TAG_PHAY_VIEN].include?(entity.layer.name) ||
+    dau_abf?(entity) && ((TAG_PHAY.values.flatten + TAG_PHAY_CU).include?(entity.layer.name) ||
                          entity.get_attribute('ABF', 'setting-name') == 'PHAYDAUMONG_KHOA')
   end
 
@@ -339,6 +347,9 @@ module MongXuongCho
       end
       narrow_mark = thickness - fit_thickness > 0.001.mm
       if narrow_mark
+        # Cặp layer theo dày sau phay; nil = chưa có dao mẫu Aspire. Chỉ CHẶN ở đầu MỚI (apply_pairs) — đầu đã
+        # làm (chỉ đóng thêm dấu âm) không sinh dấu phay nên dày cũ nào cũng được.
+        tags_phay = TAG_PHAY.find { |mm, _t| (fit_thickness.to_mm - mm).abs < 0.01 }
         # Giữ A: dấu bắt đầu ở mặt thấp; giữ B: lùi dấu bằng phần giảm.
         keep_low = side == 'A'
         fit_offset = keep_low ? 0.0 : thickness - fit_thickness
@@ -421,7 +432,8 @@ module MongXuongCho
     end
     plan = {edge: edge, fd: fd, quantity: quantity, centers: centers, teeth: teeth, arc_seams: arc_seams,
             height: height, thickness: thickness, fit_thickness: fit_thickness, narrow_mark: narrow_mark,
-            keep_low: keep_low, phay_rects: phay_rects, vien_rects: vien_rects, receiver: receiver, mortises: []}
+            keep_low: keep_low, phay_rects: phay_rects, vien_rects: vien_rects, receiver: receiver, mortises: [],
+            tag_phay: narrow_mark && tags_phay ? tags_phay[1] : nil}
     return plan unless receiver
     raise "#{label}tấm nhận đang bị Scale hoặc xiên ở cấp group." unless rigid?(receiver)
     info = contact_info(source, edge, receiver, box)
@@ -680,8 +692,10 @@ module MongXuongCho
   # Dấu phay mộng + viền cho các đầu thu một mặt trong `plans`.
   def self.them_dau_phay(model, source, plans)
     plans.each do |plan|
-      marks = plan[:phay_rects].map { |r| [r, TAG_PHAY_MONG, 'phay mộng'] } +
-              (plan[:vien_rects] || []).map { |r| [r, TAG_PHAY_VIEN, 'phay viền mộng'] }
+      tag_mong, tag_vien = plan[:tag_phay]
+      raise "Đầu #{plan[:edge]}: chưa có layer Aspire cho dày sau phay này." if plan[:narrow_mark] && !tag_mong
+      marks = plan[:phay_rects].map { |r| [r, tag_mong, 'phay mộng'] } +
+              (plan[:vien_rects] || []).map { |r| [r, tag_vien, 'phay viền mộng'] }
       marks.each_with_index do |(rect, tag_name, ten), index|
         phay_tag = model.layers.to_a.find { |l| l.name == tag_name } || model.layers.add(tag_name)
         mark = source.entities.add_group
@@ -933,6 +947,9 @@ module MongXuongCho
         if p[:state] == 'moi'
           spec = shape.merge(rows[p[:key]].slice('count', 'inset', 'side', 'fit')).merge('edge' => p[:edge])
           plan = plan_edge(tenon, spec, p[:receiver], box, label)
+          if plan[:narrow_mark] && !plan[:tag_phay]
+            raise "#{label}chưa có layer Aspire cho dày sau phay #{plan[:fit_thickness].to_mm.round(2)}mm — chỉ làm #{TAG_PHAY.keys.map(&:to_i).join(' hoặc ')}mm."
+          end
           plan[:phay_b] = p[:receiver].persistent_id
           fresh << plan
           edges[p[:edge]] = spec.slice(*SPEC_KEYS).merge('edge' => p[:edge], 'nhan' => [p[:receiver].persistent_id],

@@ -33,6 +33,14 @@ bị cắt nửa (lỗi có từ trước).
 Phay còn 13. Con số trước có 3 tên (Dày sau thu / Dày dấu / dày tính dấu) → một tên **Dày sau phay**, cả câu báo
 lỗi Ruby. Ô tích Hộc Kéo "(không thu)" → "(không phay)". Tên biến bên trong (`thu`, `fit`, `side`) giữ nguyên.
 
+**Layer phay mang số mm (Khoa 04/10 — chặn lỗi trước khi phát 1.9.95).** Aspire gán dao mẫu + độ sâu THEO TÊN
+layer; trước đây mọi dày sau phay đều ra `LEHAI_PHAYMONG` / `LEHAI_PHAYVIENMONG` (dao mẫu của còn 15) → nút
+"Phay còn 13" sẽ phay sai sâu mà không ai báo. Nay `TAG_PHAY`: 15 → `LEHAI_PHAYMONG_15` + `LEHAI_PHAYVIENMONG_15`,
+13 → `_13`; số khác → đầu MỚI bị chặn ("chưa có layer Aspire"), bảng báo đỏ ngay khi gõ. Đầu đã làm (chỉ đóng
+thêm dấu âm) không bị chặn. Tên cũ vẫn được NHẬN khi gỡ mộng (file ≤ 1.9.94). `LEHAI_MONGAM` giữ nguyên.
+**Phải làm trước khi dùng 1.9.95:** Aspire thêm dao mẫu cho 4 tên layer mới; giữ dao mẫu tên cũ cho file đã làm.
+**Còn hở:** dao mẫu Aspire cài theo ĐỘ SÂU ăn → ván không phải 17,5 (vd 18) phay còn 15 sẽ ra 15,5 — plugin chưa chặn.
+
 ## 2026-10-04 — Check Mộng Xương Chó + ô Số mộng ở khung chính (chưa phát)
 
 **Vấn đề.** Khoa hỏi: răng mộng găm vào tấm nhận mà ai đó lỡ xóa dấu mộng âm thì check sản xuất có bắt

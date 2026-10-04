@@ -12,6 +12,32 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-10-04 — Check Mộng Xương Chó + ô Số mộng ở khung chính (chưa phát)
+
+**Vấn đề.** Khoa hỏi: răng mộng găm vào tấm nhận mà ai đó lỡ xóa dấu mộng âm thì check sản xuất có bắt
+không? Đọc code: KHÔNG. KT Liên Kết coi cả đầu tấm là một khối giao, rải 27 điểm; răng xương chó chỉ chiếm
+vài khúc trên đầu tấm → phần lớn điểm rơi vào khe giữa răng → tỉ lệ đâm xuyên < 40% → hiểu là "khấu tay
+rồi" → ĐẠT (tấm 600 mặc định 3 mộng: 9/27 = 33%). Thêm: xóa MỘT PHẦN dấu vẫn đạt (chỉ hỏi "có dấu nào
+trong vùng"); cao mộng 13–14,9 rơi khe giữa hai khung độ sâu → không kiểm luôn. Bảng Mộng cũng không bắt:
+"đã làm" đọc ghi nhớ pid, không nhìn dấu còn hay mất.
+
+**Quyết định.** Check riêng `kiem_tra_mong_xuong_cho` (dashboard, sau Ngàm): xét TỪNG RĂNG — mặt đỉnh răng
+nằm lọt trong lòng tấm nhận, hẹp hơn đầu tấm (cả đầu găm = ngàm thường, để KT Liên Kết), chỗ đó tấm nhận
+còn gỗ (khoét tay thì bỏ); lưới 5×5 trên chân răng, dọc răng chỗ nào cũng phải có dấu ABF phủ → thiếu /
+lệch / nông (độ sâu chỉ tin dấu tag LEHAI_MONGAM). Nhận răng bằng HÌNH, không đọc ghi nhớ — tấm copy vẫn bắt.
+
+**Vì sao thử như vậy.** Hình thử dựng bằng code THẬT của tool Mộng (`plan_edge` + `chen_rang`), 80 biến
+thể tự sinh (1–5 mộng, 3 kiểu tấm, 4 đầu, thu A/B, cao 8–16, xoay/nghiêng/lật gương) × 6 kiểu làm hỏng.
+Cài lại 5 lỗi vào lõi (kể cả kiểu sai của KT Liên Kết) → bộ thử bắt cả 5. Một lỗi thật bắt được nhờ đó:
+lấy phía thân tấm theo trọng tâm đỉnh — răng dồn ~60 đỉnh ở đầu tấm kéo trọng tâm vào lòng tấm nhận,
+22/80 biến thể bị bỏ sót.
+
+**Rủi ro còn.** Chưa chạy SketchUp thật (đường gom tấm mới thử trên cây group giả). Đang mở group thì check
+không quét (báo vàng) để khỏi lệch hệ toạ độ. KT Liên Kết vẫn hiện mối mộng là "rãnh hậu đã làm" — không sửa.
+
+Cùng ngày: ô **Số mộng / đầu** lên khung thông số chính tool Mộng (trước khuất trong Tùy chỉnh phụ), ô số
+từng dòng gõ được luôn (4f44d2c).
+
 ## 2026-10-03 — 1.9.92: Gỡ mộng không sót dấu âm của mộng sát mép
 
 **Vấn đề:** soát cuối phiên thấy Gỡ mộng chỉ nhận dấu âm khi MỌI điểm dấu nằm trong đầu tấm ±1mm. Cung dao + dư

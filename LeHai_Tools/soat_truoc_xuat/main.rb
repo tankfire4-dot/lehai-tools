@@ -18,7 +18,7 @@ module TK
     THEME = File.join(PATH, '..', 'shared', 'lehai_theme.css').freeze
 
     # Nạp các check phụ thuộc — rescue để 1 tool lỗi không chặn dashboard.
-    %w[kiem_tra_do_day kiem_tra_khoang_cach trung_tam kiem_tra_khung kiem_tra_ban_le kiem_tra_lien_ket kiem_tra_led kiem_tra_ten kiem_tra_dan_canh kiem_tra_r100 kiem_tra_ban_le_chan soi_van].each do |folder|
+    %w[kiem_tra_do_day kiem_tra_khoang_cach trung_tam kiem_tra_khung kiem_tra_ban_le kiem_tra_lien_ket kiem_tra_mong_xuong_cho kiem_tra_led kiem_tra_ten kiem_tra_dan_canh kiem_tra_r100 kiem_tra_ban_le_chan soi_van].each do |folder|
       begin
         require File.join(PATH, '..', folder, 'main')
       rescue LoadError, StandardError => e
@@ -39,6 +39,8 @@ module TK
         { key: 'ranhhau', name: 'Rãnh Hậu',         mod: mod_of(:JointCheck), kind: :ranhhau },
         { key: 'led',     name: 'Rãnh Led',         mod: mod_of(:LedCheck) },
         { key: 'ngam',    name: 'Ngàm',             mod: mod_of(:JointCheck), kind: :ngam },
+        # Từng RĂNG mộng xương chó phải có dấu khoét trên tấm nhận (04/10 — KT Liên Kết lọt ca xóa dấu).
+        { key: 'mong',    name: 'Mộng Xương Chó',   mod: mod_of(:DogboneCheck) },
         { key: 'banle',   name: 'Bản Lề Cánh',      mod: mod_of(:HingeCheck) },
         { key: 'chanbl',  name: 'Đợt Chắn Bản Lề',  mod: mod_of(:HingeBlockCheck) },
         { key: 'khoang',  name: 'Khoảng Cách 7mm',  mod: mod_of(:SpacingCheck) },

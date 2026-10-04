@@ -205,7 +205,7 @@ toolbar rỗng tên `X` mà SketchUp nhớ — gỡ ở **View → Toolbars → 
 
 **Đọc kỹ cột "Nút" — hai cách đếm khác nhau, đừng trộn.** Số module ≠ số nút trên toolbar.
 Có module **không có nút riêng**: nó chạy từ trong dashboard Check Chốt Sản Xuất (icon khiên cuối
-hàng). Tính tới 30/09/2026: **29 module, 18 nút** (đếm lại 30/09: thêm Khảo Sát 28/09 + Khung Tổng Thể) (Hạ Nền + Kiểm Tra Độ Dày đã cất nút — code còn;
+hàng). Tính tới 04/10/2026: **30 module, 18 nút** (đếm lại 04/10: thêm Kiểm Mộng Xương Chó; 30/09: Khảo Sát + Khung Tổng Thể) (Hạ Nền + Kiểm Tra Độ Dày đã cất nút — code còn;
 đếm lại từ thư mục + mảng `groups`, không chép số cũ).
 
 Nguồn sự thật cho từng cột: cột Module = thư mục trong `LeHai_Tools/`; cột Nút = mảng `groups`
@@ -242,6 +242,7 @@ là danh sách nút. Muốn biết đủ module thì `ls LeHai_Tools/*/`.
 | **Khung Tổng Thể** (nhập D×S×C → đặt khung → soát lồi/hụt khung, hở lẻ, lệch mép, tấm bay, xéo/méo; lõi toán `phan_tich.rb` thuần Ruby, thử `tests/kiem_tra_khung.test.mjs`) | `TK::FrameCheck` | — chạy trong dashboard |
 | Bản Lề Cánh | `TK::HingeCheck` | — chạy trong dashboard |
 | Liên Kết (rãnh hậu + ngàm) | `TK::JointCheck` | — chạy trong dashboard |
+| **Mộng Xương Chó** (từng răng găm vào tấm nhận phải có dấu khoét phủ kín — thiếu/lệch/nông; lõi `phan_tich.rb` thuần Ruby, thử `tests/kiem_tra_mong_xuong_cho.test.mjs` với hình dựng bằng code thật của tool Mộng) | `TK::DogboneCheck` | — chạy trong dashboard |
 | Kiểm Tra LED | `TK::LedCheck` | — chạy trong dashboard |
 | Kiểm Tra Đặt Tên | `TK::NameCheck` | — chạy trong dashboard |
 | Kiểm Tra Dán Cạnh | `TK::EdgeBandCheck` | — chạy trong dashboard |

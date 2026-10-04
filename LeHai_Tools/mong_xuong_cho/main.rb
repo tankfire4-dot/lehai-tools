@@ -326,7 +326,7 @@ module MongXuongCho
     quantity = quantity.to_i
     head, height, diameter, bevel = %w[head height neck bevel].map { |k| number.call(k).mm }
     side = spec.fetch('side', 'none')
-    raise "#{label}chọn Không thu / Giữ mặt A / Giữ mặt B." unless %w[none A B].include?(side)
+    raise "#{label}chọn Không thu / Phay mặt A / Phay mặt B." unless %w[none A B].include?(side)
     # Chỉ thu/dịch dấu âm theo thông số này. Hình mộng dương luôn dày bằng thân ván.
     fit_thickness = thickness
     fit_offset = 0.0

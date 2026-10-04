@@ -20,7 +20,7 @@
 <section class="mong" id="mongBox">
  <div class="kieu" id="kieuBox"><span class="lbl">Kiểu mộng</span>
   <button data-preset="0" title="Không phay mặt · dư dày 0,2 · dư dài 0,3 (như mộng Hộc Kéo)">Không thu</button><button data-preset="1" title="Phay một mặt còn 15 mm · dư dày 0,2 · dư dài 0,2">Thu còn 15</button><button data-preset="2" title="Phay một mặt còn 13 mm · dư dày 0,2 · dư dài 0,2 — mỏng nhất mà dao Ø6 còn phay được dấu âm">Thu còn 13</button>
-  <span class="mat" id="matBox" hidden><span class="lbl">Giữ mặt</span><button data-mat="A">A</button><button data-mat="B">B</button></span>
+  <span class="mat" id="matBox" hidden title="Máy phay bớt mặt này của răng cho mỏng lại; mặt kia giữ nguyên, thẳng với thân tấm. Chữ A / B vẽ sẵn trên từng tấm trong model."><span class="lbl">Phay mặt</span><button data-mat="B">A</button><button data-mat="A">B</button></span>
   <span class="tuychinh" id="tuyChinh" hidden title="Thông số đang khác cả 3 kiểu có sẵn — vẫn làm bình thường">Tùy chỉnh</span></div>
  <div class="mong-grid">
   <label title="Số mộng trên mỗi đầu tấm ngàm. Để trống = tự tính theo chiều dài đầu (dưới 150 mm: 1 mộng; dài hơn: khoảng 1 mộng / 300 mm). Gõ số = áp cho mọi cặp mới đang tick; vẫn sửa riêng được từng dòng trong bảng.">Số mộng <span><input id="countAll" type="number" min="1" step="1" placeholder="tự động"> / đầu</span></label>
@@ -41,7 +41,7 @@
 <section class="pairs">
  <div class="section-head"><h2>Cặp mộng</h2><p>Bấm một dòng để tô cặp đó trên model</p></div>
  <table id="bang"><thead><tr><th class="c-on">Làm</th><th>Ngàm → Nhận</th><th class="num">Dài đầu</th><th class="num">Số mộng</th><th class="num c-nc">Lùi tâm</th><th>Kiểu</th><th class="num c-nc">Dày dấu</th><th class="c-go"></th></tr>
-  <tr class="all c-nc" id="allRow"><td class="c-on"></td><td class="all-lbl" title="Gõ ở đây → điền xuống mọi dòng đang tick">Tất cả</td><td></td><td></td><td class="num c-nc"><input type="number" data-all="inset" min="1" step="1" placeholder="—"></td><td><select data-all="side"><option value="">—</option><option value="none">Không thu</option><option value="A">Giữ mặt A</option><option value="B">Giữ mặt B</option></select></td><td class="num c-nc"><input type="number" data-all="fit" min="1" step=".1" placeholder="—"></td><td></td></tr></thead><tbody id="rows"></tbody></table>
+  <tr class="all c-nc" id="allRow"><td class="c-on"></td><td class="all-lbl" title="Gõ ở đây → điền xuống mọi dòng đang tick">Tất cả</td><td></td><td></td><td class="num c-nc"><input type="number" data-all="inset" min="1" step="1" placeholder="—"></td><td><select data-all="side"><option value="">—</option><option value="none">Không thu</option><option value="B">Phay mặt A</option><option value="A">Phay mặt B</option></select></td><td class="num c-nc"><input type="number" data-all="fit" min="1" step=".1" placeholder="—"></td><td></td></tr></thead><tbody id="rows"></tbody></table>
  <p class="empty" id="empty"></p>
  <p class="note">Dán chỉ nên làm SAU khi tạo/gỡ mộng — tấm có khe hoặc lỗ, khi dựng lại có thể mất dấu dán chỉ ở mép đó.</p>
 </section>

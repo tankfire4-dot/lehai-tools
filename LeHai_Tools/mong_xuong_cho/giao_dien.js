@@ -6,7 +6,9 @@ const shapeKeys=['head','height','neck','bevel','slackT','slackL','cutter'];
 const state={live:false,mode:'ngam',busy:false,focus:null,rows:{},model:{tenons:[],receivers:[],pairs:[]}};
 const SH={head:35,height:11,neck:6,bevel:1,slackT:.2,slackL:.2,cutter:6};
 const FIT=15; // dày sau thu mặc định (Khoa 03/10)
-const KIEU={none:'Không thu',A:'Giữ mặt A',B:'Giữ mặt B'};
+// Bên trong lưu MẶT GIỮ (A/B — Ruby + tấm đã làm dùng giá trị này); chữ hiện ra nói MẶT PHAY = mặt còn lại
+// (Khoa 04/10: "giữ mặt" bắt người dùng lật thêm một lớp trong đầu).
+const KIEU={none:'Không thu',A:'Phay mặt B',B:'Phay mặt A'};
 // Kiểu mộng chung (Khoa 03/10: người dùng chỉ quan tâm preview + không thu / phay một mặt) — nhớ theo máy
 function docKieu(){try{const k=localStorage.getItem('mxc.kieu');return KIEU[k]?k:'none';}catch(e){return 'none';}}
 state.kieu=docKieu();
@@ -15,7 +17,8 @@ state.kieu=docKieu();
 // (dấu rộng 13 + 0,2 ≥ hai tai 6 + 6 + 1 mm đoạn thẳng — xem check() "Dấu quá hẹp cho dao này").
 // Không thu lấy dư 0,2 / 0,3 như mộng Hộc Kéo (tao_modul_nhanh/hoc_keo.rb HINH_MONG).
 const PRESET=[{thu:false,slackT:.2,slackL:.3},{thu:true,fit:15,slackT:.2,slackL:.2},{thu:true,fit:13,slackT:.2,slackL:.2}];
-// Mặt giữ khi thu (A/B) chọn riêng, nhớ theo máy; đổi kiểu mộng không đổi mặt giữ.
+// Mặt giữ khi thu (A/B) chọn riêng, nhớ theo máy; đổi kiểu mộng không đổi mặt giữ. Nút trên bảng ghi MẶT PHAY:
+// nút "A" mang data-mat="B" (phay A = giữ B).
 function docMat(){try{return localStorage.getItem('mxc.mat')==='B'?'B':'A';}catch(e){return 'A';}}
 state.mat=state.kieu==='none'?docMat():state.kieu;
 const DEMO={mode:'ngam',tenons:[{label:'Ngàm 1 · bạ trên',faceW:600,faceH:50,thickness:17.5,mirror:false,done:[]},{label:'Ngàm 2 · bạ dưới',faceW:600,faceH:120,thickness:17.5,mirror:false,done:[{edge:2,count:2,inset:30,side:'none',fit:14,...SH}]},{label:'Ngàm 3 · hông',problem:'đã có mộng/khoét nhưng không phải do tool này làm'}],receivers:[{label:'Nhận 1 · hông trái'},{label:'Nhận 2 · hông phải'}],pairs:[
@@ -99,7 +102,7 @@ function buildRows(){
   who.append(l1);if(a.name||b.name)who.append(el('div','names',`${a.name||'—'} → ${b.name||'—'}`));
   who.title=`${p.tenon}, đầu ${p.edgeName} → ${p.receiver}`;
   const cell=(k,attrs,cls)=>{const td=el('td','num'+(cls?' '+cls:'')),i=el('input');i.type='number';i.dataset.k=k;Object.assign(i,attrs);i.value=Number.isFinite(r[k])?r[k]:'';td.append(i);return td;};
-  const sideTd=el('td'),sel=el('select');sideTd.append(el('span','txt'));sel.dataset.k='side';[['none','Không thu'],['A','Giữ mặt A'],['B','Giữ mặt B']].forEach(([v,t])=>{const o=el('option',null,t);o.value=v;sel.append(o);});sel.value=r.side||'none';sideTd.append(sel);
+  const sideTd=el('td'),sel=el('select');sideTd.append(el('span','txt'));sel.dataset.k='side';[['none','Không thu'],['B','Phay mặt A'],['A','Phay mặt B']].forEach(([v,t])=>{const o=el('option',null,t);o.value=v;sel.append(o);});sel.value=r.side||'none';sideTd.append(sel);
   const goTd=el('td','c-go');if(p.state!=='moi'){const g=el('button','ghost','Gỡ');g.dataset.go=p.key;g.title='Gỡ mộng đầu này: cắt răng, xoá dấu phay + dấu âm của đầu đó';goTd.append(g);}
   tr.append(on,who,el('td','num',fmt(p.length)),cell('count',{min:1,step:1}),cell('inset',{min:1,step:1},'c-nc'),sideTd,cell('fit',{min:1,step:.1},'c-nc'),goTd);
   ghiTxt(tr,r);
@@ -254,7 +257,7 @@ function drawSection(p){
  const left=x+(off-s.slackT/2)*k,nw=markT*k,nd=barH*0.55;
  c.fillStyle='#fff';c.fillRect(left,y-0.5,nw,nd);c.strokeStyle='#b45309';c.lineWidth=1.6;c.strokeRect(left,y,nw,nd);
  dimension(c,[left,y-13],[left+nw,y-13],fmt(markT));
- text(c,side==='none'?'Không thu':`Giữ mặt ${side} · thu ${fmt(T-fit)} mm`,w/2,y+barH+16,'#8a7f75','center','middle');
+ text(c,side==='none'?'Không thu':`Phay mặt ${side==='A'?'B':'A'} · bớt ${fmt(T-fit)} mm`,w/2,y+barH+16,'#8a7f75','center','middle');
 }
 function drawMortise(p){
  const [c,w,h]=canvas('mortise'),{r,s}=pairSpec(p),T=p.thickness,fit=(r.side||'none')==='none'?T:r.fit,markT=fit+s.slackT,Lu=s.head+s.slackL;

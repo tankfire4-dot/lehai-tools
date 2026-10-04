@@ -24,6 +24,11 @@ Hai tai cần 6 + 6 + 1 mm = 13 ≤ dày sau thu + 0,2 → mỏng nhất 12,8; K
 mô phỏng dao ăn gỗ thật (artifact "Mô Phỏng Dao Ø6") + so tai chéo 45° (làm được 11) — Khoa chọn giữ dáng dấu
 cũ, dùng 13. Mặc định ô dư dài đổi 0,2 → 0,3 để mở lần đầu khớp "Không thu".
 
+**Đổi chữ "Giữ mặt" → "Phay mặt" (Khoa 04/10).** "Giữ mặt A" là góc nhìn của code (mặt đứng yên); người dùng
+nghĩ theo việc máy làm, phải tự lật "giữ A = phay B". Nay mọi chữ hiện ra nói MẶT PHAY; bên trong vẫn lưu mặt
+giữ (side A/B) nên Ruby, payload và tấm đã làm không đổi. Kèm: khung mặt cắt cao thêm để dòng chú thích không
+bị cắt nửa (lỗi có từ trước).
+
 ## 2026-10-04 — Check Mộng Xương Chó + ô Số mộng ở khung chính (chưa phát)
 
 **Vấn đề.** Khoa hỏi: răng mộng găm vào tấm nhận mà ai đó lỡ xóa dấu mộng âm thì check sản xuất có bắt

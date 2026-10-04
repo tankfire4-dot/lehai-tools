@@ -5,17 +5,18 @@ const $=id=>document.getElementById(id);
 const shapeKeys=['head','height','neck','bevel','slackT','slackL','cutter'];
 const state={live:false,mode:'ngam',busy:false,focus:null,rows:{},model:{tenons:[],receivers:[],pairs:[]}};
 const SH={head:35,height:11,neck:6,bevel:1,slackT:.2,slackL:.2,cutter:6};
-const FIT=15; // dày sau thu mặc định (Khoa 03/10)
+const FIT=15; // dày sau phay mặc định (Khoa 03/10)
 // Bên trong lưu MẶT GIỮ (A/B — Ruby + tấm đã làm dùng giá trị này); chữ hiện ra nói MẶT PHAY = mặt còn lại
 // (Khoa 04/10: "giữ mặt" bắt người dùng lật thêm một lớp trong đầu).
-const KIEU={none:'Không thu',A:'Phay mặt B',B:'Phay mặt A'};
-// Kiểu mộng chung (Khoa 03/10: người dùng chỉ quan tâm preview + không thu / phay một mặt) — nhớ theo máy
+const KIEU={none:'Không phay',A:'Phay mặt B',B:'Phay mặt A'};
+// Kiểu mộng chung (Khoa 03/10: người dùng chỉ quan tâm preview + không phay / phay một mặt) — nhớ theo máy
 function docKieu(){try{const k=localStorage.getItem('mxc.kieu');return KIEU[k]?k:'none';}catch(e){return 'none';}}
 state.kieu=docKieu();
-// 3 kiểu Khoa hay dùng (chốt 04/10): bấm = điền sẵn dư dày / dư dài / dày sau thu + bật tắt thu. Không khóa ô
-// nào: sửa tay thì nút tắt sáng, hiện "Tùy chỉnh". Thu còn 13 = mỏng nhất dao Ø6 còn phay được dấu âm
+// 3 kiểu Khoa hay dùng (chốt 04/10): bấm = điền sẵn dư dày / dư dài / dày sau phay + bật tắt phay.
+// Chữ hiện ra dùng PHAY, không dùng THU (Khoa 04/10 — một từ cho một việc); tên biến cũ (thu, fit) giữ nguyên. Không khóa ô
+// nào: sửa tay thì nút tắt sáng, hiện "Tùy chỉnh". Phay còn 13 = mỏng nhất dao Ø6 còn phay được dấu âm
 // (dấu rộng 13 + 0,2 ≥ hai tai 6 + 6 + 1 mm đoạn thẳng — xem check() "Dấu quá hẹp cho dao này").
-// Không thu lấy dư 0,2 / 0,3 như mộng Hộc Kéo (tao_modul_nhanh/hoc_keo.rb HINH_MONG).
+// Không phay lấy dư 0,2 / 0,3 như mộng Hộc Kéo (tao_modul_nhanh/hoc_keo.rb HINH_MONG).
 const PRESET=[{thu:false,slackT:.2,slackL:.3},{thu:true,fit:15,slackT:.2,slackL:.2},{thu:true,fit:13,slackT:.2,slackL:.2}];
 // Mặt giữ khi thu (A/B) chọn riêng, nhớ theo máy; đổi kiểu mộng không đổi mặt giữ. Nút trên bảng ghi MẶT PHAY:
 // nút "A" mang data-mat="B" (phay A = giữ B).
@@ -45,7 +46,7 @@ function check(r,p,s){
  if(s.neck<=0||s.head<=s.neck||s.bevel<0||s.bevel>=s.head/2||s.height<=s.neck+s.bevel)return 'Hình mộng: rộng đầu phải lớn hơn cổ; cao phải lớn hơn cổ + vát.';
  if(r.count===1&&L-s.head<2)return `Đầu dài ${fmt(L)} mm quá ngắn cho mộng rộng ${fmt(s.head)} mm.`;
  if(r.count>1&&(r.inset-s.head/2<1||r.inset>=L/2))return `Lùi tâm cần từ ${fmt(s.head/2+1)} đến dưới ${fmt(L/2)} mm (đầu dài ${fmt(L)} mm).`;
- if(fit<1||fit>T)return `Dày dấu cần từ 1 đến ${fmt(T)} mm.`;
+ if(fit<1||fit>T)return `Dày sau phay cần từ 1 đến ${fmt(T)} mm.`;
  const markT=fit+s.slackT,markL=s.head+s.slackL+s.cutter;
  if(s.slackT<0||s.slackL<0||s.cutter<=0||markT-2*s.cutter<1)return 'Dấu quá hẹp cho dao này: cần rộng ít nhất 2 × Ø dao + 1 mm.';
  if(r.count>1){const max=Math.floor((L-2*r.inset)/(Math.max(s.head,markL)+1)+1e-9)+1;if(r.count>max)return `Không đủ chỗ: tối đa ${max} mộng trên đầu dài ${fmt(L)} mm.`;}
@@ -102,7 +103,7 @@ function buildRows(){
   who.append(l1);if(a.name||b.name)who.append(el('div','names',`${a.name||'—'} → ${b.name||'—'}`));
   who.title=`${p.tenon}, đầu ${p.edgeName} → ${p.receiver}`;
   const cell=(k,attrs,cls)=>{const td=el('td','num'+(cls?' '+cls:'')),i=el('input');i.type='number';i.dataset.k=k;Object.assign(i,attrs);i.value=Number.isFinite(r[k])?r[k]:'';td.append(i);return td;};
-  const sideTd=el('td'),sel=el('select');sideTd.append(el('span','txt'));sel.dataset.k='side';[['none','Không thu'],['B','Phay mặt A'],['A','Phay mặt B']].forEach(([v,t])=>{const o=el('option',null,t);o.value=v;sel.append(o);});sel.value=r.side||'none';sideTd.append(sel);
+  const sideTd=el('td'),sel=el('select');sideTd.append(el('span','txt'));sel.dataset.k='side';[['none','Không phay'],['B','Phay mặt A'],['A','Phay mặt B']].forEach(([v,t])=>{const o=el('option',null,t);o.value=v;sel.append(o);});sel.value=r.side||'none';sideTd.append(sel);
   const goTd=el('td','c-go');if(p.state!=='moi'){const g=el('button','ghost','Gỡ');g.dataset.go=p.key;g.title='Gỡ mộng đầu này: cắt răng, xoá dấu phay + dấu âm của đầu đó';goTd.append(g);}
   tr.append(on,who,el('td','num',fmt(p.length)),cell('count',{min:1,step:1}),cell('inset',{min:1,step:1},'c-nc'),sideTd,cell('fit',{min:1,step:.1},'c-nc'),goTd);
   ghiTxt(tr,r);
@@ -115,7 +116,7 @@ function buildRows(){
  markFocus();
 }
 
-// Ô không dùng tới thì để trống thay vì hiện số mờ: 1 mộng → lùi tâm "giữa"; không thu → dày dấu "—".
+// Ô không dùng tới thì để trống thay vì hiện số mờ: 1 mộng → lùi tâm "giữa"; không phay → dày sau phay "—".
 // Giá trị vẫn nằm trong state.rows, bật lại là hiện lại.
 function blankUnused(tr,r){
  [['inset',r.count===1,'giữa'],['fit',(r.side||'none')==='none','—']].forEach(([k,unused,ph])=>{const i=tr.querySelector(`[data-k=${k}]`);if(!i)return;
@@ -123,7 +124,7 @@ function blankUnused(tr,r){
 }
 // Bảng gọn: kiểu hiện dạng CHỮ; mở "Tùy chỉnh (phụ)" mới hiện ô chọn. Số mộng luôn là ô nhập.
 function ghiTxt(tr,r){const t=tr.querySelector('.txt');if(t)t.textContent=KIEU[r.side||'none'];}
-// Dày sau thu chung: ô hiện ngay cạnh 4 thông số khi chọn Phay một mặt (trước nằm khuất trong Tùy chỉnh)
+// Dày sau phay chung: ô hiện ngay cạnh 4 thông số khi chọn Phay một mặt (trước nằm khuất trong Tùy chỉnh)
 // Số mộng chung ở khung chính (Khoa 04/10: trước nằm khuất trong Tùy chỉnh). Trống = tự tính theo chiều dài
 // từng đầu (suggest); có số = mọi cặp MỚI đang tick lấy số đó, kể cả cặp thêm sau. Cặp đã làm giữ số cũ.
 function soMongChung(){const v=num($('countAll').value);return Number.isFinite(v)?v:null;}
@@ -257,7 +258,7 @@ function drawSection(p){
  const left=x+(off-s.slackT/2)*k,nw=markT*k,nd=barH*0.55;
  c.fillStyle='#fff';c.fillRect(left,y-0.5,nw,nd);c.strokeStyle='#b45309';c.lineWidth=1.6;c.strokeRect(left,y,nw,nd);
  dimension(c,[left,y-13],[left+nw,y-13],fmt(markT));
- text(c,side==='none'?'Không thu':`Phay mặt ${side==='A'?'B':'A'} · bớt ${fmt(T-fit)} mm`,w/2,y+barH+16,'#8a7f75','center','middle');
+ text(c,side==='none'?'Không phay':`Phay mặt ${side==='A'?'B':'A'} · bớt ${fmt(T-fit)} mm`,w/2,y+barH+16,'#8a7f75','center','middle');
 }
 function drawMortise(p){
  const [c,w,h]=canvas('mortise'),{r,s}=pairSpec(p),T=p.thickness,fit=(r.side||'none')==='none'?T:r.fit,markT=fit+s.slackT,Lu=s.head+s.slackL;

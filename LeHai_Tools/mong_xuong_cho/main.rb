@@ -34,7 +34,7 @@ module MongXuongCho
   # vì nó gắn tag cho cả cây con, kể cả mặt.
   SPEC_KEYS = %w[count head height neck bevel inset side fit slackT slackL cutter].freeze
   TEN_SO = {'count' => 'số mộng', 'head' => 'rộng đầu', 'height' => 'cao mộng', 'neck' => 'đường kính cổ',
-            'bevel' => 'vát đỉnh', 'inset' => 'lùi tâm', 'fit' => 'dày tính dấu', 'slackT' => 'dư dày',
+            'bevel' => 'vát đỉnh', 'inset' => 'lùi tâm', 'fit' => 'dày sau phay', 'slackT' => 'dư dày',
             'slackL' => 'dư dài', 'cutter' => 'dao góc dấu âm'}.freeze
   TEN_CANH = {1 => 'trên', 2 => 'phải', 3 => 'dưới', 4 => 'trái'}.freeze
 
@@ -326,7 +326,7 @@ module MongXuongCho
     quantity = quantity.to_i
     head, height, diameter, bevel = %w[head height neck bevel].map { |k| number.call(k).mm }
     side = spec.fetch('side', 'none')
-    raise "#{label}chọn Không thu / Phay mặt A / Phay mặt B." unless %w[none A B].include?(side)
+    raise "#{label}chọn Không phay / Phay mặt A / Phay mặt B." unless %w[none A B].include?(side)
     # Chỉ thu/dịch dấu âm theo thông số này. Hình mộng dương luôn dày bằng thân ván.
     fit_thickness = thickness
     fit_offset = 0.0
@@ -335,7 +335,7 @@ module MongXuongCho
     if side != 'none'
       fit_thickness = number.call('fit').mm
       unless fit_thickness >= 1.mm && fit_thickness <= thickness + 0.001.mm
-        raise "#{label}dày tính dấu cần từ 1mm đến bề dày ván #{thickness.to_mm.round(3)}mm."
+        raise "#{label}dày sau phay cần từ 1mm đến bề dày ván #{thickness.to_mm.round(3)}mm."
       end
       narrow_mark = thickness - fit_thickness > 0.001.mm
       if narrow_mark

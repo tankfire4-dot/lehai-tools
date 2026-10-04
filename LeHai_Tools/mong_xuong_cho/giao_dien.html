@@ -19,7 +19,7 @@
 <div class="problems" id="problems" hidden><ul id="problemList"></ul><button id="unscale" hidden title="Đưa Scale của vỏ group vào hình bên trong; tấm đứng yên, kích thước giữ như đang thấy">Gỡ Scale</button></div>
 <section class="mong" id="mongBox">
  <div class="kieu" id="kieuBox"><span class="lbl">Kiểu mộng</span>
-  <button data-preset="0" title="Không phay mặt · dư dày 0,2 · dư dài 0,3 (như mộng Hộc Kéo)">Không thu</button><button data-preset="1" title="Phay một mặt còn 15 mm · dư dày 0,2 · dư dài 0,2">Thu còn 15</button><button data-preset="2" title="Phay một mặt còn 13 mm · dư dày 0,2 · dư dài 0,2 — mỏng nhất mà dao Ø6 còn phay được dấu âm">Thu còn 13</button>
+  <button data-preset="0" title="Răng giữ nguyên bề dày ván · dư dày 0,2 · dư dài 0,3 (như mộng Hộc Kéo)">Không phay</button><button data-preset="1" title="Phay một mặt răng còn dày 15 mm · dư dày 0,2 · dư dài 0,2">Phay còn 15</button><button data-preset="2" title="Phay một mặt răng còn dày 13 mm · dư dày 0,2 · dư dài 0,2 — mỏng nhất mà dao Ø6 còn phay được dấu âm">Phay còn 13</button>
   <span class="mat" id="matBox" hidden title="Máy phay bớt mặt này của răng cho mỏng lại; mặt kia giữ nguyên, thẳng với thân tấm. Chữ A / B vẽ sẵn trên từng tấm trong model."><span class="lbl">Phay mặt</span><button data-mat="B">A</button><button data-mat="A">B</button></span>
   <span class="tuychinh" id="tuyChinh" hidden title="Thông số đang khác cả 3 kiểu có sẵn — vẫn làm bình thường">Tùy chỉnh</span></div>
  <div class="mong-grid">
@@ -28,7 +28,7 @@
   <label>Cao mộng <span><input id="height" type="number" value="11" min="1" step=".5"> mm</span></label>
   <label>Dư dày <span><input id="slackT" type="number" value="0.2" min="0" step=".05"> mm</span></label>
   <label>Dư dài <span><input id="slackL" type="number" value="0.3" min="0" step=".05"> mm</span></label>
-  <label id="fitBox" hidden title="Bề dày mộng còn lại sau khi phay một mặt — áp cho mọi cặp mới">Dày sau thu <span><input id="fitAll" type="number" value="15" min="1" step=".1"> mm</span></label>
+  <label id="fitBox" hidden title="Bề dày răng còn lại sau khi phay một mặt — áp cho mọi cặp mới">Dày sau phay <span><input id="fitAll" type="number" value="15" min="1" step=".1"> mm</span></label>
  </div>
 </section>
 <section class="preview" id="preview">
@@ -40,13 +40,13 @@
 </section>
 <section class="pairs">
  <div class="section-head"><h2>Cặp mộng</h2><p>Bấm một dòng để tô cặp đó trên model</p></div>
- <table id="bang"><thead><tr><th class="c-on">Làm</th><th>Ngàm → Nhận</th><th class="num">Dài đầu</th><th class="num">Số mộng</th><th class="num c-nc">Lùi tâm</th><th>Kiểu</th><th class="num c-nc">Dày dấu</th><th class="c-go"></th></tr>
-  <tr class="all c-nc" id="allRow"><td class="c-on"></td><td class="all-lbl" title="Gõ ở đây → điền xuống mọi dòng đang tick">Tất cả</td><td></td><td></td><td class="num c-nc"><input type="number" data-all="inset" min="1" step="1" placeholder="—"></td><td><select data-all="side"><option value="">—</option><option value="none">Không thu</option><option value="B">Phay mặt A</option><option value="A">Phay mặt B</option></select></td><td class="num c-nc"><input type="number" data-all="fit" min="1" step=".1" placeholder="—"></td><td></td></tr></thead><tbody id="rows"></tbody></table>
+ <table id="bang"><thead><tr><th class="c-on">Làm</th><th>Ngàm → Nhận</th><th class="num">Dài đầu</th><th class="num">Số mộng</th><th class="num c-nc">Lùi tâm</th><th>Kiểu</th><th class="num c-nc">Dày sau phay</th><th class="c-go"></th></tr>
+  <tr class="all c-nc" id="allRow"><td class="c-on"></td><td class="all-lbl" title="Gõ ở đây → điền xuống mọi dòng đang tick">Tất cả</td><td></td><td></td><td class="num c-nc"><input type="number" data-all="inset" min="1" step="1" placeholder="—"></td><td><select data-all="side"><option value="">—</option><option value="none">Không phay</option><option value="B">Phay mặt A</option><option value="A">Phay mặt B</option></select></td><td class="num c-nc"><input type="number" data-all="fit" min="1" step=".1" placeholder="—"></td><td></td></tr></thead><tbody id="rows"></tbody></table>
  <p class="empty" id="empty"></p>
  <p class="note">Dán chỉ nên làm SAU khi tạo/gỡ mộng — tấm có khe hoặc lỗ, khi dựng lại có thể mất dấu dán chỉ ở mép đó.</p>
 </section>
 <details class="shape" id="shapeBox"><summary>Tùy chỉnh (phụ) <span id="dachinh"></span></summary>
- <p class="note" style="margin-top:6px">Mở mục này thì bảng cặp hiện thêm lùi tâm, kiểu và dày dấu TỪNG cặp để chỉnh riêng.</p>
+ <p class="note" style="margin-top:6px">Mở mục này thì bảng cặp hiện thêm lùi tâm, kiểu và dày sau phay TỪNG cặp để chỉnh riêng.</p>
  <div class="shape-grid">
   <label>Khoét cổ Ø <span><input id="neck" type="number" value="6" min="1" step=".5"> mm</span></label>
   <label>Vát đỉnh <span><input id="bevel" type="number" value="1" min="0" step=".1"> mm</span></label>

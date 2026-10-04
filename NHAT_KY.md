@@ -29,6 +29,10 @@ nghĩ theo việc máy làm, phải tự lật "giữ A = phay B". Nay mọi ch�
 giữ (side A/B) nên Ruby, payload và tấm đã làm không đổi. Kèm: khung mặt cắt cao thêm để dòng chú thích không
 bị cắt nửa (lỗi có từ trước).
 
+**Một từ cho một việc: "thu" → "phay" (Khoa 04/10, "thống nhất lại tất cả").** Nút: Không phay · Phay còn 15 ·
+Phay còn 13. Con số trước có 3 tên (Dày sau thu / Dày dấu / dày tính dấu) → một tên **Dày sau phay**, cả câu báo
+lỗi Ruby. Ô tích Hộc Kéo "(không thu)" → "(không phay)". Tên biến bên trong (`thu`, `fit`, `side`) giữ nguyên.
+
 ## 2026-10-04 — Check Mộng Xương Chó + ô Số mộng ở khung chính (chưa phát)
 
 **Vấn đề.** Khoa hỏi: răng mộng găm vào tấm nhận mà ai đó lỡ xóa dấu mộng âm thì check sản xuất có bắt

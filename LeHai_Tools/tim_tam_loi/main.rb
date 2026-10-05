@@ -1,8 +1,11 @@
 # encoding: UTF-8
 # Tìm Tấm Lỗi: gõ board-index (số máy CNC báo lỗi) → tô sáng tấm đó trên cả
 # bản NESTING (đỏ) lẫn TỦ 3D (xanh), zoom thẳng vào mặt tấm tủ 3D. Vẽ overlay
-# nổi trên cùng nên dù tấm nằm sau tấm khác vẫn thấy. CHỈ ĐỌC, không sửa model.
+# nổi trên cùng nên dù tấm nằm sau tấm khác vẫn thấy. Tìm thì CHỈ ĐỌC.
 # Khớp bằng thuộc tính ẩn ABF (is-board + board-index), không đọc tên.
+#
+# Sao ra gốc (Khoa 05/10): đang sáng mà bấm Tab → sao y hệt các tấm đó ra gốc
+# toạ độ (một bậc Undo). Đây là chỗ DUY NHẤT tool này ghi vào model.
 #
 # Toolbar do LeHai_Tools/main.rb quản lý chung — file này chỉ expose create_cmd.
 
@@ -19,42 +22,48 @@ module TK
     COLOR_CAB  = Sketchup::Color.new(30, 144, 255)  # xanh = tren tu 3D
     FILL_ALPHA = 95                                 # do trong suot mat to (0-255)
     BOX_WIDTH  = 7
+    KHE_SAO_MM = 10                                 # khe giữa các bản sao, mm (Khoa chốt 05/10)
+    DICT_SAO   = 'LeHai_TimTamLoi'.freeze           # dấu bản sao → lần tìm sau bỏ qua, khỏi sao chồng
+    PHIM_TAB   = 9
 
     # ---- 1 ket qua khop: entity + 8 goc the gioi + thuoc nesting hay tu ----
-    Match = Struct.new(:entity, :corners, :in_nesting, :name, :board_index)
+    # world_t = biến đổi tích luỹ từ gốc model tới tấm; mat_cha = vật liệu group cha gần nhất
+    # (tấm không tô riêng thì ăn màu cha) — hai thứ này dùng khi sao ra gốc
+    Match = Struct.new(:entity, :corners, :in_nesting, :name, :board_index, :world_t, :mat_cha)
 
     # ── Thu thap: duyet ca model, tinh toa do that, gom cac board ──
     def self.collect_boards
       boards = []
       traverse(Sketchup.active_model.entities,
-               Geom::Transformation.new, false, &lambda { |e, t, in_nest|
-                 m = board_match(e, t, in_nest)
+               Geom::Transformation.new, false, &lambda { |e, t, in_nest, mat|
+                 m = board_match(e, t, in_nest, mat)
                  boards << m if m
                })
       boards
     end
 
-    def self.traverse(entities, accum_t, in_nest, depth = 0, &blk)
+    def self.traverse(entities, accum_t, in_nest, depth = 0, mat = nil, &blk)
       return if depth > 10
       entities.each do |e|
         next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
+        next if e.get_attribute(DICT_SAO, 'ban-sao')   # bản sao do tool đặt ở gốc: không tìm lại
         nm = e.name.to_s
         here_nest = in_nest || nm.include?(NEST_HINT)
-        blk.call(e, accum_t, here_nest)
+        blk.call(e, accum_t, here_nest, mat)
         child_t = accum_t * e.transformation
         children = e.is_a?(Sketchup::Group) ? e.entities : e.definition.entities
-        traverse(children, child_t, here_nest, depth + 1, &blk)
+        traverse(children, child_t, here_nest, depth + 1, e.material || mat, &blk)
       end
     end
 
     # tra ve Match neu e la board co board-index, nguoc lai nil
-    def self.board_match(e, accum_t, in_nest)
+    def self.board_match(e, accum_t, in_nest, mat_cha = nil)
       d = e.attribute_dictionary(DICT)
       return nil unless d
       return nil unless d['is-board'] == true
       idx = d['board-index']
       return nil if idx.nil?
-      Match.new(e, world_corners(e, accum_t), in_nest, e.name.to_s, idx.to_i)
+      Match.new(e, world_corners(e, accum_t), in_nest, e.name.to_s, idx.to_i, accum_t * e.transformation, mat_cha)
     end
 
     # 8 goc bounding-box LOCAL doi sang toa do the gioi (om sat tam du bi xoay)
@@ -93,6 +102,84 @@ module TK
       return UI.messagebox('Chưa nhập số nào.') if raw.empty?
 
       find(raw)
+    end
+
+    # ── Sao y hệt các tấm đang sáng ra gốc toạ độ (Khoa 05/10) ──────
+    # Hàng 1 = tấm tủ 3D, hàng 2 = tấm nesting, mỗi hàng xếp theo số tấm tăng dần.
+    # Đã có bản sao lượt trước ở gốc → lượt này lùi ra sau chúng theo trục xanh lá, không đè.
+    # Chỉ TỊNH TIẾN, giữ nguyên hướng xoay → mặt khoan/phay/vân y bản gốc.
+    # Bản sao dùng chung definition với bản gốc như Ctrl+C/Ctrl+V tay, chép đủ
+    # tên/tag/vật liệu/thuộc tính (ABF nằm ở thuộc tính vỏ tấm). Trả mảng bản sao, lỗi → nil.
+    def self.sao_ra_goc(matches)
+      model = Sketchup.active_model
+      unless (model.active_path || []).empty?
+        UI.messagebox('Đang ở TRONG một group. Bấm Esc tới khi ra ngoài cùng rồi bấm Tab lại.')
+        return nil
+      end
+      hangs = [matches.reject(&:in_nesting), matches.select(&:in_nesting)]
+                .map { |h| h.sort_by(&:board_index) }.reject(&:empty?)
+      cu = model.entities.to_a.select { |e| e.get_attribute(DICT_SAO, 'ban-sao') }
+      y0 = cu.empty? ? 0.0 : cu.map { |e| hop_bao(e.definition.bounds, e.transformation)[1][1] }.max + KHE_SAO_MM.mm
+      doi = xep_hang(hangs.map { |h| h.map { |m| hop_the_gioi(m) } }, KHE_SAO_MM.mm, y0)
+
+      model.start_operation('Sao tam loi ra goc', true)
+      begin
+        bans = hangs.flatten.zip(doi.flatten(1)).map { |m, d| sao_mot(model, m, d) }
+        model.commit_operation
+        bans
+      rescue => e
+        model.abort_operation
+        puts "[Tìm Tấm Lỗi] #{e.class}: #{e.message}"
+        puts e.backtrace.first(5).join("\n") if e.backtrace
+        UI.messagebox("Lỗi: #{e.message}")
+        nil
+      end
+    end
+
+    # Xếp hàng từ gốc: tấm đầu có góc nhỏ nhất hộp bao đặt đúng (0,0,0); tấm sau nối tiếp
+    # theo trục đỏ, cách tấm trước `khe`; hàng sau lùi theo trục xanh lá, cách hàng trước `khe`
+    # (hàng trước sâu bao nhiêu thì lùi bấy nhiêu + khe). Vào: mỗi hàng là mảng [lo, hi] hộp bao
+    # thế giới; y0 = trục xanh lá bắt đầu hàng đầu (0 = sát gốc). Ra: độ dời [dx, dy, dz] cho
+    # từng tấm. Đơn vị inch như SketchUp.
+    def self.xep_hang(hangs, khe, y0 = 0.0)
+      y = y0
+      hangs.map do |hop|
+        x = 0.0
+        doi = hop.map do |lo, hi|
+          d = [x - lo[0], y - lo[1], -lo[2]]
+          x += hi[0] - lo[0] + khe            # chiều dài tấm theo trục đỏ + khe
+          d
+        end
+        y += hop.map { |lo, hi| hi[1] - lo[1] }.max + khe   # bề sâu tấm sâu nhất hàng + khe
+        doi
+      end
+    end
+
+    # Hộp bao thế giới [lo, hi] của tấm: hộp bản gốc (definition) qua biến đổi tích luỹ.
+    # Không lấy e.bounds: hộp đó theo hệ của cha, cha xoay thì phình to.
+    def self.hop_the_gioi(m)
+      hop_bao(m.entity.definition.bounds, m.world_t)
+    end
+
+    # 8 góc hộp `bb` qua biến đổi `t` → [lo, hi] thẳng trục
+    def self.hop_bao(bb, t)
+      pts = (0..7).map { |i| (t * bb.corner(i)).to_a }
+      [(0..2).map { |k| pts.map { |p| p[k] }.min }, (0..2).map { |k| pts.map { |p| p[k] }.max }]
+    end
+
+    def self.sao_mot(model, m, d)
+      e = m.entity
+      t = Geom::Transformation.translation(Geom::Point3d.new(*d)) * m.world_t
+      ban = model.entities.add_instance(e.definition, t)
+      raise "Không sao được tấm #{m.board_index}" unless ban
+      ban.name = e.name
+      ban.layer = e.layer
+      ban.material = e.material || m.mat_cha   # tấm ăn màu tủ → bản sao ở gốc mang màu đó (vật liệu ABF xếp sheet)
+      (e.attribute_dictionaries || []).each do |dict|
+        dict.keys.each { |k| ban.set_attribute(dict.name, k, dict[k]) }
+      end
+      ban.set_attribute(DICT_SAO, 'ban-sao', m.in_nesting ? 'nesting' : 'tu-3d')
+      ban
     end
 
     # =========================================================
@@ -156,6 +243,16 @@ module TK
 
       def onKeyDown(key, _rep, _flags, view)
         quit(view) if key == 27 # Esc
+        if key == TK::ABFFinder::PHIM_TAB
+          begin
+            sao(view)
+          rescue => e
+            puts "[Tìm Tấm Lỗi] #{e.class}: #{e.message}"
+            puts e.backtrace.first(5).join("\n") if e.backtrace
+            UI.messagebox("Lỗi: #{e.message}")
+          end
+          return true
+        end
         false
       end
 
@@ -172,12 +269,29 @@ module TK
       end
 
       def getStatusText
-        msg = "Sáng tấm: #{@wanted.join(', ')}  —  gõ số khác để đổi · ESC để thoát"
+        msg = "Sáng tấm: #{@wanted.join(', ')}  —  gõ số khác để đổi · Tab: sao ra gốc toạ độ · ESC để thoát"
         msg += "  |  KHÔNG thấy: #{@missing.join(', ')}" unless @missing.empty?
         msg
       end
 
       private
+
+      # Tab: sao các tấm đang sáng ra gốc, chọn sẵn bản sao, thoát tool rồi phóng tới chúng
+      def sao(view)
+        bans = TK::ABFFinder.sao_ra_goc(@matches)
+        return unless bans
+        sel = view.model.selection
+        sel.clear
+        bans.each { |b| sel.add(b) }
+        quit(view)
+        view.zoom(sel)
+        tu   = @matches.count { |m| !m.in_nesting }
+        nest = @matches.count(&:in_nesting)
+        msg  = "Đã sao ra gốc toạ độ: #{tu} tấm tủ 3D + #{nest} tấm nesting (đang chọn sẵn).\nCtrl+Z để hủy."
+        msg += "\n\nKHÔNG thấy tấm: #{@missing.join(', ')}" unless @missing.empty?
+        msg += "\n\nBản sao vẫn là tấm thật với ABF: XÓA bản sao trước khi nesting lại cả file hoặc chạy Check Chốt Sản Xuất."
+        UI.messagebox(msg)
+      end
 
       # Doi muc tieu sang board-index khac, cap nhat tool tai cho
       def retarget(numbers, view)
@@ -270,8 +384,8 @@ module TK
       # ---- Bang nhac noi goc tren-trai man hinh ----
       def draw_banner(view)
         line1 = "Đang sáng tấm: #{@wanted.join(', ')}"
-        line2 = @missing.empty? ? 'Gõ số khác để đổi tấm  ·  ESC để thoát' :
-                "KHÔNG thấy: #{@missing.join(', ')}  ·  Gõ số / ESC"
+        line2 = @missing.empty? ? 'Gõ số khác để đổi tấm  ·  Tab: sao ra gốc  ·  ESC để thoát' :
+                "KHÔNG thấy: #{@missing.join(', ')}  ·  Gõ số / Tab sao / ESC"
         x = 18
         y = 18
         w = 26 + [line1.length, line2.length].max * 9

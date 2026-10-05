@@ -174,7 +174,7 @@ TK::ABFFinder.prompt   # ← gọi method của tool để chạy thử ngay
 
 - `load` chạy lại file → **định nghĩa lại code mới nhất ngay lập tức**, không cần khởi động lại.
 - Tool theo luật nhà **không tự tạo toolbar** → nạp kiểu này **không để lại rác toolbar**.
-- Tool **chỉ-đọc** (vd Tìm Tấm Lỗi) **không ghi gì vào file .skp** → không rác trong model.
+- Tool **chỉ-đọc** (vd Tìm Tấm Lỗi khi chỉ tìm) **không ghi gì vào file .skp** → không rác trong model. Riêng Tab của Tìm Tấm Lỗi (sao tấm ra gốc) có ghi — thử trên file nháp.
 - (Tiện: `claude_work/abf_finder.rb` là shortcut dev — `load` nó sẽ tự nạp Tìm Tấm Lỗi + mở hộp nhập.)
 
 **Giới hạn — việc nào vẫn phải cài rbz / restart:**
@@ -229,7 +229,7 @@ là danh sách nút. Muốn biết đủ module thì `ls LeHai_Tools/*/`.
 | **Hình Nhân** (cao/nặng + 13 dáng; thông số tương đối, để hình dung không gian) | `TK::HinhNhan` | ✓ |
 | Gỡ DC → Group | `TK::GoGroup` | ✓ |
 | Kiểm Tra Độ Dày | `TK::ThickCheck` | **CẤT 01/08** — chạy trong dashboard |
-| Tìm Tấm Lỗi | `TK::ABFFinder` | ✓ |
+| Tìm Tấm Lỗi (đang sáng bấm Tab → sao y hệt các tấm ra gốc toạ độ, 05/10) | `TK::ABFFinder` | ✓ |
 | Soi Vân (phủ màu + sọc chiều vân ABF, soi tấm ngược) | `TK::SoiVan` | ✓ |
 | Mộng Xương Chó | `TK::MongXuongCho` | ✓ |
 | Kiểm Tra Khoảng Cách | `TK::SpacingCheck` | ✓ |

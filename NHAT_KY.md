@@ -12,6 +12,27 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-10-05 — Tìm Tấm Lỗi: Tab sao các tấm đang sáng ra gốc toạ độ (chưa phát)
+
+**Vấn đề (Khoa 05/10).** File CNC ra hư vài tấm thì phải tìm từng tấm rồi copy tay từng tấm ra chỗ trống để
+làm lại — số tấm lớn là rất mất công.
+
+**Quyết định.** Đang sáng tấm (sau khi gõ board-index) bấm **Tab** → sao y hệt mọi tấm đang sáng ra gốc toạ độ.
+Khoa chọn: sao CẢ tấm tủ 3D lẫn tấm nesting; hàng 1 = tủ 3D, hàng 2 = nesting, xếp theo số tấm, nối theo trục đỏ,
+khe 10mm. Chỉ tịnh tiến (giữ hướng xoay → mặt khoan/phay/vân y gốc). Một bậc Undo; bản sao chọn sẵn, camera phóng
+tới. Bản sao mang dấu `LeHai_TimTamLoi/ban-sao` → lần tìm sau bỏ qua; Tab lần hai lùi ra sau đợt cũ, không đè.
+Bản sao dùng chung definition như Ctrl+C/V; tấm không tô riêng nhận vật liệu group cha (ABF xếp sheet theo vật liệu).
+
+**Vì sao Tab, không phải gõ chữ.** Định cho gõ "S" vào ô VCB, nhưng S là phím tắt Scale của SketchUp → bị cướp.
+Tab đã chứng minh tới được tool (Chống Bay, Dim Nhanh).
+
+**Kiểm.** `tests/tim_tam_loi.test.mjs` 14/14 (tủ xoay 90° có đợt xiên 30°, component, lỗi giữa chừng abort, đang mở
+group, Tab hai lần); 7 đột biến cố ý đều bị bắt. Soát chéo phiên mới ĐẠT (lab `archive/briefs/report-soat-sao-tam-loi.md`),
+vá 3 điểm P2/P3 một vòng. Khoa thử SketchUp thật 05/10: đạt, Tab hai lần không đè, Entity Info bản sao = **Group**.
+
+**Rủi ro còn.** Bản sao vẫn mang `ABF/is-board` → nesting lại cả file / Check Chốt sẽ coi là tấm thật (hộp thoại
+dặn xóa trước). Chưa thử Tab trên Mac và khi con trỏ đang ở ô VCB.
+
 ## 2026-10-04 — Mộng: 3 nút kiểu Khoa hay dùng (chưa phát)
 
 **Khoa chốt 04/10:** kiểu mộng = 3 nút **Không thu** (dư dày 0,2 · dư dài 0,3, như mộng Hộc Kéo) · **Thu còn 15**

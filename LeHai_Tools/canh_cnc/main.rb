@@ -459,7 +459,12 @@ module CanhCNC
   # ĐIỀU KHIỂN GIAO DIỆN DIALOG
   # ----------------------------------------------------------
   def self.show_dialog
-    dialog = UI::HtmlDialog.new(
+    # Một bảng duy nhất (LUAT_NHA mục 2; soát 09/10: bấm nút lần nữa từng mở chồng thêm bảng)
+    if @dlg&.visible?
+      @dlg.bring_to_front
+      return
+    end
+    @dlg = dialog = UI::HtmlDialog.new(
       dialog_title:    PLUGIN_NAME,
       preferences_key: "com.canhcnc.v4",
       scrollable:      false,
@@ -541,7 +546,7 @@ module CanhCNC
       return
     end
 
-    model.start_operation(PLUGIN_NAME, true)
+    model.start_operation('Tao canh CNC', true) # tên undo ASCII (LUAT_NHA mục 6)
     begin
       layout[:doors].each_with_index do |d, i|
         g = draw_one(model.active_entities, layout[:plane],
@@ -582,6 +587,7 @@ module CanhCNC
     end
 
     face = ents.add_face(pts)
+    raise "Không vẽ được mặt cánh #{name} (2 điểm trùng hoặc cánh quá mỏng)." unless face
     face.reverse! if face.normal.z < 0
     face.pushpull(height.mm)
     group

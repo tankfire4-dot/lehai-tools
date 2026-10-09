@@ -27,6 +27,7 @@ module TK
       RONG_MIN  = 1.0     # mm — mặt găm hẹp hơn mức này là mảnh vụn hình học, bỏ
       MAU       = 5       # lưới điểm mẫu trên chân răng: MAU dọc răng × MAU ngang bề dày
       NONG      = 0.1     # mm — dấu khai sâu kém răng quá mức này = dấu nông, CNC phay không tới đáy răng
+      LE_DOC    = 0.25    # mm — lưới mẫu dọc răng lùi ngần này mỗi đầu (chừa nhiễu số; dư dài mộng 0,1 mm/bên)
       DAY_MIN   = 3.0     # mm — bề dày tấm ván hợp lệ (cùng mức KT Liên Kết)
       DAY_MAX   = 40.0
 
@@ -117,6 +118,15 @@ module TK
         mats2.any? { |m| trong_da_giac?(x, y, m[:ngoai]) && m[:lo].none? { |l| trong_da_giac?(x, y, l) } }
       end
 
+      # Bề ngang răng dọc hàng răng (trục e), tính MỘT lần cho cặp a → b: lấy mọi đỉnh của a nằm hẳn trong
+      # lòng b (sâu > 0, chưa xuyên), chia cụm theo e. Một răng chỉ có đỉnh ở HAI MÉP (giữa răng trống) nên
+      # thường ra hai cụm — chỗ gọi lấy hợp các cụm chạm mặt đỉnh của răng (gồm mặt vát + hông = đủ đầu răng).
+      # Đỉnh ở chân răng (sâu 0, mặt vai) không lấy: vai nối liền các răng. Trả mảng [min, max] theo e.
+      def self.cum_rang(a, n, vao, chieu, day_b, e)
+        xs = a[:dinh].select { |p| s = (cham(p, n) - vao) * chieu; s > SAI && s < day_b + SAI }.map { |p| cham(p, e) }.sort
+        xs.slice_when { |x, y| y - x > RONG_MIN }.map { |c| [c.first, c.last] }
+      end
+
       # ── Răng của tấm a găm vào tấm b ──────
       def self.rang_vao(a, b)
         n = b[:n]
@@ -140,6 +150,7 @@ module TK
         dau = b[:dau].map { |d| { sau: d[:sau], mat: mat_tren(d[:mat].map { |p| { ngoai: p } }, n, vao, u, v) } }
                      .reject { |d| d[:mat].empty? }
         out = []
+        cums = nil # bề ngang các răng của cặp này — tính khi gặp răng đầu tiên
         a[:mats].each do |f|
           next unless cham(f[:n], n).abs > SONG_SONG
           muc = cham(f[:ngoai][0], n)
@@ -149,16 +160,39 @@ module TK
           re = f[:ngoai].map { |p| cham(p, e) }.minmax
           rong = re[1] - re[0]
           next unless rong >= RONG_MIN && rong < MOT_PHAN * rong_a
-          # Chân răng = mặt đỉnh chiếu thẳng về mặt vào của b.
+          # Chân răng = răng chiếu thẳng về mặt vào của b.
           chan = ->(pe, pw) { cong(cong(nhan(e, pe), nhan(w, pw)), nhan(n, vao)) }
           rw = f[:ngoai].map { |p| cham(p, w) }.minmax
+          # Dọc hàng răng lấy BỀ NGANG ĐẦY ĐỦ của răng (gồm mặt vát), không lấy mặt đỉnh: mặt đỉnh hẹp hơn
+          # đầu răng 2 × vát, cộng lưới lùi 10% → dấu lệch 1–7 mm vẫn ĐẠT trong khi dư dài chỉ 0,1 mm/bên
+          # (soát 09/10, bộ thử dời 1/3/5/7 mm ra 0/80).
+          cums ||= cum_rang(a, n, vao, chieu, b[:day], e)
+          cham_dinh = cums.select { |c0, c1| c1 >= re[0] - SAI && c0 <= re[1] + SAI } # cụm hai mép răng này
+          re = [cham_dinh.map(&:first).min, cham_dinh.map(&:last).max] unless cham_dinh.empty?
           giua = chan.call((re[0] + re[1]) / 2.0, (rw[0] + rw[1]) / 2.0)
           next unless trong_mat?(cham(giua, u), cham(giua, v), go) # b đã khoét / khe ở đó → không tính
-          # Lưới mẫu lùi 10% mỗi mép: dọc răng chỗ nào cũng phải có ít nhất một điểm ngang bề dày nằm
-          # trong dấu (dấu thu một mặt hẹp hơn răng 3D — CNC phay bớt răng, nên không đòi phủ đủ bề dày).
+          # Lưới mẫu: dọc răng lùi LE_DOC mỗi đầu (chỉ chừa nhiễu số); ngang bề dày lùi 10%. Dọc răng chỗ nào
+          # cũng phải có ít nhất một điểm ngang bề dày nằm trong dấu (dấu thu một mặt hẹp hơn răng 3D — CNC
+          # phay bớt răng, nên không đòi phủ đủ bề dày).
           buoc = ->(r, i) { r[0] + (r[1] - r[0]) * (0.1 + 0.8 * i / (MAU - 1)) }
+          doc = ->(i) { re[0] + LE_DOC + (re[1] - re[0] - 2 * LE_DOC) * i / (MAU - 1) }
           trung = ->(p) { dau.find { |d| trong_mat?(cham(p, u), cham(p, v), d[:mat]) } }
-          hang = (0...MAU).map { |i| (0...MAU).any? { |k| trung.call(chan.call(buoc.call(re, i), buoc.call(rw, k))) } }
+          # Ngang bề dày chỉ xét điểm GIỮA: dấu âm có tai dao vươn ra dọc răng ở hai bên bề dày (đo 09/10: ở 30%
+          # bề dày vẫn dư 1,8 mm) → điểm lệch tâm rơi trúng tai thì dấu lệch 1–3 mm vẫn tính là phủ. Giữa bề dày
+          # thì dấu dài đúng đầu răng + dư dài. Dấu thu (dày sau phay 13 / 15 của ván 17,5) vẫn phủ điểm giữa.
+          # "Giữa" = giữa bề dày của CHÍNH DẤU phủ răng này: dấu thu hẹp hơn răng theo bề dày, giữa răng có thể
+          # rơi vào vùng tai dao của mép dấu (đo 09/10: dư 1,85–2,4 mm). Không dấu nào chạm → giữa răng.
+          ue = [cham(u, e), cham(v, e)]
+          uw = [cham(u, w), cham(v, w)]
+          giua_w = (rw[0] + rw[1]) / 2.0
+          dau.flat_map { |d| d[:mat] }.each do |m|
+            xe = m[:ngoai].map { |x, y| x * ue[0] + y * ue[1] }.minmax
+            xw = m[:ngoai].map { |x, y| x * uw[0] + y * uw[1] }.minmax
+            next unless xe[1] > re[0] && xe[0] < re[1] && xw[1] > rw[0] && xw[0] < rw[1]
+            giua_w = ([xw[0], rw[0]].max + [xw[1], rw[1]].min) / 2.0
+            break
+          end
+          hang = (0...MAU).map { |i| !trung.call(chan.call(doc.call(i), giua_w)).nil? }
           loai = if hang.none? then :thieu
                  elsif !hang.all? then :lech
                  end

@@ -531,6 +531,9 @@ module TK
     end
 
     def self.open_dialog(title, col, rows, count_label, total_str, copy_val, show_clean)
+      # Đóng bảng cũ trước (soát 09/10): bảng cũ còn mở thì nút "Dọn dim" của NÓ lại xoá lô dim MỚI NHẤT
+      # (@last_dims đã bị ghi đè) — bấm nhầm cửa sổ là mất dim đang cần.
+      @dlg.close if @dlg && @dlg.visible?
       @dlg = UI::HtmlDialog.new(
         dialog_title: 'Dim Nhanh — Bảng kê', preferences_key: 'tk.quickdim',
         width: 320, height: 480, min_width: 260, min_height: 320,

@@ -11,7 +11,7 @@ module LeHai
         File.join(path, 'canh_cnc',      'main'),
         File.join(path, 'chia_lam',      'main'),
         File.join(path, 'tam_go',        'main'),
-        File.join(path, 'ha_nen',        'main'),
+        File.join(path, 'tao_bo',        'main'),
         File.join(path, 'dien_ten',      'main'),
         File.join(path, 'thu_vien',      'main'),
         File.join(path, 'hinh_nhan',     'main'),
@@ -46,7 +46,7 @@ module LeHai
       puts "[LeHai_Tools] Defined? CanhCNC               = #{defined?(::CanhCNC).inspect}"
       puts "[LeHai_Tools] Defined? TK::ChiaLam            = #{defined?(::TK::ChiaLam).inspect}"
       puts "[LeHai_Tools] Defined? Lehai::TamGoGen        = #{defined?(::Lehai::TamGoGen).inspect}"
-      puts "[LeHai_Tools] Defined? LeHaiDecor::HaNen      = #{defined?(::LeHaiDecor::HaNen).inspect}"
+      puts "[LeHai_Tools] Defined? TK::TaoBo           = #{defined?(::TK::TaoBo).inspect}"
       puts "[LeHai_Tools] Defined? TuDong::DienTen        = #{defined?(::TuDong::DienTen).inspect}"
       puts "[LeHai_Tools] Defined? TK::ThuVien            = #{defined?(::TK::ThuVien).inspect}"
       puts "[LeHai_Tools] Defined? TK::HinhNhan           = #{defined?(::TK::HinhNhan).inspect}"
@@ -81,11 +81,8 @@ module LeHai
         [defined?(::Lehai::TamGoGen),       -> { ::Lehai::TamGoGen.create_cmd }],
         [defined?(::CanhCNC),               -> { ::CanhCNC.create_cmd }],
         [defined?(::TK::ChiaLam),           -> { ::TK::ChiaLam.create_cmd }],
-        # CẤT 19/07/2026 — bên thiết kế phản ánh không dùng Hạ Nền Uốn Cong nữa.
-        # Chỉ gỡ NÚT, KHÔNG xoá code: module vẫn `require` bên trên nên gọi được
-        # từ Ruby Console (`LeHaiDecor::HaNen.show`). Muốn trả nút lại thì bỏ dấu
-        # `#` ở dòng dưới, không phải viết lại gì.
-        # [defined?(::LeHaiDecor::HaNen),     -> { ::LeHaiDecor::HaNen.create_cmd }],
+        # Tạo Bo thay Hạ Nền Uốn Cong (module cũ sai, cất nút 19/07, bỏ hẳn 09/10/2026).
+        [defined?(::TK::TaoBo),            -> { ::TK::TaoBo.create_cmd }],
         # ── Cụm 2: Gia công & nhãn ──
         [defined?(::MyStudio::AutoEdgeBand),-> { ::MyStudio::AutoEdgeBand.create_cmd }],
         [defined?(::TuDong::DienTen),       -> { ::TuDong::DienTen.create_cmd }],

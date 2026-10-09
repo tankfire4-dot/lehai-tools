@@ -50,9 +50,18 @@ export default {
         'User-Agent': 'lehai-update-worker'
       }
     });
-    if (!r.ok) return new Response('not found', { status: 404 });
+    // Chìa GH_TOKEN hết hạn (≤366 ngày) / bị thu hồi → Contents API trả 401/403 kể cả kho public → mọi máy thợ
+    // NGỪNG cập nhật mà không ai biết (soát 09/10). Kho đang PUBLIC nên lùi sang raw.githubusercontent (không cần chìa).
+    let body = r.ok ? r.body : null;
+    if (!r.ok && (r.status === 401 || r.status === 403)) {
+      const raw = await fetch(`https://raw.githubusercontent.com/${REPO}/${BRANCH}/${encoded}`, {
+        headers: { 'User-Agent': 'lehai-update-worker' }
+      });
+      if (raw.ok) body = raw.body;
+    }
+    if (!body) return new Response('not found', { status: 404 });
 
-    return new Response(r.body, {
+    return new Response(body, {
       status: 200,
       headers: {
         'Content-Type': 'application/octet-stream',

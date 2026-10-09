@@ -107,6 +107,26 @@ trái-phải/trước-sau của tủ. Thợ đặt tủ theo tường nên gặp
   thử nhầm bản cũ vì vậy). Chép tay phải BỎ file này: `robocopy <lab>\LeHai_Tools <Plugins>\LeHai_Tools /E /XF _installed_version`.
   `release.py` đã loại file `_*` nên máy thợ không dính.
 
+### 10. Tương tác — làm tiếp được bằng lệnh gốc, bàn phím làm được như chuột (Khoa 09/10/2026)
+Khoa 09/10: "tương tác với plugin khá phiền". Tìm Tấm Lỗi tìm 10 tấm chỉ VẼ sáng lên màn: thoát ra để xoá/dời
+là mất hết, xoá 10 tấm phải tìm-xoá từng tấm. Mộng Xương Chó: "Lấy vùng chọn" CỘNG DỒN vào danh sách cũ, phải
+"Xóa hết" mới làm tấm mới. Điền Tên: tấm chỉ sáng khi click hàng, Tab sang ô dưới không sáng. Đo 09/10: ~16 tool
+tìm/kiểm không có một lời gọi `selection.add` nào.
+- **Tool tìm/kiểm/xem: thoát (ESC) thì tấm đang xem còn ĐƯỢC CHỌN**, để thợ Move/Delete bằng lệnh gốc.
+  SketchUp chỉ chọn được trong MỘT group đang mở → tấm chung một group cha thì mở group đó (`Model#active_path=`,
+  SketchUp 2020+) rồi chọn; khác cha thì báo rõ vì sao không chọn được. Khuôn: `tim_tam_loi` `chon_san`.
+- **Việc làm cả loạt mà SketchUp không chọn nổi (tấm rải nhiều tủ) thì tool tự làm** — vd Delete xoá cả loạt
+  ngay trong tool, hỏi trước, một bậc Undo, KHÔNG xoá tấm nằm trong group cha dùng chung nhiều bản (mất ở mọi
+  bản copy). Khuôn: `tim_tam_loi` `xoa_tam`.
+- **Bảng nhận tấm từ vùng chọn: THAY danh sách, không cộng dồn; xong việc thì nhả.** Muốn thêm thì có nút/thao
+  tác riêng cho "thêm".
+- **Bảng nhập theo hàng: Tab/Enter đổi hàng phải làm y như click** (sáng tấm, cuộn tới). Enter = xuống ô kế,
+  Shift+Enter = lên. Khuôn: `dien_ten/ui/dialog.html` (cuối file).
+- **Nhớ lần làm trước trong phiên** khi gọi lại (số đã tìm, lựa chọn) — thoát ra làm việc khác rồi quay lại
+  không phải gõ lại.
+- **Trạng thái 09/10:** mới áp Tìm Tấm Lỗi + Điền Tên (chưa phát, chưa chạy SketchUp thật). Còn: Mộng Xương Chó,
+  các tool kiểm trong Check Chốt, Trùng Tấm, Soi Vân, Chống Bay — đợi Khoa thử `active_path=` đạt rồi áp tiếp.
+
 ---
 
 ## C. Bẫy hạ tầng — KẾT THÚC DÒNG (CRLF vs LF)

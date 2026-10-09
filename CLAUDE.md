@@ -205,7 +205,7 @@ toolbar rỗng tên `X` mà SketchUp nhớ — gỡ ở **View → Toolbars → 
 
 **Đọc kỹ cột "Nút" — hai cách đếm khác nhau, đừng trộn.** Số module ≠ số nút trên toolbar.
 Có module **không có nút riêng**: nó chạy từ trong dashboard Check Chốt Sản Xuất (icon khiên cuối
-hàng). Tính tới 04/10/2026: **30 module, 18 nút** (đếm lại 04/10: thêm Kiểm Mộng Xương Chó; 30/09: Khảo Sát + Khung Tổng Thể) (Hạ Nền + Kiểm Tra Độ Dày đã cất nút — code còn;
+hàng). Tính tới 09/10/2026: **30 module, 19 nút** (09/10: Tạo Bo thay Hạ Nền — xoá `ha_nen/`, thêm nút; 04/10: thêm Kiểm Mộng Xương Chó; 30/09: Khảo Sát + Khung Tổng Thể) (Kiểm Tra Độ Dày đã cất nút — code còn;
 đếm lại từ thư mục + mảng `groups`, không chép số cũ).
 
 Nguồn sự thật cho từng cột: cột Module = thư mục trong `LeHai_Tools/`; cột Nút = mảng `groups`
@@ -222,14 +222,14 @@ là danh sách nút. Muốn biết đủ module thì `ls LeHai_Tools/*/`.
 | Tạo Tấm Gỗ | `Lehai::TamGoGen` | ✓ |
 | Tạo Cánh CNC | `CanhCNC` | ✓ |
 | Chia Lam | `TK::ChiaLam` | ✓ |
-| ~~Hạ Nền Uốn Cong~~ | `LeHaiDecor::HaNen` | **CẤT 19/07** — bên thiết kế không dùng |
+| **Tạo Bo** (09/10, thay Hạ Nền Uốn Cong đã xoá): trải phẳng cục bo → tấm + vùng hạ nền theo dưỡng, hoặc rãnh liền kiểu NTT; lõi toán `tao_bo/toan.rb`, thử `tests/tao_bo.test.mjs` | `TK::TaoBo` | ✓ |
 | Auto Dán Cạnh | `MyStudio::AutoEdgeBand` | ✓ |
 | Điền Tên Nhanh | `TuDong::DienTen` | ✓ |
 | Thư Viện Component | `TK::ThuVien` | ✓ |
 | **Hình Nhân** (cao/nặng + 13 dáng; thông số tương đối, để hình dung không gian) | `TK::HinhNhan` | ✓ |
 | Gỡ DC → Group | `TK::GoGroup` | ✓ |
 | Kiểm Tra Độ Dày | `TK::ThickCheck` | **CẤT 01/08** — chạy trong dashboard |
-| Tìm Tấm Lỗi (đang sáng bấm Tab → sao y hệt các tấm ra gốc toạ độ, 05/10) | `TK::ABFFinder` | ✓ |
+| Tìm Tấm Lỗi (đang sáng: Tab sao ra gốc 05/10; Delete/`x` xoá cả loạt, ESC chọn sẵn, N đổi 3D↔nesting 09/10) | `TK::ABFFinder` | ✓ |
 | Soi Vân (phủ màu + sọc chiều vân ABF, soi tấm ngược) | `TK::SoiVan` | ✓ |
 | Mộng Xương Chó | `TK::MongXuongCho` | ✓ |
 | Kiểm Tra Khoảng Cách | `TK::SpacingCheck` | ✓ |

@@ -15,6 +15,8 @@
 #      Không make_unique trước khi sửa thì đổi 1 cái là đổi lây sang tấm khác,
 #      mà nhìn màn hình không thấy gì bất thường cho tới lúc ra máy cắt.
 
+require 'json' # to_json cho chuỗi đẩy sang bảng (soát 09/10)
+
 module TK
   module ChongBay
 
@@ -250,7 +252,7 @@ module TK
       end
       # Kết thúc tool từ bảng. HOÃN qua timer: đóng tool sẽ đóng luôn chính cái
       # dialog đang chạy callback này — làm thẳng là tự rút ghế mình đang ngồi.
-      # Khuôn hoãn: ha_nen/main.rb:66.
+      # Khuôn hoãn: tao_bo/main.rb:96.
       @panel.add_action_callback('xong') do |_c|
         UI.start_timer(0, false) { @tool.ket_thuc if @tool }
       end
@@ -262,7 +264,7 @@ module TK
     # KHÔNG được chứa dấu nháy đơn — nó đi thẳng vào lời gọi JS.
     def self.nhac(msg)
       return unless @panel && (@panel.visible? rescue false)
-      @panel.execute_script("nhac('#{msg.to_s.gsub("'", '')}')")
+      @panel.execute_script("nhac(#{msg.to_s.to_json})") # to_json: nháy đơn/kép, \ , xuống dòng đều an toàn
     rescue => e
       puts "[Chống Bay] không hiện được lời nhắc: #{e.message}"
     end
@@ -284,11 +286,11 @@ module TK
       return unless @panel && (@panel.visible? rescue false)
       hang = dem.map do |ten, n|
         mau = hex(color_for(ten))
-        "[\"#{esc_html(ten || 'chưa gắn')}\",#{n},\"#{mau}\"]"
+        "[#{esc_html(ten || 'chưa gắn').to_json},#{n},\"#{mau}\"]"
       end.join(',')
       @panel.execute_script(
         "capNhat(#{che_do_i},#{kieu_i},#{so.to_i}," \
-        "\"#{esc_html(tam)}\",[#{hang}])"
+        "#{esc_html(tam).to_json},[#{hang}])"
       )
     rescue => e
       puts "[Chống Bay] không cập nhật được bảng: #{e.message}"
@@ -300,7 +302,7 @@ module TK
     def self.sync_soat(rows)
       return unless @panel && (@panel.visible? rescue false)
       js = rows.map do |tam, max, thieu, trung, chua|
-        "[\"#{esc_html(tam || 'ngoài tấm')}\",#{max.to_i}," \
+        "[#{esc_html(tam || 'ngoài tấm').to_json},#{max.to_i}," \
         "[#{thieu.join(',')}],[#{trung.join(',')}],#{chua.to_i}]"
       end.join(',')
       @panel.execute_script("capNhatSoat([#{js}])")
@@ -882,7 +884,7 @@ module TK
       # HOÃN qua timer: bảng vừa mới `show`, bắn execute_script ngay lúc này thì
       # HTML có thể chưa nạp xong và lời nhắc rơi vào chỗ không có ai nghe. Lời
       # nhắc này chỉ bắn MỘT lần nên không có lượt sau vá cho — khác bao_bang.
-      # Khuôn hoãn: ha_nen/main.rb:66.
+      # Khuôn hoãn: tao_bo/main.rb:96.
       def canh_bao_tag_cu
         n = (@cands || []).count { |c| TK::ChongBay.tag_cu?(c.tag) }
         return if n.zero?

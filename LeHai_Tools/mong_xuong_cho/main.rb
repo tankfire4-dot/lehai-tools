@@ -1122,10 +1122,14 @@ module MongXuongCho
     picked = @model.selection.grep(Sketchup::Group)
     raise 'Chưa chọn group tấm nào trên model (bấm phím Space để quét chọn, rồi bấm lại nút này).' if picked.empty?
     mine, other = role == :ngam ? [@tenons, @receivers] : [@receivers, @tenons]
+    # THAY danh sách bằng vùng chọn, không cộng dồn (Khoa 09/10: làm xong cặp cũ, chọn tấm mới vẫn dính tấm
+    # cũ, phải "Xóa hết" trước — LUAT_NHA mục 10). Muốn thêm từng tấm: click tấm trên model.
+    mine.clear
     picked.each do |g|
       other.delete(g)
       mine << g unless mine.include?(g)
     end
+    @focus = nil
     @mode = role
     @model.select_tool(@tool)
     refresh
@@ -1249,7 +1253,12 @@ module MongXuongCho
       begin
         check_context
         message = apply_pairs(JSON.parse(json), @tenons, @receivers)
+        # Xong việc thì NHẢ danh sách (LUAT_NHA mục 10): lượt sau chọn tấm mới không dính cặp vừa làm.
+        @tenons.clear
+        @receivers.clear
+        @focus = nil
         refresh
+        message = "#{message} Đã nhả danh sách — chọn tấm mới để làm tiếp."
         dialog.execute_script("window.applyFinished(true, #{message.to_json})")
       rescue => ex
         puts "XUONG CHO UI: #{ex.class}: #{ex.message}"

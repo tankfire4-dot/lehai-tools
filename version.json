@@ -1,5 +1,5 @@
 {
-  "version": "1.9.97",
+  "version": "1.9.98",
   "ruby_files": [
     "LeHai_Tools.rb",
     "LeHai_Tools/main.rb",
@@ -29,9 +29,6 @@
     "LeHai_Tools/go_group/main.rb",
     "LeHai_Tools/go_group/icons/go_group_16.png",
     "LeHai_Tools/go_group/icons/go_group_24.png",
-    "LeHai_Tools/ha_nen/LeHai_HaNen_16.png",
-    "LeHai_Tools/ha_nen/LeHai_HaNen_24.png",
-    "LeHai_Tools/ha_nen/main.rb",
     "LeHai_Tools/hinh_nhan/hinh_nhan.html",
     "LeHai_Tools/hinh_nhan/hinh_nhan.js",
     "LeHai_Tools/hinh_nhan/main.rb",
@@ -86,6 +83,11 @@
     "LeHai_Tools/tam_go/icons/tamgo_16.png",
     "LeHai_Tools/tam_go/icons/tamgo_24.png",
     "LeHai_Tools/tam_go/ui/dialog.html",
+    "LeHai_Tools/tao_bo/main.rb",
+    "LeHai_Tools/tao_bo/tao_bo.html",
+    "LeHai_Tools/tao_bo/toan.rb",
+    "LeHai_Tools/tao_bo/icons/tao_bo_16.png",
+    "LeHai_Tools/tao_bo/icons/tao_bo_24.png",
     "LeHai_Tools/tao_modul_nhanh/bang_hoc_keo.rb",
     "LeHai_Tools/tao_modul_nhanh/hoc_keo.rb",
     "LeHai_Tools/tao_modul_nhanh/khung_bao_tu_lanh.rb",

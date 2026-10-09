@@ -44,7 +44,7 @@ module Lehai
           params = JSON.parse(json_str)
           UI.start_timer(0, false) { activate_place_tool(params) }
         rescue JSON::ParserError => e
-          UI.messagebox("Loi nhan du lieu: #{e.message}")
+          UI.messagebox("Lỗi nhận dữ liệu: #{e.message}")
         end
       end
 
@@ -86,7 +86,7 @@ module Lehai
           params = JSON.parse(json_str)
           UI.start_timer(0, false) { activate_draw_tool(params) }
         rescue JSON::ParserError => e
-          UI.messagebox("Loi: #{e.message}")
+          UI.messagebox("Lỗi: #{e.message}")
         end
       end
 
@@ -104,7 +104,7 @@ module Lehai
       name = 'Tam go' if name.empty?
 
       unless length_mm > 0 && width_mm > 0 && thick_mm > 0
-        UI.messagebox('Kich thuoc phai lon hon 0mm!')
+        UI.messagebox('Kích thước phải lớn hơn 0 mm.')
         return
       end
 
@@ -125,7 +125,7 @@ module Lehai
       name     = params['name'].to_s.strip
       name     = 'Tam go' if name.empty?
       unless thick_mm > 0
-        UI.messagebox('Do day phai lon hon 0mm!')
+        UI.messagebox('Độ dày phải lớn hơn 0 mm.')
         return
       end
       tool = DrawTool.new(thick: thick_mm * MM_TO_INCH, name: name, dialog: @dialog)
@@ -244,18 +244,18 @@ module Lehai
       end
 
       def getStatusText
-        dir = @vertical ? 'Dung' : 'Nam'
-        rot = @rotated  ? '[Xoay]' : ''
-        "Click de dat  #{dir}#{rot}  |  R=Xoay  F=Nam/Dung  |  ESC=Huy"
+        dir = @vertical ? 'Đứng' : 'Nằm'
+        rot = @rotated  ? ' [Xoay]' : ''
+        "Click để đặt  #{dir}#{rot}  |  R = Xoay  F = Nằm/Đứng  |  ESC = Huỷ"
       end
 
       private
 
       def update_status
-        dir = @vertical ? 'Dung thang' : 'Nam ngang'
-        rot = @rotated  ? '  [Xoay 90]' : ''
+        dir = @vertical ? 'Đứng thẳng' : 'Nằm ngang'
+        rot = @rotated  ? '  [Xoay 90°]' : ''
         Sketchup.set_status_text(
-          "#{dir}#{rot}  |  Click=Dat  R=Xoay  F=Nam/Dung  ESC=Huy", SB_PROMPT
+          "#{dir}#{rot}  |  Click = Đặt  R = Xoay  F = Nằm/Đứng  ESC = Huỷ", SB_PROMPT
         )
       end
 
@@ -316,7 +316,7 @@ module Lehai
           model.commit_operation
         rescue => e
           model.abort_operation
-          UI.messagebox("Loi: #{e.message}\n#{e.backtrace.first(3).join("\n")}")
+          UI.messagebox("Lỗi: #{e.message}\n#{e.backtrace.first(3).join("\n")}")
         end
       end
 
@@ -452,7 +452,7 @@ module Lehai
         nums = text.strip.split(/\s*[;,x*]\s*/i).map(&:to_f)
         if nums.length < 2 || nums.any? { |t| t <= 0 }
           UI.beep
-          Sketchup.set_status_text('Sai cu phap — vi du: 600;400', SB_VCB_VALUE)
+          Sketchup.set_status_text('Sai cú pháp — ví dụ: 600;400', SB_VCB_VALUE)
           return
         end
         n    = current_normal
@@ -629,6 +629,7 @@ module Lehai
           if thang_truc?(u) && thang_truc?(v)
             # Tấm thẳng trục file: dựng như bản cũ (số y hệt)
             face = grp.entities.add_face(corners)
+            raise 'Không vẽ được mặt tấm (2 điểm trùng hoặc tấm quá nhỏ).' unless face
             face.reverse! if face.normal.dot(normal) < 0
             face.pushpull(@flip ? -@thick : @thick)
           else
@@ -641,6 +642,7 @@ module Lehai
             dv = v.length
             face = grp.entities.add_face(Geom::Point3d.new(0, 0, 0), Geom::Point3d.new(du, 0, 0),
                                          Geom::Point3d.new(du, dv, 0), Geom::Point3d.new(0, dv, 0))
+            raise 'Không vẽ được mặt tấm (2 điểm trùng hoặc tấm quá nhỏ).' unless face
             face.reverse! if face.normal.dot(f.inverse * normal) < 0
             face.pushpull(@flip ? -@thick : @thick)
             grp.transform!(f)
@@ -648,14 +650,14 @@ module Lehai
           model.commit_operation
         rescue => e
           model.abort_operation
-          UI.messagebox("Loi: #{e.message}\n#{e.backtrace.first(3).join("\n")}")
+          UI.messagebox("Lỗi: #{e.message}\n#{e.backtrace.first(3).join("\n")}")
         end
       end
 
     end # class DrawTool
 
     def self.create_cmd
-      cmd = UI::Command.new('Tao Tam Go Nhanh') { Lehai::TamGoGen.show_dialog }
+      cmd = UI::Command.new('Tạo Tấm Gỗ Nhanh') { Lehai::TamGoGen.show_dialog }
       cmd.tooltip         = 'Tạo tấm gỗ nhanh với kích thước tùy chỉnh (mm)'
       cmd.status_bar_text = 'Mở hộp thoại Tạo Tấm Gỗ Nhanh -- Le Hai Studio'
       cmd.small_icon      = File.join(PATH, 'icons', 'tamgo_16.png')

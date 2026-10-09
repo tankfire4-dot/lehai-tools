@@ -542,6 +542,43 @@
 
     function cancel() { sketchup.cancel(); }
 
+    // ─── Bàn phím làm được như chuột (Khoa 09/10) ──────────────────────────────
+    // Trước: tấm chỉ sáng khi CLICK hàng; ô tên chặn click (stopPropagation) nên Tab sang ô dưới
+    // không sáng tấm → phải click từng hàng. Nay vào ô tên bằng Tab/click là sáng tấm của hàng đó;
+    // Enter = xuống ô tên kế tiếp (Shift+Enter = lên), bỏ qua dòng con đang gập.
+    document.addEventListener('focusin', function (ev) {
+      var t = ev.target;
+      if (!t || t.tagName !== 'INPUT') return;
+      var m = /^n(\d+)$/.exec(t.id);
+      if (m) {
+        var i = +m[1];
+        if (activeIndex !== i || document.querySelector('.sub-row.active')) selectRow(i);
+        return;
+      }
+      m = /^sn(\d+)_(\d+)$/.exec(t.id);
+      if (m) {
+        var gi = +m[1], k = +m[2];
+        setActiveSubRow(gi, k);
+        sketchup.highlight_instance(String(groups[gi].instances[k].id));
+      }
+    });
+
+    function oTenDangHien() {
+      return Array.prototype.filter.call(document.querySelectorAll('input[type="text"]'), function (x) {
+        return /^s?n\d/.test(x.id) && x.offsetParent !== null;
+      });
+    }
+
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Enter') return;
+      var t = ev.target;
+      if (!t || t.tagName !== 'INPUT' || !/^s?n\d/.test(t.id)) return;
+      ev.preventDefault();
+      var ds = oTenDangHien();
+      var j = ds.indexOf(t) + (ev.shiftKey ? -1 : 1);
+      if (j >= 0 && j < ds.length) ds[j].focus();
+    });
+
     // ─── Helpers ───────────────────────────────────────────────────────────────
 
     function buildName(base, suffix) {

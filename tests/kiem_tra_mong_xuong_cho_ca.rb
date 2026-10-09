@@ -171,6 +171,10 @@ cfgs.each do |cfg, d|
   doi = d[:dau].each_with_index.map { |x, j| j == i ? { mat: [x[:mat][0].map { |p| P.cong(p, P.nhan(d[:doc], 20.0)) }], sau: x[:sau] } : x }
   r = chay(d, dau_b: doi)
   (r[:loi].length == 1 && %i[lech thieu].include?(r[:loi][0][:loai]) && gan.(r[:loi][0][:giua], d[:tam_dau][i], 17.5)) ? dem[:doi] += 1 : loi_ca << "DỜI #{ten.(cfg)}: #{r[:loi].map { |x| x[:loai] }}"
+  # 3b. Dời 1 dấu chỉ 1 mm (soát 09/10: trước đó lệch 1–7 mm vẫn ĐẠT, dư dài mộng chỉ 0,1 mm/bên) → răng đó :lech
+  doi1 = d[:dau].each_with_index.map { |x, j| j == i ? { mat: [x[:mat][0].map { |p| P.cong(p, P.nhan(d[:doc], 1.0)) }], sau: x[:sau] } : x }
+  r = chay(d, dau_b: doi1)
+  (r[:loi].length == 1 && r[:loi][0][:loai] == :lech && gan.(r[:loi][0][:giua], d[:tam_dau][i], 17.5)) ? dem[:doi1] += 1 : loi_ca << "DỜI1 #{ten.(cfg)}: #{r[:loi].map { |x| x[:loai] }}"
   # 4. Dấu khai nông hơn răng 1 mm → :nong
   nong = d[:dau].each_with_index.map { |x, j| j == i ? { mat: x[:mat], sau: cfg[:cao] - 1.0 } : x }
   r = chay(d, dau_b: nong)
@@ -186,6 +190,7 @@ tong = cfgs.length
 ca(out, "#{tong} biến thể đủ dấu → 0 lỗi, đếm đủ răng") { [dem[:du] == tong, "#{dem[:du]}/#{tong} · #{loi_ca.grep(/^ĐỦ/).first(3)}"] }
 ca(out, "#{tong} biến thể xóa ngẫu nhiên k dấu → đúng k răng THIẾU, đúng chỗ") { [dem[:xoa] == tong, "#{dem[:xoa]}/#{tong} · #{loi_ca.grep(/^XÓA/).first(3)}"] }
 ca(out, "#{tong} biến thể dời 1 dấu 20 mm → đúng răng đó báo LỆCH") { [dem[:doi] == tong, "#{dem[:doi]}/#{tong} · #{loi_ca.grep(/^DỜI/).first(3)}"] }
+ca(out, "#{tong} biến thể dời 1 dấu chỉ 1 mm → răng đó báo LỆCH") { [dem[:doi1] == tong, "#{dem[:doi1]}/#{tong} · #{loi_ca.grep(/^DỜI1/).first(3)}"] }
 ca(out, "#{tong} biến thể dấu nông hơn răng 1 mm → báo NÔNG") { [dem[:nong] == tong, "#{dem[:nong]}/#{tong} · #{loi_ca.grep(/^NÔNG/).first(3)}"] }
 ca(out, "#{tong} biến thể khấu tay (mặt nhận khoét lỗ, không dấu) → không báo") { [dem[:khau] == tong, "#{dem[:khau]}/#{tong} · #{loi_ca.grep(/^KHẤU/).first(3)}"] }
 ca(out, "#{tong} biến thể dấu đặt nhầm vào tấm ngàm → mọi răng THIẾU") { [dem[:nham] == tong, "#{dem[:nham]}/#{tong} · #{loi_ca.grep(/^DẤU NHẦM/).first(3)}"] }

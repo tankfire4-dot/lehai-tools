@@ -12,6 +12,39 @@ Mỗi mục theo khung: **Vấn đề → Quyết định → Vì sao → Bài h
 
 ---
 
+## 2026-10-09 — 1.9.98: Tạo Bo thay Hạ Nền · 6 vá soát toàn bộ · plugin bớt phiền khi tương tác · Check Mộng bắt dấu lệch nhỏ
+
+**Vấn đề.** (1) /goal soát toàn bộ 30 module ra 6 lỗi (Dim Nhanh xoá nhầm lô dim mới, Gỡ DC mất vật liệu + `is-board`,
+Chống Bay đứng bảng khi tên có `"`, Tạo Cánh mở chồng bảng, Tấm Gỗ chữ không dấu) — report lab
+`handoff/report-soat-toan-bo-plugin.md`. (2) Hạ Nền cũ sai → Tạo Bo (hạ nền + dưỡng, rãnh liền kiểu NTT). (3) Khoa
+"tương tác với plugin khá phiền": Tìm Tấm thoát ra là mất, xoá 10 tấm phải tìm-xoá từng tấm; Mộng "Lấy vùng chọn"
+cộng dồn, phải "Xóa hết"; Điền Tên Tab sang ô dưới không sáng tấm. (4) Soát sau phát: Check Mộng để lọt dấu lệch 1–7 mm.
+
+**Quyết định.**
+- Tìm Tấm Lỗi: nhắm tấm tủ 3D (N / gõ `n` đổi sang nesting); Delete / Backspace / gõ `x` → xoá cả loạt, hỏi trước,
+  một Undo, KHÔNG xoá tấm khoá hoặc nằm trong group cha dùng chung nhiều bản; ESC → chọn sẵn tấm đang nhắm (chung một
+  group cha thì mở group đó bằng `Model#active_path=`); bấm nút lại → ô nhập điền sẵn số lần trước.
+- Điền Tên: vào ô tên (Tab/click) là sáng tấm; Enter / Shift+Enter đổi hàng.
+- Mộng: "Lấy vùng chọn" THAY danh sách; Áp dụng xong nhả danh sách.
+- Check Mộng: bề ngang răng lấy từ mọi đỉnh của răng nằm trong tấm nhận (đủ đầu răng, không phải mặt đỉnh hẹp hơn
+  2 × vát); lưới dọc răng lùi 0,25 mm (trước 10%); chỉ xét điểm GIỮA bề dày của chính dấu (tai dao ở hai bên vươn dư
+  1,8–2,4 mm làm dấu lệch vẫn "phủ").
+- Tạo Bo: khúc bo sát góc gãy bù nửa góc một đốt (trước ra R51,28 · 87,75° → không tự chọn dưỡng).
+- Luật nhà mục 10 (LUAT_NHA.md).
+
+**Vì sao hai đường cho mỗi phím.** Bài học 05/10: phím tắt gốc SketchUp giành phím trước tool (S = Scale). Delete là
+lệnh xoá gốc, N chưa chắc trống → thêm đường gõ chữ vào ô Measurements + Enter (khuôn Chống Bay).
+
+**Kiểm.** tao_bo 46 ca + 3000/2000 ngẫu nhiên; tim_tam_loi 27/27 (13 ca mới); kiem_tra_mong_xuong_cho 17/17 (ca mới
+"dời 1 mm" — bản cũ 0/80; dời 0,5/1/3/7 mm đều 80/80; 0,3 mm lọt = dung sai cố ý); Điền Tên Chromium 11/11 (bản cũ
+trượt 7); Mộng nhả/thay 5/5 (bản cũ trượt 4); canh_cnc 9/9 + 3000. **Chưa chạy SketchUp thật**: phím Delete/N có tới
+tool không, `active_path=` (chưa tiền lệ repo), `add_curve` rãnh liền.
+
+**Rủi ro.** Updater không xoá file cũ: máy thợ còn `ha_nen/` nhưng không ai nạp. Check Mộng giả định dấu thu luôn phủ
+giữa bề dày dấu (đúng với dày sau phay 13/15 — hai cỡ duy nhất có layer Aspire).
+
+---
+
 ## 2026-10-05 — Tìm Tấm Lỗi: Tab sao các tấm đang sáng ra gốc toạ độ (chưa phát)
 
 **Vấn đề (Khoa 05/10).** File CNC ra hư vài tấm thì phải tìm từng tấm rồi copy tay từng tấm ra chỗ trống để

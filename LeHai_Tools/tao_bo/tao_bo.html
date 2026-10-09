@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<title>Tạo Bo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/lehai_theme.css">
+<style>
+  .cuc { display: flex; align-items: center; gap: 10px; }
+  .cuc-ten { flex: 1; min-width: 0; }
+  .cuc-ten b { display: block; font-size: 13.5px; word-break: break-word; }
+  .cuc-ten span { font-size: 11.5px; color: var(--lh-ink-soft); }
+  .cuc .lh-btn { width: auto; padding: 8px 12px; font-size: 12px; }
+  .cho { padding: 14px; border-radius: var(--lh-radius); background: var(--lh-chip); color: var(--lh-amber-2); font-weight: 600; font-size: 12.5px; }
+  .cho.tat { background: var(--lh-fill); color: var(--lh-ink-soft); font-weight: 500; }
+  .tb { font-size: 12px; margin: 12px 0 0; padding: 9px 11px; border-radius: var(--lh-radius-sm); display: none; line-height: 1.5; }
+  .tb--ok { display: block; background: rgba(21,128,61,.10); color: #15803d; }
+  .tb--bad { display: block; background: rgba(185,28,28,.10); color: #b91c1c; }
+  .tb--warn { display: block; background: rgba(230,160,0,.14); color: #a16207; }
+  #oKieu { margin-bottom: 14px; }
+  #oKieu .lh-opt { padding: 10px 8px; font-size: 12.5px; }
+  .hinh { margin: 14px 0 4px; background: var(--lh-surface); border-radius: var(--lh-radius); box-shadow: var(--lh-shadow); padding: 10px 8px 4px; }
+  .hinh svg { display: block; width: 100%; height: auto; }
+  .hinh-chu { font-size: 10.5px; color: var(--lh-muted); text-align: center; padding: 2px 0 4px; }
+  .khuc { margin-top: 14px; }
+  .khuc-dau { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .khuc-dau b { font-size: 12.5px; }
+  .khuc-dau span { font-size: 11.5px; color: var(--lh-ink-soft); }
+  .o-dai { margin-top: 9px; }
+  .o-dai .lh-label { margin-bottom: 4px; }
+  .o-dai .lh-input { padding: 8px 10px; }
+  .so-ranh { font-size: 12px; color: var(--lh-ink-soft); margin-top: 6px; }
+  .so-ranh b { color: var(--lh-ink); }
+  .so-ranh.canh { color: #a16207; }
+  .lh-input.sai { border-color: #dc2626; }
+  .ba { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .ba .lh-input { padding: 8px 10px; }
+  .duong { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+  .duong .tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--lh-fill); font-size: 12px; font-weight: 600; color: var(--lh-ink-soft); }
+  .duong .tag a { cursor: pointer; padding: 0 5px; border-radius: 999px; color: var(--lh-muted); }
+  .duong .tag a:hover { background: var(--lh-fill-2); color: var(--lh-walnut); }
+  .duong input { width: 58px; padding: 5px 8px; }
+  .duong .lh-chip { padding: 5px 11px; }
+  #nutTao { margin-top: 16px; }
+  #nutTao:disabled { opacity: .45; cursor: default; filter: none; }
+</style>
+</head>
+<body class="lh">
+<div class="lh-dialog">
+  <div class="lh-eyebrow">LeHai's Decor Tools</div>
+  <h1 class="lh-title">Tạo Bo</h1>
+
+  <div class="lh-toggle" id="oKieu">
+    <div class="lh-opt" data-k="ha_nen" onclick="doiKieu('ha_nen')">Hạ nền + dưỡng</div>
+    <div class="lh-opt" data-k="ranh" onclick="doiKieu('ranh')">Rãnh liền</div>
+  </div>
+
+  <div id="oCuc"></div>
+  <div id="oHinh"></div>
+  <div id="oKhuc"></div>
+
+  <div id="oChung" style="display:none">
+    <hr class="lh-divider">
+    <div class="lh-row">
+      <div>
+        <label class="lh-label">Độ dày ván (mm)</label>
+        <input class="lh-input" id="day" inputmode="decimal" oninput="goChung()">
+      </div>
+      <div id="oLoiRa">
+        <label class="lh-label">Lòi trên + dưới (mm)</label>
+        <input class="lh-input" id="loiRa" inputmode="decimal">
+      </div>
+    </div>
+    <div id="chungRL" class="ba">
+      <div><label class="lh-label">Dao D (mm)</label><input class="lh-input" id="dao" inputmode="decimal" oninput="goChung()"></div>
+      <div><label class="lh-label">Thịt chừa S</label><input class="lh-input" id="thit" inputmode="decimal" oninput="goChung()"></div>
+      <div><label class="lh-label">Mở biên X</label><input class="lh-input" id="bien" inputmode="decimal" oninput="goChung()"></div>
+    </div>
+    <div class="lh-field" id="chungHN" style="margin-top:12px">
+      <label class="lh-label">Dưỡng bo đã lưu</label>
+      <div class="duong" id="oDuong"></div>
+    </div>
+    <button class="lh-btn lh-btn--primary" id="nutTao" onclick="tao()">Tạo tấm</button>
+  </div>
+  <div class="tb" id="tb"></div>
+
+  <div class="lh-hint" id="goiY"></div>
+  <div class="lh-foot"><span>Tạo Bo · LeHai Tools</span><span id="chan"></span></div>
+</div>
+
+<script>
+  var D = { cuc: null, duong: [], day: 17.5, loi_ra: 3, dao: 6, thit: 5, bien: 3, dang_chon: false };
+  var CHON = [];        // hạ nền — mỗi khúc: { kieu: 'cung' | 'duong' | 'tu', rong: mm khúc bo trên tấm phẳng }
+  var BU = [];          // rãnh liền — mỗi khúc: mm cộng vào khúc bo (mặc định 0 = như NTT)
+  var KIEU = 'ha_nen';
+  var NHO = 'lehai.taobo.v1';
+  function $(id) { return document.getElementById(id); }
+  function so(x) { return (Math.round(x * 100) / 100).toString().replace('.', ','); }
+  function doc(v) { var x = parseFloat(String(v).replace(',', '.')); return isFinite(x) ? x : NaN; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function nhoDoc() { try { return JSON.parse(localStorage.getItem(NHO) || '{}') || {}; } catch (e) { return {}; } }
+  function nhoGhi(o) { try { var n = nhoDoc(); for (var k in o) n[k] = o[k]; localStorage.setItem(NHO, JSON.stringify(n)); } catch (e) {} }
+
+  // ── Ruby gọi vào ──
+  window.nhan = function (d) {
+    var cuCuc = D.cuc;
+    D = d;
+    var nho = nhoDoc();
+    if (!$('day').value) $('day').value = nho.day || d.day;
+    if (!$('loiRa').value) $('loiRa').value = nho.loi_ra != null ? nho.loi_ra : d.loi_ra;
+    if (!$('dao').value) $('dao').value = nho.dao || d.dao;
+    if (!$('thit').value) $('thit').value = nho.thit != null ? nho.thit : d.thit;
+    if (!$('bien').value) $('bien').value = nho.bien != null ? nho.bien : d.bien;
+    if (nho.kieu === 'ranh' || nho.kieu === 'ha_nen') KIEU = nho.kieu;
+    // cục mới (hoặc số khúc đổi) → về mặc định; cùng cục thì giữ lựa chọn đang có
+    var cungCuc = cuCuc && d.cuc && cuCuc.ten === d.cuc.ten && cuCuc.vung && d.cuc.vung && cuCuc.vung.length === d.cuc.vung.length;
+    if (!cungCuc) {
+      CHON = (d.cuc && d.cuc.vung || []).map(macDinh);
+      BU = (d.cuc && d.cuc.vung || []).map(function () { return 0; });
+      xoaTB();
+    }
+    ve();
+  };
+  // Khúc bo khớp dưỡng đã lưu (R lệch ≤ 0,5 mm, góc 90° ± 1°) → tự chọn dưỡng đó; không khớp → bằng cung.
+  // Khoa 08/10: R34 → dưỡng 54, R50 → dưỡng 81 (dưỡng uốn góc vuông).
+  function duongKhop(v) {
+    if (v.r == null || Math.abs(v.goc - 90) > 1) return null;
+    for (var k = 0; k < D.duong.length; k++) if (D.duong[k].r != null && Math.abs(v.r - D.duong[k].r) <= 0.5) return D.duong[k];
+    return null;
+  }
+  function macDinh(v) {
+    var d = duongKhop(v);
+    return d ? { kieu: 'duong', rong: d.dai, tu: true } : { kieu: 'cung', rong: v.s1 - v.s0 };
+  }
+  function tenDuong(d) { return 'Dưỡng ' + so(d.dai) + (d.r != null ? ' (R' + so(d.r) + ')' : ''); }
+  window.dangChon = function (b) { D.dang_chon = b; veCuc(); };
+  window.baoLoi = function (m) { thongBao('tb--bad', m); };
+  window.baoXong = function (m) { thongBao('tb--ok', m); };
+  function thongBao(lop, m) { var t = $('tb'); t.className = 'tb ' + lop; t.textContent = m; }
+  function xoaTB() { $('tb').className = 'tb'; $('tb').textContent = ''; } // đổi số/đổi cục: dòng "đã tạo" cũ không còn đúng
+
+  // Khúc bo trên tấm theo chiều dài từng khúc — CÙNG công thức toan.rb vung_theo_rong (Ruby tính lại lúc Tạo):
+  // đoạn thẳng giữ nguyên, khúc bo dài theo số chọn, tổng tấm đổi theo.
+  function xepKhuc(dais) {
+    var ds = [], x = 0, cu = 0;
+    D.cuc.vung.forEach(function (v, i) {
+      x += v.s0 - cu;
+      ds.push({ x0: x, x1: x + dais[i], cung: v.s1 - v.s0, loi: v.loi, goc: v.goc });
+      x += dais[i]; cu = v.s1;
+    });
+    return { ds: ds, dai: x + (D.cuc.dai - cu) };
+  }
+  function tinhVung() {
+    var loi = '';
+    var dais = CHON.map(function (c, i) { if (!(c.rong > 0)) { loi = loi || 'Khúc ' + (i + 1) + ': chiều dài khúc bo phải lớn hơn 0.'; return 0; } return c.rong; });
+    var t = xepKhuc(dais); t.loi = loi; return t;
+  }
+  // Rãnh liền — CÙNG công thức toan.rb ranh_lien (giống NTT, khớp 3 tấm đo 08/10): bước = D + S,
+  // số rãnh = phần nguyên(khúc ÷ bước) + 1, căn giữa khúc, bảo vệ thò D + X mỗi đầu, rãnh lòi X ngoài mép.
+  function thongSoRL() { return { d: doc($('dao').value), s: doc($('thit').value), x: doc($('bien').value), day: doc($('day').value) }; }
+  function tinhRanh() {
+    var p = thongSoRL(), loi = '';
+    if (!(p.d >= 1 && p.d <= 30)) loi = 'Đường kính dao phải từ 1 tới 30 mm.';
+    else if (!(p.day >= 1 && p.day <= 100)) loi = 'Độ dày phải từ 1 tới 100 mm.';
+    else if (!(p.s >= 0 && p.s < p.day)) loi = 'Thịt chừa lại phải từ 0 tới dưới độ dày ván.';
+    else if (!(p.x >= 0 && p.x <= 50)) loi = 'Mở rộng biên phải từ 0 tới 50 mm.';
+    var dais = D.cuc.vung.map(function (v, i) { var b = isNaN(BU[i]) ? 0 : BU[i]; return v.s1 - v.s0 + b; });
+    dais.forEach(function (w, i) { if (!loi && isNaN(BU[i])) loi = 'Khúc ' + (i + 1) + ': ô Bù không phải số.'; else if (!loi && !(w > 0)) loi = 'Khúc ' + (i + 1) + ': khúc bo sau khi bù phải dài hơn 0.'; });
+    var t = xepKhuc(dais.map(function (w) { return Math.max(w, 0); }));
+    var buoc = p.d + p.s;
+    t.ds.forEach(function (c, i) {
+      var lb = c.x1 - c.x0, n = Math.floor(lb / buoc + 1e-9) + 1, g = (c.x0 + c.x1) / 2;
+      c.xs = []; for (var k = 0; k < n; k++) c.xs.push(g - (n - 1) * buoc / 2 + k * buoc);
+      c.b0 = c.x0 - (p.d + p.x); c.b1 = c.x1 + (p.d + p.x);
+      c.ho = p.d - (p.day - p.s / 2) * (c.goc * Math.PI / 180) / n;   // miệng rãnh còn hở khi gập đủ góc (cách A)
+      if (loi || !isFinite(buoc)) return;
+      if (c.xs[0] - p.d / 2 < -1e-6 || c.xs[n - 1] + p.d / 2 > t.dai + 1e-6) loi = 'Khúc ' + (i + 1) + ': rãnh lòi khỏi đầu tấm — đoạn thẳng hai bên khúc bo quá ngắn.';
+      else if (c.ho <= 0) loi = 'Khúc ' + (i + 1) + ': rãnh sẽ khép kín trước khi uốn đủ góc. Tăng dao hoặc tăng thịt chừa.';
+    });
+    t.buoc = buoc; t.p = p; t.loi = loi; return t;
+  }
+  function tinh() { return KIEU === 'ranh' ? tinhRanh() : tinhVung(); }
+
+  // ── Vẽ ──
+  function ve() { veKieu(); veCuc(); veKhuc(); veHinh(); veDuong(); kiemTruoc(); }
+
+  function veKieu() {
+    document.querySelectorAll('#oKieu .lh-opt').forEach(function (o) { o.classList.toggle('is-active', o.dataset.k === KIEU); });
+    var rl = KIEU === 'ranh';
+    $('chungRL').style.display = rl ? '' : 'none';
+    $('chungHN').style.display = rl ? 'none' : '';
+    $('oLoiRa').style.visibility = rl ? 'hidden' : 'visible';   // rãnh liền: lòi = mở biên X
+    $('goiY').innerHTML = rl
+      ? 'Rãnh liền vẽ <b>giống NTT</b>: bước = dao + thịt, rãnh căn giữa khúc bo, một đường dao zíc-zắc liền + 2 nét bảo vệ. Ô <b>Bù</b> cộng/trừ vào khúc bo (mặc định 0). Mỗi lần Tạo là một bước Ctrl+Z.'
+      : 'Đoạn thẳng hai đầu giữ nguyên. Khúc bo trên tấm phẳng dài đúng số chọn (bằng cung / dưỡng / tự nhập) và cũng chính là vùng hạ nền, nên tổng tấm đổi theo. Mỗi lần Tạo là một bước Ctrl+Z.';
+    $('chan').textContent = rl ? 'tag NTT_RanhUonCong · NTT_RanhBaoVe' : 'tag NTT_SoiHaNen · ABF_hanenduong';
+  }
+
+  function veCuc() {
+    var h = '';
+    if (D.cuc) {
+      var c = D.cuc;
+      h += '<div class="cuc"><div class="cuc-ten"><b>' + esc(c.ten) + '</b><span>' +
+        (c.ok ? 'Tấm trải phẳng ' + so(tinh().dai) + ' × ' + so(c.cao) + ' mm · ' + c.vung.length + ' khúc bo' : 'Không trải được') +
+        '</span></div><button class="lh-btn lh-btn--ghost" onclick="sketchup.chon()">Chọn cục khác</button></div>';
+      if (D.dang_chon) h += '<div class="cho" style="margin-top:10px">Đang chờ: click vào cục bo khác trong SketchUp (ESC để thôi).</div>';
+      if (!c.ok) h += '<div class="tb tb--bad">' + esc(c.loi) + '</div>';
+      else if (c.doan) h += '<div class="tb tb--warn">⚠ Khúc bo đã bị Explode — tool ĐOÁN khúc bo theo nét gãy. Soát lại số trước khi cắt.</div>';
+    } else {
+      h += D.dang_chon
+        ? '<div class="cho">Rê chuột tới cục bo cong trong SketchUp rồi click.</div>'
+        : '<div class="cho tat">Chưa chọn cục. <a href="#" onclick="sketchup.chon();return false">Bấm để chọn</a></div>';
+    }
+    $('oCuc').innerHTML = h;
+    $('oChung').style.display = D.cuc && D.cuc.ok ? '' : 'none';
+  }
+
+  function dauKhuc(v, i, mat) {
+    return '<div class="khuc-dau"><b>Khúc ' + (i + 1) + '</b><span>' +
+      (v.r != null ? 'R' + so(v.r) + ' · ' + so(v.goc) + '° · ' : '') + 'cung ' + so(v.s1 - v.s0) + ' mm · ' +
+      (v.loi ? mat + ' mặt áp cục' : mat + ' mặt NGOÀI (uốn ngược)') + '</span></div>';
+  }
+
+  function veKhuc() {
+    if (!D.cuc || !D.cuc.ok) { $('oKhuc').innerHTML = ''; return; }
+    var h = '';
+    if (KIEU === 'ranh') {
+      D.cuc.vung.forEach(function (v, i) {
+        h += '<div class="khuc">' + dauKhuc(v, i, 'rãnh') +
+          '<div class="o-dai"><label class="lh-label">Bù khúc bo (mm, + dài ra / − ngắn lại)</label>' +
+          '<input class="lh-input" id="bu' + i + '" value="' + so(BU[i] || 0) + '" oninput="goBu(' + i + ')"></div>' +
+          '<div class="so-ranh" id="soRanh' + i + '"></div></div>';
+      });
+      $('oKhuc').innerHTML = h;
+      veSoRanh();
+      return;
+    }
+    D.cuc.vung.forEach(function (v, i) {
+      var c = CHON[i], cung = v.s1 - v.s0;
+      h += '<div class="khuc">' + dauKhuc(v, i, 'hạ nền') + '<div class="lh-chips">';
+      h += '<button class="lh-chip' + (c.kieu === 'cung' ? ' is-active' : '') + '" onclick="chonKieu(' + i + ',\'cung\')">Bằng cung ' + so(cung) + '</button>';
+      D.duong.forEach(function (d, k) {
+        h += '<button class="lh-chip' + (c.kieu === 'duong' && Math.abs(c.rong - d.dai) < 1e-6 ? ' is-active' : '') + '" onclick="chonDuong(' + i + ',' + k + ')">' + tenDuong(d) + '</button>';
+      });
+      h += '<button class="lh-chip' + (c.kieu === 'tu' ? ' is-active' : '') + '" onclick="chonKieu(' + i + ',\'tu\')">Tự nhập</button></div>';
+      var khop = duongKhop(v);
+      if (c.tu && khop && c.kieu === 'duong' && Math.abs(c.rong - khop.dai) < 1e-6)
+        h += '<div class="lh-hint" style="margin-top:6px">Tự chọn ' + tenDuong(khop) + ' vì khúc này R' + so(v.r) + ' · ' + so(v.goc) + '°.</div>';
+      h += '<div class="o-dai"><label class="lh-label">Dài khúc bo trên tấm = vùng hạ nền (mm)</label>' +
+        '<input class="lh-input" id="rong' + i + '" value="' + so(c.rong) + '" oninput="goRong(' + i + ')"></div></div>';
+    });
+    $('oKhuc').innerHTML = h;
+  }
+
+  // dòng số rãnh dưới mỗi khúc (cập nhật khi gõ, không vẽ lại ô đang gõ)
+  function veSoRanh() {
+    if (KIEU !== 'ranh' || !D.cuc || !D.cuc.ok) return;
+    var t = tinhRanh();
+    t.ds.forEach(function (c, i) {
+      var el = $('soRanh' + i); if (!el) return;
+      if (!c.xs || !isFinite(t.buoc)) { el.textContent = ''; return; }
+      el.className = 'so-ranh' + (c.ho < 1 ? ' canh' : '');
+      el.innerHTML = 'Khúc bo trên tấm <b>' + so(c.x1 - c.x0) + '</b> · <b>' + c.xs.length + ' rãnh</b> bước ' + so(t.buoc) +
+        ' · gập đủ góc miệng rãnh còn hở ≈ <b>' + so(c.ho) + '</b> / ' + so(t.p.d) + ' mm' + (c.ho < 1 && c.ho > 0 ? ' — sát kẹt, cân nhắc tăng dao' : '');
+    });
+  }
+
+  function veDuong() {
+    var h = D.duong.map(function (d, k) {
+      return '<span class="tag">' + (d.r != null ? 'R' + so(d.r) + ' → ' : '') + so(d.dai) + '<a title="Bỏ dưỡng này" onclick="boDuong(' + k + ')">×</a></span>';
+    }).join('');
+    h += '<input class="lh-input" id="duongR" placeholder="R" inputmode="decimal"><input class="lh-input" id="duongMoi" placeholder="dài" inputmode="decimal">' +
+      '<button class="lh-chip" onclick="themDuong()">+ Lưu dưỡng</button>';
+    $('oDuong').innerHTML = h;
+  }
+
+  // Hình tấm trải phẳng: đúng tỉ lệ theo chiều dài, chiều cao vẽ cố định (không theo tỉ lệ)
+  function veHinh() {
+    if (!D.cuc || !D.cuc.ok) { $('oHinh').innerHTML = ''; return; }
+    var rl = KIEU === 'ranh', t = tinh(), L = t.dai, W = 420, X0 = 12, K = (W - 2 * X0) / L, Y0 = 30, H = 84;
+    if (!(L > 0)) { $('oHinh').innerHTML = ''; return; }
+    var x = function (s) { return X0 + s * K; };
+    var s = '<svg viewBox="0 0 ' + W + ' 190" font-family="DM Sans, Segoe UI, sans-serif">';
+    s += '<rect x="' + X0 + '" y="' + Y0 + '" width="' + (W - 2 * X0) + '" height="' + H + '" fill="#fff" stroke="#7c2d12" stroke-width="1.5" rx="1.5"/>';
+    t.ds.forEach(function (v) {
+      var w = v.x1 - v.x0, khac = Math.abs(w - v.cung) > 0.005;
+      if (rl && v.xs) {
+        // khúc bo: nét đứt; rãnh: nét cam dọc lòi ra ngoài mép, nối zíc-zắc; bảo vệ: nét xanh trên + dưới
+        s += '<rect x="' + x(v.x0) + '" y="' + Y0 + '" width="' + Math.max(1, w * K) + '" height="' + H + '" fill="rgba(210,140,70,.12)" stroke="#b45309" stroke-width=".8" stroke-dasharray="3 2"/>';
+        var lo = Y0 + H + 5, hi = Y0 - 5, pts = [];
+        v.xs.forEach(function (xc, k) { var a = k % 2 ? hi : lo, b = k % 2 ? lo : hi; pts.push(x(xc).toFixed(1) + ',' + a, x(xc).toFixed(1) + ',' + b); });
+        s += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#d97706" stroke-width="1.2"' + (v.loi ? '' : ' stroke-dasharray="3 2"') + '/>';
+        [hi, lo].forEach(function (y) { s += '<line x1="' + x(v.b0) + '" y1="' + y + '" x2="' + x(v.b1) + '" y2="' + y + '" stroke="#2563eb" stroke-width="1.6"/>'; });
+        s += '<text x="' + (x(v.x0) + x(v.x1)) / 2 + '" y="' + (Y0 - 12) + '" font-size="10" fill="#7c2d12" text-anchor="middle">' + v.xs.length + ' rãnh' + (khac ? ' · cung ' + so(v.cung) : '') + '</text>';
+        return;
+      }
+      s += '<rect x="' + x(v.x0) + '" y="' + (Y0 - 5) + '" width="' + Math.max(1, w * K) + '" height="' + (H + 10) + '" fill="rgba(210,140,70,.55)" stroke="#b45309" stroke-width="1"' + (v.loi ? '' : ' stroke-dasharray="3 2"') + '/>';
+      s += '<text x="' + (x(v.x0) + x(v.x1)) / 2 + '" y="' + (Y0 + H / 2 + 4) + '" font-size="11" font-weight="700" fill="#92400e" text-anchor="middle">' + so(w) + '</text>';
+      s += '<text x="' + (x(v.x0) + x(v.x1)) / 2 + '" y="' + (Y0 - 10) + '" font-size="10" fill="#7c2d12" text-anchor="middle">' + (khac ? 'khúc bo (cung ' + so(v.cung) + ')' : 'khúc bo') + '</text>';
+    });
+    // dãy kích thước dưới: mép → khúc bo → … → mép
+    var moc = [0];
+    t.ds.forEach(function (v) { moc.push(v.x0, v.x1); });
+    moc.push(L);
+    var yk = Y0 + H + 22;
+    s += '<line x1="' + X0 + '" y1="' + yk + '" x2="' + (W - X0) + '" y2="' + yk + '" stroke="#a08060" stroke-width=".8"/>';
+    moc.forEach(function (m) { s += '<line x1="' + x(m) + '" y1="' + (yk - 4) + '" x2="' + x(m) + '" y2="' + (yk + 4) + '" stroke="#a08060" stroke-width=".8"/>'; });
+    for (var k = 0; k < moc.length - 1; k++) {
+      var d = moc[k + 1] - moc[k];
+      if (Math.abs(d) < 1e-6) continue;
+      s += '<text x="' + (x(moc[k]) + x(moc[k + 1])) / 2 + '" y="' + (yk + (k % 2 ? 16 : -5)) + '" font-size="10" fill="#6b4226" text-anchor="middle">' + so(d) + '</text>';
+    }
+    s += '<text x="' + W / 2 + '" y="' + (yk + 34) + '" font-size="10.5" font-weight="700" fill="#1c0a00" text-anchor="middle">tổng ' + so(L) + ' × cao ' + so(D.cuc.cao) + '</text>';
+    s += '</svg>';
+    var chu = rl ? 'Nhìn từ mặt áp cục · cam = đường dao zíc-zắc (nét đứt = rãnh mặt ngoài) · xanh = nét bảo vệ · chiều cao không theo tỉ lệ'
+                 : 'Nhìn từ mặt áp cục · cam = khúc bo = vùng hạ nền (viền đứt = hạ nền mặt ngoài) · chiều cao không theo tỉ lệ';
+    $('oHinh').innerHTML = '<div class="hinh">' + s + '<div class="hinh-chu">' + chu + '</div></div>';
+  }
+
+  function kiemTruoc() {
+    var ok = D.cuc && D.cuc.ok;
+    if (ok) {
+      var t = tinh();
+      if (KIEU === 'ranh') {
+        BU.forEach(function (b, i) { var r = $('bu' + i); if (r) r.classList.toggle('sai', isNaN(b)); });
+        var p = thongSoRL();
+        $('dao').classList.toggle('sai', !(p.d >= 1 && p.d <= 30));
+        $('thit').classList.toggle('sai', !(p.s >= 0 && p.s < p.day));
+        $('bien').classList.toggle('sai', !(p.x >= 0 && p.x <= 50));
+      } else {
+        CHON.forEach(function (c, i) { var r = $('rong' + i); if (r) r.classList.toggle('sai', !(c.rong > 0)); });
+      }
+      if (t.loi) { thongBao('tb--bad', t.loi); ok = false; }
+      else if ($('tb').className.indexOf('tb--bad') >= 0) xoaTB();
+    }
+    $('nutTao').disabled = !ok;
+  }
+
+  // ── Người dùng thao tác ──
+  window.doiKieu = function (k) { if (k === KIEU) return; KIEU = k; nhoGhi({ kieu: k }); xoaTB(); ve(); };
+  window.goChung = function () { xoaTB(); veCuc(); veSoRanh(); veHinh(); kiemTruoc(); };
+  window.goBu = function (i) {
+    xoaTB();
+    var s = $('bu' + i).value.trim();
+    BU[i] = s === '' ? 0 : doc(s);
+    veCuc(); veSoRanh(); veHinh(); kiemTruoc();
+  };
+  window.chonKieu = function (i, k) {
+    xoaTB();
+    var v = D.cuc.vung[i];
+    CHON[i].kieu = k; CHON[i].tu = false;
+    if (k === 'cung') CHON[i].rong = v.s1 - v.s0;
+    ve();
+    if (k === 'tu') { var r = $('rong' + i); r.focus(); r.select(); }
+  };
+  window.chonDuong = function (i, k) { xoaTB(); CHON[i] = { kieu: 'duong', rong: D.duong[k].dai }; ve(); };
+  // gõ tay: số trùng cung/dưỡng thì sáng chip đó, còn lại là "Tự nhập"; không vẽ lại ô đang gõ (giữ con trỏ)
+  window.goRong = function (i) {
+    xoaTB();
+    var x = doc($('rong' + i).value), v = D.cuc.vung[i];
+    CHON[i].rong = x;
+    CHON[i].kieu = Math.abs(x - (v.s1 - v.s0)) < 0.005 ? 'cung' : (D.duong.some(function (d) { return Math.abs(x - d.dai) < 1e-6; }) ? 'duong' : 'tu');
+    CHON[i].tu = false;
+    var chips = document.querySelectorAll('#oKhuc .khuc')[i].querySelectorAll('.lh-chip');
+    chips.forEach(function (b, k) {
+      var on = k === 0 ? CHON[i].kieu === 'cung' : (k === chips.length - 1 ? CHON[i].kieu === 'tu' : CHON[i].kieu === 'duong' && Math.abs(x - D.duong[k - 1].dai) < 1e-6);
+      b.classList.toggle('is-active', on);
+    });
+    veCuc(); veHinh(); kiemTruoc();
+  };
+
+  window.themDuong = function () {
+    var x = doc($('duongMoi').value), rs = $('duongR').value.trim(), r = rs === '' ? null : doc(rs);
+    if (!(x > 0)) { thongBao('tb--bad', 'Nhập dài khúc bo của dưỡng (mm) rồi bấm Lưu. Ô R để trống nếu dưỡng không gắn bán kính.'); return; }
+    if (r !== null && !(r > 0)) { thongBao('tb--bad', 'Ô R phải là số mm lớn hơn 0 (hoặc để trống).'); return; }
+    sketchup.luu_duong(JSON.stringify(D.duong.concat([{ r: r, dai: x }])));
+  };
+  window.boDuong = function (k) {
+    var ds = D.duong.slice(); ds.splice(k, 1);
+    sketchup.luu_duong(JSON.stringify(ds));
+  };
+
+  window.tao = function () {
+    var day = doc($('day').value);
+    xoaTB();
+    if (KIEU === 'ranh') {
+      var p = thongSoRL();
+      nhoGhi({ day: day, dao: p.d, thit: p.s, bien: p.x });
+      sketchup.tao(JSON.stringify({ kieu: 'ranh', day: day, dao: p.d, thit: p.s, bien: p.x, bu: BU.map(function (b) { return isNaN(b) ? 0 : b; }) }));
+      return;
+    }
+    var loi = doc($('loiRa').value);
+    nhoGhi({ day: day, loi_ra: loi });
+    sketchup.tao(JSON.stringify({ kieu: 'ha_nen', day: day, loi_ra: loi, rong: CHON.map(function (c) { return c.rong; }) }));
+  };
+
+  sketchup.ready();
+</script>
+</body>
+</html>

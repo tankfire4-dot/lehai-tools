@@ -5,7 +5,15 @@
 # Khớp bằng thuộc tính ẩn ABF (is-board + board-index), không đọc tên.
 #
 # Sao ra gốc (Khoa 05/10): đang sáng mà bấm Tab → sao y hệt các tấm đó ra gốc
-# toạ độ (một bậc Undo). Đây là chỗ DUY NHẤT tool này ghi vào model.
+# toạ độ (một bậc Undo).
+#
+# Làm tiếp trên tấm đã tìm (Khoa 09/10: "thoát ra là plugin mất hiệu lực, xoá 10 tấm phải tìm-xoá
+# từng tấm"). Tool nhắm MỘT phía: mặc định tấm tủ 3D, phím N đổi sang tấm nesting.
+#   - Delete: xoá cả loạt tấm đang nhắm, hỏi trước, một bậc Undo.
+#   - ESC: thoát và CHỌN SẴN các tấm đang nhắm để Move/Delete bằng lệnh gốc. SketchUp chỉ chọn được
+#     trong MỘT group đang mở, nên chỉ chọn khi các tấm chung một group cha (mở group đó ra).
+#   - Bấm nút lần sau: ô nhập điền sẵn số lần trước → Enter là sáng lại y cũ.
+# Tab sao + Delete xoá là hai chỗ DUY NHẤT tool này ghi vào model.
 #
 # Toolbar do LeHai_Tools/main.rb quản lý chung — file này chỉ expose create_cmd.
 
@@ -25,45 +33,50 @@ module TK
     KHE_SAO_MM = 10                                 # khe giữa các bản sao, mm (Khoa chốt 05/10)
     DICT_SAO   = 'LeHai_TimTamLoi'.freeze           # dấu bản sao → lần tìm sau bỏ qua, khỏi sao chồng
     PHIM_TAB   = 9
+    PHIM_XOA   = 46                                 # Delete (mã phím Windows; VK_DELETE nếu SketchUp có)
+    PHIM_N     = [78, 110].freeze                   # N / n — đổi phía nhắm: tủ 3D ↔ nesting
 
     # ---- 1 ket qua khop: entity + 8 goc the gioi + thuoc nesting hay tu ----
     # world_t = biến đổi tích luỹ từ gốc model tới tấm; mat_cha = vật liệu group cha gần nhất
-    # (tấm không tô riêng thì ăn màu cha) — hai thứ này dùng khi sao ra gốc
-    Match = Struct.new(:entity, :corners, :in_nesting, :name, :board_index, :world_t, :mat_cha)
+    # (tấm không tô riêng thì ăn màu cha) — hai thứ này dùng khi sao ra gốc.
+    # duong = các group/component từ gốc model tới group CHA của tấm (rỗng = tấm nằm ngay gốc) —
+    # để mở đúng group đó mà chọn tấm (Model#active_path=). Truyền xuôi, không đi ngược bằng
+    # entity.parent (sketchup-api.md: parent ra definition, không biết instance nào).
+    Match = Struct.new(:entity, :corners, :in_nesting, :name, :board_index, :world_t, :mat_cha, :duong)
 
     # ── Thu thap: duyet ca model, tinh toa do that, gom cac board ──
     def self.collect_boards
       boards = []
       traverse(Sketchup.active_model.entities,
-               Geom::Transformation.new, false, &lambda { |e, t, in_nest, mat|
-                 m = board_match(e, t, in_nest, mat)
+               Geom::Transformation.new, false, &lambda { |e, t, in_nest, mat, duong|
+                 m = board_match(e, t, in_nest, mat, duong)
                  boards << m if m
                })
       boards
     end
 
-    def self.traverse(entities, accum_t, in_nest, depth = 0, mat = nil, &blk)
+    def self.traverse(entities, accum_t, in_nest, depth = 0, mat = nil, duong = [], &blk)
       return if depth > 10
       entities.each do |e|
         next unless e.is_a?(Sketchup::Group) || e.is_a?(Sketchup::ComponentInstance)
         next if e.get_attribute(DICT_SAO, 'ban-sao')   # bản sao do tool đặt ở gốc: không tìm lại
         nm = e.name.to_s
         here_nest = in_nest || nm.include?(NEST_HINT)
-        blk.call(e, accum_t, here_nest, mat)
+        blk.call(e, accum_t, here_nest, mat, duong)
         child_t = accum_t * e.transformation
         children = e.is_a?(Sketchup::Group) ? e.entities : e.definition.entities
-        traverse(children, child_t, here_nest, depth + 1, e.material || mat, &blk)
+        traverse(children, child_t, here_nest, depth + 1, e.material || mat, duong + [e], &blk)
       end
     end
 
     # tra ve Match neu e la board co board-index, nguoc lai nil
-    def self.board_match(e, accum_t, in_nest, mat_cha = nil)
+    def self.board_match(e, accum_t, in_nest, mat_cha = nil, duong = [])
       d = e.attribute_dictionary(DICT)
       return nil unless d
       return nil unless d['is-board'] == true
       idx = d['board-index']
       return nil if idx.nil?
-      Match.new(e, world_corners(e, accum_t), in_nest, e.name.to_s, idx.to_i, accum_t * e.transformation, mat_cha)
+      Match.new(e, world_corners(e, accum_t), in_nest, e.name.to_s, idx.to_i, accum_t * e.transformation, mat_cha, duong)
     end
 
     # 8 goc bounding-box LOCAL doi sang toa do the gioi (om sat tam du bi xoay)
@@ -91,17 +104,77 @@ module TK
     end
 
     # ── Hop thoai nhap so ──
+    # Điền sẵn số lần tìm trước (nhớ trong phiên SketchUp): thoát ra dời/xoá một tấm rồi bấm nút
+    # lại, Enter là sáng lại y cũ — khỏi gõ lại 10 số (Khoa 09/10).
     def self.prompt
       res = UI.inputbox(
         ['Số tấm lỗi (board-index, cách nhau dấu phẩy):'],
-        [''],
+        [(@lan_truoc || []).join(', ')],
         'Tìm tấm lỗi'
       )
       return unless res # bam Cancel
       raw = res[0].to_s.scan(/\d+/)
       return UI.messagebox('Chưa nhập số nào.') if raw.empty?
 
+      @lan_truoc = raw.map(&:to_i).uniq
       find(raw)
+    end
+
+    # Tấm tool đang nhắm: :tu = tấm tủ 3D, :nest = tấm nesting.
+    def self.loc_phia(matches, phia)
+      matches.select { |m| m.in_nesting == (phia == :nest) }.reject { |m| m.entity.deleted? }
+    end
+
+    # ── Delete: xoá cả loạt tấm đang nhắm, một bậc Undo (Khoa 09/10) ──────
+    # Bỏ qua (không xoá) tấm đang khoá và tấm nằm trong group/component cha DÙNG CHUNG nhiều bản:
+    # xoá ở đó là mất luôn ở mọi bản tủ copy (SKETCHUP_NEN_TANG mục 2). Trả [đã xoá, [[match, lý do]...]].
+    def self.xoa_tam(matches)
+      model = Sketchup.active_model
+      con = matches.uniq { |m| m.entity }.reject { |m| m.entity.deleted? }
+      bo = []
+      xoa = con.select do |m|
+        cha = m.entity.parent
+        if m.entity.locked?
+          bo << [m, 'đang khoá']
+          false
+        elsif cha.respond_to?(:instances) && cha.instances.size > 1
+          bo << [m, "nằm trong group cha có #{cha.instances.size} bản copy dùng chung"]
+          false
+        else
+          true
+        end
+      end
+      return [[], bo] if xoa.empty?
+      model.start_operation('Xoa tam tim thay', true)
+      begin
+        xoa.each { |m| m.entity.erase! }
+        model.commit_operation
+      rescue => e
+        model.abort_operation
+        raise e
+      end
+      [xoa, bo]
+    end
+
+    # ── ESC: chọn sẵn tấm đang nhắm để Move/Delete bằng lệnh gốc SketchUp ──────
+    # Chỉ chọn được trong MỘT ngữ cảnh: các tấm phải chung một group cha → mở group đó
+    # (Model#active_path=, SketchUp 2020+) rồi chọn. Trả câu báo (nil = đã chọn đủ).
+    def self.chon_san(model, ms)
+      ms = ms.reject { |m| m.entity.deleted? }
+      return nil if ms.empty?
+      duong = ms.map(&:duong).uniq
+      if duong.size > 1
+        return "#{ms.size} tấm nằm ở #{duong.size} group khác nhau — SketchUp chỉ chọn được trong một group. " \
+               'Muốn xoá cả loạt: tìm lại rồi bấm Delete ngay trong tool.'
+      end
+      dich = duong.first
+      model.active_path = dich.empty? ? nil : dich unless (model.active_path || []) == dich
+      sel = model.selection
+      sel.clear
+      ms.each { |m| sel.add(m.entity) }
+      nil
+    rescue ArgumentError => e
+      "Không mở được group chứa tấm (#{e.message}) — group đang khoá?"
     end
 
     # ── Sao y hệt các tấm đang sáng ra gốc toạ độ (Khoa 05/10) ──────
@@ -198,7 +271,17 @@ module TK
         @matches = matches
         @wanted  = wanted
         @missing = missing
+        @phia    = matches.any? { |m| !m.in_nesting } ? :tu : :nest # Khoa 09/10: thường là tấm 3D
         @bounds  = combined_bounds(zoom_matches)
+      end
+
+      # Tấm đang nhắm cho Delete / ESC-chọn sẵn
+      def nham
+        TK::ABFFinder.loc_phia(@matches, @phia)
+      end
+
+      def ten_phia
+        @phia == :tu ? 'tấm tủ 3D' : 'tấm nesting'
       end
 
       # Uu tien zoom vao tam TU 3D (xanh); neu khong co thi lay tat ca
@@ -208,6 +291,9 @@ module TK
       end
 
       def activate
+        # Bỏ vùng chọn cũ: Delete trong tool là xoá TẤM ĐANG SÁNG — lỡ SketchUp cũng chạy lệnh Delete gốc
+        # thì không có gì cũ để xoá nhầm.
+        Sketchup.active_model.selection.clear
         zoom_to_target
         update_status
         Sketchup.active_model.active_view.invalidate
@@ -237,12 +323,26 @@ module TK
         draw_banner(view)
       end
 
-      def onCancel(_reason, view)
-        quit(view)
+      # reason 0 = ESC, 1 = bấm lại nút tool → thoát + chọn sẵn; 2 = Undo khi tool đang mở → chỉ thoát
+      def onCancel(reason, view)
+        reason == 2 ? quit(view) : thoat_chon(view)
       end
 
       def onKeyDown(key, _rep, _flags, view)
-        quit(view) if key == 27 # Esc
+        if key == 27 # Esc
+          thoat_chon(view)
+          return true
+        end
+        if TK::ABFFinder::PHIM_N.include?(key)
+          @phia = @phia == :tu ? :nest : :tu
+          update_status
+          view.invalidate
+          return true
+        end
+        if key == TK::ABFFinder::PHIM_XOA || key == 8 || (defined?(VK_DELETE) && key == VK_DELETE) # 8 = Backspace
+          xoa(view)
+          return true
+        end
         if key == TK::ABFFinder::PHIM_TAB
           begin
             sao(view)
@@ -263,13 +363,23 @@ module TK
 
       # Go so + Enter -> doi sang tam khac ma khong can Esc
       def onUserText(text, view)
+        # Đường thứ hai cho Delete / N: phím tắt gốc SketchUp có thể giành phím trước tool (bài học "S" = Scale
+        # 05/10, Delete = lệnh xoá gốc) — gõ "x" hoặc "n" vào ô Measurements rồi Enter thì chắc chắn tới.
+        lenh = text.to_s.strip.downcase
+        return xoa(view) if %w[x xoa xoá].include?(lenh)
+        if lenh == 'n'
+          @phia = @phia == :tu ? :nest : :tu
+          update_status
+          return view.invalidate
+        end
         nums = text.to_s.scan(/\d+/)
         return if nums.empty?
         retarget(nums, view)
       end
 
       def getStatusText
-        msg = "Sáng tấm: #{@wanted.join(', ')}  —  gõ số khác để đổi · Tab: sao ra gốc toạ độ · ESC để thoát"
+        msg = "Sáng tấm: #{@wanted.join(', ')}  —  đang nhắm #{ten_phia} (N đổi) · Delete: xoá cả loạt · " \
+              'ESC: thoát + chọn sẵn · Tab: sao ra gốc · gõ số khác để đổi'
         msg += "  |  KHÔNG thấy: #{@missing.join(', ')}" unless @missing.empty?
         msg
       end
@@ -303,6 +413,8 @@ module TK
         @matches = hits
         @wanted  = wanted
         @missing = missing
+        @phia    = :nest if hits.none? { |m| !m.in_nesting } # giữ phía đang chọn, trừ khi phía đó trống
+        @phia    = :tu if hits.none?(&:in_nesting)
         @bounds  = combined_bounds(zoom_matches)
         zoom_to_target
         update_status
@@ -312,6 +424,39 @@ module TK
       def quit(view)
         view.model.select_tool(nil)
         view.invalidate
+      end
+
+      # ESC: thoát rồi chọn sẵn tấm đang nhắm (tool tắt trước, kẻo đổi group mở lúc tool còn vẽ)
+      def thoat_chon(view)
+        return if @da_thoat
+        @da_thoat = true
+        ms = nham
+        quit(view)
+        bao = TK::ABFFinder.chon_san(view.model, ms)
+        UI.messagebox(bao) if bao
+      end
+
+      # Delete: hỏi rồi xoá cả loạt tấm đang nhắm; tool vẫn mở với các tấm còn lại
+      def xoa(view)
+        ms = nham
+        return UI.messagebox("Không có #{ten_phia} nào đang sáng để xoá. Bấm N để đổi phía.") if ms.empty?
+        so = ms.map(&:board_index).uniq.sort
+        hoi = "Xoá #{ms.uniq { |m| m.entity }.size} #{ten_phia} (số #{so.join(', ')})?\n\nCtrl+Z để lấy lại."
+        return unless UI.messagebox(hoi, MB_YESNO) == IDYES
+        xoa_dc, bo = TK::ABFFinder.xoa_tam(ms)
+        @matches.reject! { |m| m.entity.deleted? }
+        msg = "Đã xoá #{xoa_dc.size} #{ten_phia}. Ctrl+Z để lấy lại."
+        unless bo.empty?
+          msg += "\n\nKHÔNG xoá #{bo.size} tấm:\n" + bo.map { |m, ly_do| "  số #{m.board_index}: #{ly_do}" }.join("\n")
+        end
+        UI.messagebox(msg)
+        return quit(view) if @matches.empty?
+        update_status
+        view.invalidate
+      rescue => e
+        puts "[Tìm Tấm Lỗi] #{e.class}: #{e.message}"
+        puts e.backtrace.first(5).join("\n") if e.backtrace
+        UI.messagebox("Lỗi xoá: #{e.message}")
       end
 
       def update_status
@@ -383,9 +528,9 @@ module TK
 
       # ---- Bang nhac noi goc tren-trai man hinh ----
       def draw_banner(view)
-        line1 = "Đang sáng tấm: #{@wanted.join(', ')}"
-        line2 = @missing.empty? ? 'Gõ số khác để đổi tấm  ·  Tab: sao ra gốc  ·  ESC để thoát' :
-                "KHÔNG thấy: #{@missing.join(', ')}  ·  Gõ số / Tab sao / ESC"
+        line1 = "Đang sáng tấm: #{@wanted.join(', ')}   ·   nhắm #{ten_phia} (N hoặc gõ n Enter: đổi)"
+        line2 = 'Delete (hoặc gõ x Enter): xoá cả loạt  ·  ESC: thoát + chọn sẵn  ·  Tab: sao ra gốc  ·  gõ số để đổi'
+        line2 = "KHÔNG thấy: #{@missing.join(', ')}  ·  " + line2 unless @missing.empty?
         x = 18
         y = 18
         w = 26 + [line1.length, line2.length].max * 9

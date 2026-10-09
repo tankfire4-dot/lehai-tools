@@ -75,6 +75,7 @@ module TK
       begin
         @count      = 0
         @comp_count = 0
+        @loi        = 0   # mục dọn KHÔNG được (soát 09/10: trước nuốt im, bảng vẫn báo "✓ Xong")
         dim_n = erase_dims(dims)   # xóa dim/ghi chú đã gom (annotation ngoài targets)
         roots = targets
 
@@ -86,8 +87,16 @@ module TK
           roots = roots.map do |e|
             next nil if e.deleted?
             if e.is_a?(Sketchup::Group)
-              @comp_count += 1
-              group_to_component(e)
+              # đổi hỏng → giữ group cũ để vẫn dọn tiếp, KHÔNG đếm là đã đổi (trước: đếm +1 rồi mới đổi, hỏng
+              # thì group bị bỏ khỏi bước dọn mà con số vẫn báo đủ)
+              c = group_to_component(e)
+              if c
+                @comp_count += 1
+                c
+              else
+                @loi += 1
+                e
+              end
             else
               e
             end
@@ -154,7 +163,8 @@ module TK
       done << 'tag'        if opts['tag']
       done << 'thuộc tính' if opts['attr']
       parts << "xóa #{done.join(' + ')}" unless done.empty?
-      "✓ Xong: #{parts.join(' · ')}."
+      return "✓ Xong: #{parts.join(' · ')}." if @loi.to_i.zero?
+      "⚠ Xong nhưng #{@loi} mục không dọn được (xem Window › Ruby Console): #{parts.join(' · ')}."
     end
     private_class_method :summary
 
@@ -189,6 +199,13 @@ module TK
       group = parent_entities.add_group
       group.name  = name unless name.empty?
       group.layer = layer if layer
+      # Chép thứ ở VỎ (soát 09/10): trước chỉ chép tên + tag → vật liệu vỏ và attribute (ABF/is-board,
+      # board-index… nằm ở VỎ — sketchup-api.md 17/09) mất dù thợ KHÔNG tick "Xoá màu"/"Xoá thuộc tính":
+      # ABF hết nhận là ván, tấm đổi màu. Xoá vẫn do các ô tick lo ở bước dọn sau. Khuôn: tim_tam_loi sao_mot.
+      group.material = instance.material if instance.material
+      (instance.attribute_dictionaries || []).each do |dict|
+        dict.keys.each { |k| group.set_attribute(dict.name, k, dict[k]) }
+      end
 
       copy = group.entities.add_instance(defn, trans)
       instance.erase!
@@ -206,7 +223,8 @@ module TK
         instance.definition.name = name rescue nil
       end
       instance
-    rescue StandardError
+    rescue StandardError => e
+      puts "[Dọn Component] không đổi được group → component: #{e.message}"
       nil
     end
     private_class_method :group_to_component
@@ -248,23 +266,23 @@ module TK
     def self.strip_name(entity)
       # chỉ group/component mới có tên (name=) — face/edge bỏ qua tự nhiên
       entity.name = '' if entity.respond_to?(:name=)
-    rescue StandardError
-      nil
+    rescue StandardError => e
+      dem_loi('tên', e)
     end
     private_class_method :strip_name
 
     def self.strip_material(entity)
       entity.material      = nil if entity.respond_to?(:material=)
       entity.back_material = nil if entity.respond_to?(:back_material=)
-    rescue StandardError
-      nil
+    rescue StandardError => e
+      dem_loi('màu', e)
     end
     private_class_method :strip_material
 
     def self.strip_tag(entity)
       entity.layer = nil if entity.respond_to?(:layer=)
-    rescue StandardError
-      nil
+    rescue StandardError => e
+      dem_loi('tag', e)
     end
     private_class_method :strip_tag
 
@@ -272,10 +290,18 @@ module TK
       dicts = entity.attribute_dictionaries
       return unless dicts
       dicts.map(&:name).each { |n| entity.delete_attribute(n) }
-    rescue StandardError
-      nil
+    rescue StandardError => e
+      dem_loi('thuộc tính', e)
     end
     private_class_method :strip_attributes
+
+    # Một mục dọn hỏng: đếm để dòng kết quả nói thật + ghi Console để biết vì sao (không chặn cả lượt)
+    def self.dem_loi(viec, e)
+      @loi = @loi.to_i + 1
+      puts "[Dọn Component] không xoá được #{viec}: #{e.message}"
+      nil
+    end
+    private_class_method :dem_loi
 
     # ── Quét toàn model xóa object ABF ─────────────────────────
     def self.purge_abf_objects(entities, depth)

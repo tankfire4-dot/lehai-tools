@@ -281,4 +281,173 @@ ca(out, 'xep_hang thuần: 2 hàng, khe 10') do
   [d == [[[-5, -5, -5], [13, 0, 0]], [[0, 13, 0]]], d.inspect]
 end
 
+# ── Làm tiếp trên tấm đã tìm (Khoa 09/10): Delete xoá cả loạt, ESC chọn sẵn, N đổi phía ──
+# SketchUp giả thêm: cha (parent) / definition.instances / locked? / erase! / active_path= văng khi khoá.
+MB_YESNO = 4 unless defined?(MB_YESNO)
+IDYES = 6 unless defined?(IDYES)
+module UI
+  def self.tra_loi=(v); @tra_loi = v; end
+  def self.messagebox(msg, *_a); (@hop ||= []) << msg.to_s; @tra_loi.nil? ? IDYES : @tra_loi; end
+end
+module Sketchup
+  class DefGia
+    def instances; @instances ||= []; end
+  end
+  module VoGia
+    attr_accessor :parent
+    attr_writer :locked
+    def locked?; !!@locked; end
+    def deleted?; !!@xoa; end
+    def erase!
+      raise 'xoá tấm đã xoá' if @xoa
+      raise 'xoá trong ngữ cảnh lạ' unless parent.entities.delete(self)
+      @xoa = true
+    end
+  end
+  class ModelT
+    def active_path=(p)
+      raise ArgumentError, 'instance path chứa group khoá' if (p || []).any?(&:locked?)
+      @active_path = p
+    end
+  end
+end
+
+# nối cha/con như SketchUp thật: tấm nằm trong definition của group cha, definition biết các bản dùng nó
+def noi_cha(m, ents = m.entities, cha = m)
+  ents.each do |e|
+    next unless e.respond_to?(:definition)
+    e.parent = cha
+    e.definition.instances << e unless e.definition.instances.include?(e)
+    noi_cha(m, e.definition.entities, e.definition)
+  end
+  m
+end
+
+def tool_cho(so)
+  hits, w, miss = F.resolve(so)
+  F::HighlightTool.new(hits, w, miss)
+end
+
+ca(out, 'Mặc định nhắm tấm tủ 3D; N đổi sang nesting, N lần nữa về 3D') do
+  canh
+  t = tool_cho(%w[7 9])
+  a = t.send(:nham).map(&:in_nesting).uniq
+  t.onKeyDown(78, 1, 0, Sketchup.active_model.active_view)
+  b = t.send(:nham).map(&:in_nesting).uniq
+  t.onKeyDown(110, 1, 0, Sketchup.active_model.active_view)
+  c = t.send(:nham).map(&:in_nesting).uniq
+  [a == [false] && b == [true] && c == [false], "đầu #{a} · N #{b} · n #{c}"]
+end
+
+ca(out, 'Chỉ tìm thấy tấm nesting: tự nhắm nesting') do
+  canh
+  t = tool_cho(%w[7])
+  hits, = F.resolve(%w[7])
+  t2 = F::HighlightTool.new(hits.select(&:in_nesting), [7], [])
+  [t2.send(:nham).size == 1 && t2.send(:nham).first.in_nesting, t2.send(:ten_phia)]
+end
+
+ca(out, 'Delete: hỏi rồi xoá cả 2 tấm tủ 3D (7, 9) một bậc Undo; nesting còn nguyên; tool còn mở') do
+  m = noi_cha(canh)
+  UI.tra_loi = nil
+  t = tool_cho(%w[7 9])
+  an = t.onKeyDown(46, 1, 0, m.active_view)
+  tu = m.entities.first.entities.map(&:name)
+  con, = F.resolve(%w[7 9])
+  hoi = UI.hop[-2].to_s
+  ok = an == true && m.ops == [[:start, 'Xoa tam tim thay'], [:commit]] && tu == ['đợt xiên', 'hông phải'] &&
+       con.size == 2 && con.all?(&:in_nesting) && hoi.include?('Xoá 2 tấm tủ 3D (số 7, 9)') && m.tool == :cu
+  [ok, "trả #{an} · ops #{m.ops} · tủ còn #{tu} · tìm lại #{con.size} · hỏi: #{hoi.tr("\n", ' ')}"]
+end
+
+ca(out, 'Delete mà bấm Không: không xoá, không mở bậc Undo') do
+  m = noi_cha(canh)
+  UI.tra_loi = 7
+  tool_cho(%w[7 9]).onKeyDown(46, 1, 0, m.active_view)
+  UI.tra_loi = nil
+  [m.ops.empty? && m.entities.first.entities.size == 4, "ops #{m.ops} · tủ còn #{m.entities.first.entities.size}"]
+end
+
+ca(out, 'Delete khi tủ là bản COPY dùng chung (2 bản): KHÔNG xoá, báo lý do — xoá là mất ở cả 2 tủ') do
+  m = noi_cha(canh)
+  tu = m.entities.first
+  ban2 = Sketchup::GroupT.new(tu.definition, mm_tr(9000, 0, 0), 'Tủ bếp copy')
+  m.entities << ban2
+  noi_cha(m)
+  xoa, bo = F.xoa_tam(F.resolve(%w[9]).first.reject(&:in_nesting))
+  [xoa.empty? && bo.size == 1 && bo[0][1].include?('2 bản copy') && m.ops.empty? && tu.entities.size == 4,
+   "xoá #{xoa.size} · bỏ #{bo.map { |b| b[1] }} · ops #{m.ops}"]
+end
+
+ca(out, 'Delete gặp tấm khoá: xoá tấm còn lại, báo tấm khoá') do
+  m = noi_cha(canh)
+  hits, = F.resolve(%w[7 9])
+  tu = hits.reject(&:in_nesting)
+  tu.find { |h| h.board_index == 7 }.entity.locked = true
+  xoa, bo = F.xoa_tam(tu)
+  [xoa.map(&:board_index) == [9] && bo.map { |b, l| [b.board_index, l] } == [[7, 'đang khoá']], "xoá #{xoa.map(&:board_index)} · bỏ #{bo.map { |b, l| [b.board_index, l] }}"]
+end
+
+ca(out, 'ESC: tấm 3D chung một tủ → mở tủ đó + chọn sẵn 2 tấm, tool thoát') do
+  m = noi_cha(canh)
+  t = tool_cho(%w[7 9])
+  an = t.onKeyDown(27, 1, 0, m.active_view)
+  ok = an == true && m.tool.nil? && m.active_path == [m.entities.first] && m.selection.map(&:name).sort == ['hông trái', 'đáy'].sort
+  [ok, "trả #{an} · tool #{m.tool.inspect} · mở #{(m.active_path || []).map(&:name)} · chọn #{m.selection.map(&:name)}"]
+end
+
+ca(out, 'ESC sau N: chọn sẵn 2 tấm nesting, mở đúng sheet (__ABF_Nesting › sheet)') do
+  m = noi_cha(canh)
+  t = tool_cho(%w[7 9])
+  t.onKeyDown(78, 1, 0, m.active_view)
+  t.onCancel(0, m.active_view)
+  [m.active_path.map(&:name) == ['__ABF_Nesting', '__MDF-sheet-1'] && m.selection.size == 2,
+   "mở #{(m.active_path || []).map(&:name)} · chọn #{m.selection.map(&:name)}"]
+end
+
+ca(out, 'ESC khi tấm ở 2 group khác nhau: không chọn, báo vì sao + chỉ Delete') do
+  m = noi_cha(canh)
+  hits, = F.resolve(%w[7 5])
+  ms = hits.reject(&:in_nesting)
+  ms.find { |h| h.board_index == 5 }.duong = []   # giả: tấm 5 nằm ngay gốc model
+  bao = F.chon_san(m, ms)
+  [bao.to_s.include?('2 group khác nhau') && bao.include?('Delete') && m.selection.empty?, bao.to_s]
+end
+
+ca(out, 'ESC khi group cha đang khoá: không văng, báo lý do') do
+  m = noi_cha(canh)
+  m.entities.first.locked = true
+  bao = F.chon_san(m, F.resolve(%w[7]).first.reject(&:in_nesting))
+  [bao.to_s.include?('đang khoá') && m.selection.empty?, bao.to_s]
+end
+
+ca(out, 'Undo khi tool đang mở (onCancel lý do 2): chỉ thoát, không mở group, không chọn') do
+  m = noi_cha(canh)
+  tool_cho(%w[7 9]).onCancel(2, m.active_view)
+  [m.tool.nil? && m.active_path.nil? && m.selection.empty?, "mở #{m.active_path.inspect} · chọn #{m.selection.size}"]
+end
+
+ca(out, 'Đường thứ hai (phím tắt SketchUp giành phím): gõ "n" Enter đổi phía, "x" Enter xoá; Backspace cũng xoá') do
+  m = noi_cha(canh)
+  t = tool_cho(%w[7 9])
+  t.onUserText('n', m.active_view)
+  a = t.send(:nham).map(&:in_nesting).uniq
+  t.onUserText(' N ', m.active_view)
+  t.onUserText('x', m.active_view)
+  xoa1 = m.entities.first.entities.size
+  m2 = noi_cha(canh)
+  tool_cho(%w[9]).onKeyDown(8, 1, 0, m2.active_view)
+  xoa2 = m2.entities.first.entities.size
+  [a == [true] && xoa1 == 2 && xoa2 == 3, "sau n: nesting? #{a} · x xoá còn #{xoa1}/4 · Backspace còn #{xoa2}/4"]
+end
+
+ca(out, 'Bấm nút lần sau: ô nhập điền sẵn số lần trước') do
+  canh
+  goi = []
+  UI.define_singleton_method(:inputbox) { |_a, mac_dinh, _t| goi << mac_dinh.first; ['7, 9, 9'] }
+  F.prompt
+  F.prompt
+  [goi == ['', '7, 9'], "lần 1 #{goi[0].inspect} · lần 2 #{goi[1].inspect}"]
+end
+
 JSON.generate(out)
